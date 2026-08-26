@@ -23,6 +23,16 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false, unique = true)
+    private String email;
+
+    @Column(nullable = false, unique = true)
+    private String username;
+
+    @Column(name = "password_hash", nullable = false, length = 255)
+    @JsonIgnore
+    private String passwordHash;
+
     @Column(name = "number_contributions")
     private Integer numberContributions;
 
