@@ -1,8 +1,8 @@
-# Authentication API - TODO Scaffold
+# Authentication REST API
 
 ## Scope
 
-This folder describes planned registration and login APIs for the study platform. It contains no application code.
+This document explains the implemented registration, login, logout, and account-deletion API for the study platform.
 
 Authentication is shared platform groundwork: progress persistence, author verification, ratings/trust, roadmaps, uploads, and moderation all need an authenticated user identity.
 
@@ -21,21 +21,53 @@ Authentication is shared platform groundwork: progress persistence, author verif
 - Use `@DeleteMapping` for session removal and account deletion. The account endpoint deletes the current user's resource, while the session endpoint deletes the current authentication state.
 - Keep `DELETE /api/users/me` separate from login/register. It makes the URL describe the resource being deleted and gives you a clean REST-controller exercise.
 
-## Required decisions before coding
+## Implemented design
 
-- Pick the unique login identifier: email, university ID, username, or a combination.
-- Add that identifier and a password hash to `model/User.java`; never store raw passwords.
-- Choose JWT access/refresh tokens or server-managed sessions.
-- Define allowed roles and registration defaults. `UserRole` has role records but no role vocabulary.
-- Decide password rules, account verification, rate limiting, lockout, reset flow, and shared API error format.
-- `Verification` is for author/grade evidence, not automatically account/email verification.
+- Email is the unique login identifier and is normalized to lowercase.
+- Passwords are hashed with BCrypt and raw passwords are never stored or returned.
+- Login creates a random opaque bearer token. Only its SHA-256 hash is stored in `auth_sessions`.
+- Bearer tokens expire after 24 hours by default and can be invalidated through the logout endpoint.
+- New users receive the `USER` role.
+- The API is stateless: clients send `Authorization: Bearer <accessToken>` on protected requests.
+- Account deletion removes sessions and roles first. If the user owns platform content protected by database relationships, deletion returns `409 Conflict` until the team defines retention/anonymization rules.
+- `Verification` remains grade/author evidence and is not used as an authentication credential.
 
-## Order of work
+## Request examples
 
-1. Agree data-model/security decisions and migrations.
-2. Create/validate DTOs.
-3. Implement repository and service rules.
-4. Implement controllers/security configuration, including `@PostMapping` and `@DeleteMapping` routes.
-5. Add service and HTTP tests.
+Register:
 
-See the package README files for planned types and functions.
+```http
+POST /api/auth/register
+Content-Type: application/json
+
+{
+  "email": "student@example.com",
+  "password": "correct-horse"
+}
+```
+
+Login:
+
+```http
+POST /api/auth/login
+Content-Type: application/json
+
+{
+  "email": "student@example.com",
+  "password": "correct-horse"
+}
+```
+
+Use the `accessToken` returned by login:
+
+```http
+DELETE /api/auth/session
+Authorization: Bearer <accessToken>
+```
+
+```http
+DELETE /api/users/me
+Authorization: Bearer <accessToken>
+```
+
+See the package README files and Java classes for the responsibility of each layer.
