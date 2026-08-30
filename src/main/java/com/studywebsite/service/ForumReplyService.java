@@ -32,6 +32,10 @@ public class ForumReplyService {
         return forumReplyRepository.findByAuthor_Id(authorId);
     }
 
+    public List<ForumReply> findByPostId(Long postId) {
+        return forumReplyRepository.findByPost_Id(postId);
+    }
+
     public List<ForumReply> searchByContent(String contentPart) {
         return forumReplyRepository.findByContentContainingIgnoreCase(contentPart);
     }
