@@ -7,5 +7,6 @@ import java.util.List;
 public interface ForumReplyRepository extends JpaRepository<ForumReply, Long> {
     List<ForumReply> findByAuthor_Id(Long authorId);
     List<ForumReply> findByContentContainingIgnoreCase(String contentPart);
+    List<ForumReply> findByPost_Id(Long postId);
 }
 
