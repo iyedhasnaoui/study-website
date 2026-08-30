@@ -1,4 +1,4 @@
-import { useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useState, type ChangeEvent, type FormEvent } from 'react'
 
 import {
   FORUM_POST_CONTENT_MAX_LENGTH,
@@ -55,9 +55,6 @@ export function CreatePostForm({ onCreate }: CreatePostFormProps) {
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const titleLength = useMemo(() => formState.title.length, [formState.title])
-  const contentLength = useMemo(() => formState.content.length, [formState.content])
-
   const handleChange = (field: keyof typeof initialFormState) => (
     event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
@@ -100,31 +97,21 @@ export function CreatePostForm({ onCreate }: CreatePostFormProps) {
 
   return (
     <section className="forum-panel forum-panel--form" aria-labelledby="create-post-heading">
-      <div className="forum-panel__header">
-        <div>
-          <h2 id="create-post-heading">Create Post</h2>
-        </div>
-      </div>
+      <h2 id="create-post-heading">Create post</h2>
 
       <form className="forum-form" onSubmit={handleSubmit} noValidate>
         <label className="forum-field">
-          <span className="forum-field__label">Title</span>
           <input
             type="text"
             value={formState.title}
             onChange={handleChange('title')}
+            aria-label="Title"
             minLength={FORUM_POST_TITLE_MIN_LENGTH}
             maxLength={FORUM_POST_TITLE_MAX_LENGTH}
             aria-invalid={Boolean(fieldErrors.title)}
             aria-describedby={fieldErrors.title ? 'forum-post-title-error' : undefined}
-            placeholder="Share what you are learning"
+            placeholder="Title"
           />
-          <div className="forum-field__meta">
-            <span>{titleLength} characters</span>
-            <span>
-              {FORUM_POST_TITLE_MIN_LENGTH}–{FORUM_POST_TITLE_MAX_LENGTH}
-            </span>
-          </div>
           {fieldErrors.title ? (
             <p className="forum-field__error" id="forum-post-title-error">
               {fieldErrors.title}
@@ -133,23 +120,17 @@ export function CreatePostForm({ onCreate }: CreatePostFormProps) {
         </label>
 
         <label className="forum-field">
-          <span className="forum-field__label">Content</span>
           <textarea
             value={formState.content}
             onChange={handleChange('content')}
+            aria-label="Content"
             minLength={FORUM_POST_CONTENT_MIN_LENGTH}
             maxLength={FORUM_POST_CONTENT_MAX_LENGTH}
-            rows={10}
+            rows={9}
             aria-invalid={Boolean(fieldErrors.content)}
             aria-describedby={fieldErrors.content ? 'forum-post-content-error' : undefined}
-            placeholder="Write the full post content here..."
+            placeholder="Write your post"
           />
-          <div className="forum-field__meta">
-            <span>{contentLength} characters</span>
-            <span>
-              {FORUM_POST_CONTENT_MIN_LENGTH}–{FORUM_POST_CONTENT_MAX_LENGTH}
-            </span>
-          </div>
           {fieldErrors.content ? (
             <p className="forum-field__error" id="forum-post-content-error">
               {fieldErrors.content}
@@ -158,21 +139,20 @@ export function CreatePostForm({ onCreate }: CreatePostFormProps) {
         </label>
 
         <label className="forum-field">
-          <span className="forum-field__label">Tags</span>
           <input
             type="text"
             value={formState.tagsText}
             onChange={handleChange('tagsText')}
-            placeholder="java, spring, api"
+            aria-label="Tags"
+            placeholder="Tags"
           />
-          <p className="forum-field__hint">Comma-separated tags (optional)</p>
         </label>
 
         {submitError ? <p className="forum-form__error">{submitError}</p> : null}
 
         <div className="forum-form__actions">
           <button type="submit" className="forum-button" disabled={isSubmitting}>
-            {isSubmitting ? 'Publishing...' : 'Publish post'}
+            {isSubmitting ? 'Posting…' : 'Post'}
           </button>
         </div>
       </form>

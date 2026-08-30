@@ -1,18 +1,18 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { deleteForumPost, getForumPosts } from '../api/forumApi'
 import type { ForumPostResponseDto } from '../types'
 import { PostCard } from './PostCard'
 
 interface PostFeedProps {
-  reloadKey: number
+  reloadKey?: number
   tagFilter?: string
 }
 
 const getErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : 'Unable to load forum posts.'
 
-export function PostFeed({ reloadKey, tagFilter }: PostFeedProps) {
+export function PostFeed({ reloadKey = 0, tagFilter }: PostFeedProps = {}) {
   const [posts, setPosts] = useState<ForumPostResponseDto[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -50,8 +50,6 @@ export function PostFeed({ reloadKey, tagFilter }: PostFeedProps) {
     }
   }, [reloadKey, tagFilter])
 
-  const visiblePosts = useMemo(() => posts, [posts])
-
   const handleDelete = async (postId: number) => {
     setDeletingPostId(postId)
     setDeleteError(null)
@@ -68,18 +66,9 @@ export function PostFeed({ reloadKey, tagFilter }: PostFeedProps) {
 
   return (
     <section className="forum-panel forum-panel--feed" aria-labelledby="forum-feed-heading">
-      <div className="forum-panel__header">
-        <div>
-          <p className="forum-kicker">Feed</p>
-          <h2 id="forum-feed-heading">Latest forum posts</h2>
-        </div>
-        <p className="forum-panel__subtitle">
-          Posts are fetched from <code>/api/forum/posts</code> and updated after every create or
-          delete action.
-        </p>
-      </div>
+      <h2 id="forum-feed-heading">Latest posts</h2>
 
-      {isLoading ? <div className="forum-state">Loading posts…</div> : null}
+      {isLoading ? <div className="forum-state">Loading…</div> : null}
 
       {!isLoading && loadError ? <div className="forum-state forum-state--error">{loadError}</div> : null}
 
@@ -87,15 +76,15 @@ export function PostFeed({ reloadKey, tagFilter }: PostFeedProps) {
         <div className="forum-state forum-state--error">{deleteError}</div>
       ) : null}
 
-      {!isLoading && !loadError && visiblePosts.length === 0 ? (
+      {!isLoading && !loadError && posts.length === 0 ? (
         <div className="forum-state forum-state--empty">
           <strong>No posts yet.</strong>
-          <span>Be the first to share something useful with the study community.</span>
+          <span>Start the discussion.</span>
         </div>
       ) : null}
 
       <div className="forum-feed" aria-live="polite">
-        {visiblePosts.map((post) => (
+        {posts.map((post) => (
           <PostCard
             key={post.id}
             post={post}

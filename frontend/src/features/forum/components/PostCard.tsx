@@ -68,8 +68,10 @@ export function PostCard({ post, onDelete, deleting = false }: PostCardProps) {
       </div>
 
       <footer className="forum-post-card__footer">
-        <span>Created: {formatDateTime(post.createdAt)}</span>
-        <span>Updated: {formatDateTime(post.updatedAt)}</span>
+        <span>Posted {formatDateTime(post.createdAt)}</span>
+        {post.updatedAt && post.updatedAt !== post.createdAt ? (
+          <span>Updated {formatDateTime(post.updatedAt)}</span>
+        ) : null}
       </footer>
     </article>
   )
