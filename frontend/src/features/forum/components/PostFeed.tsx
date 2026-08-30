@@ -64,32 +64,58 @@ export function PostFeed({ reloadKey = 0, tagFilter }: PostFeedProps = {}) {
     }
   }
 
+  const handlePostUpdated = (updatedPost: ForumPostResponseDto) => {
+    setPosts((currentPosts) =>
+      currentPosts.map((post) => (post.id === updatedPost.id ? updatedPost : post)),
+    )
+  }
+
   return (
-    <section className="forum-panel forum-panel--feed" aria-labelledby="forum-feed-heading">
-      <h2 id="forum-feed-heading">Latest posts</h2>
+    <section className="space-y-5" aria-labelledby="forum-feed-heading">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 id="forum-feed-heading" className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-zinc-100">
+            Latest posts
+          </h2>
+          <p className="mt-1 text-sm text-slate-500 dark:text-zinc-400">
+            Browse the most recent discussions and join any thread below.
+          </p>
+        </div>
+      </div>
 
-      {isLoading ? <div className="forum-state">Loading…</div> : null}
-
-      {!isLoading && loadError ? <div className="forum-state forum-state--error">{loadError}</div> : null}
-
-      {!isLoading && !loadError && deleteError ? (
-        <div className="forum-state forum-state--error">{deleteError}</div>
-      ) : null}
-
-      {!isLoading && !loadError && posts.length === 0 ? (
-        <div className="forum-state forum-state--empty">
-          <strong>No posts yet.</strong>
-          <span>Start the discussion.</span>
+      {isLoading ? (
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-white/80 px-4 py-6 text-sm text-slate-500 shadow-sm dark:border-zinc-800 dark:bg-zinc-950/60 dark:text-zinc-400">
+          Loading posts…
         </div>
       ) : null}
 
-      <div className="forum-feed" aria-live="polite">
+      {!isLoading && loadError ? (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-200">
+          {loadError}
+        </div>
+      ) : null}
+
+      {!isLoading && !loadError && deleteError ? (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-200">
+          {deleteError}
+        </div>
+      ) : null}
+
+      {!isLoading && !loadError && posts.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-white/80 px-4 py-8 text-sm text-slate-500 shadow-sm dark:border-zinc-800 dark:bg-zinc-950/60 dark:text-zinc-400">
+          <strong className="block text-base font-semibold text-slate-900 dark:text-zinc-100">No posts yet.</strong>
+          <span className="mt-1 block">Start the discussion.</span>
+        </div>
+      ) : null}
+
+      <div className="space-y-4" aria-live="polite">
         {posts.map((post) => (
           <PostCard
             key={post.id}
             post={post}
             deleting={deletingPostId === post.id}
             onDelete={handleDelete}
+            onUpdated={handlePostUpdated}
           />
         ))}
       </div>
