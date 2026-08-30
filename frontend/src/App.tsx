@@ -8,8 +8,6 @@ import {
   getForumRouteFromHash,
   type ForumRoute,
 } from './features/forum/forumRoutes'
-import './features/forum/forum.css'
-import './App.css'
 
 function App() {
   const [route, setRoute] = useState<ForumRoute>(() => {
@@ -47,7 +45,7 @@ function App() {
   }
 
   return (
-    <div className="app">
+    <div className="min-h-screen bg-transparent text-slate-900 dark:text-zinc-100">
       <Navbar activeRoute={route} onNavigate={navigate} />
       {route === 'create' ? (
         <CreatePostPage onBackToFeed={() => navigate('feed')} onCreated={() => navigate('feed')} />
