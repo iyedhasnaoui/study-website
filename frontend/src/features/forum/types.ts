@@ -31,3 +31,21 @@ export interface ForumPostFormErrors {
   content?: string
 }
 
+export interface ForumReplyCreateDto {
+  content: string
+}
+
+export interface ForumReplyUpdateDto {
+  content?: string | null
+}
+
+export interface ForumReplyResponseDto {
+  id: number
+  postId: number | null
+  content: string
+  authorId: number | null
+  authorUsername: string | null
+  createdAt: string | null
+  updatedAt: string | null
+}
+

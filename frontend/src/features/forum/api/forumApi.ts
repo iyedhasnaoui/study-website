@@ -4,6 +4,9 @@ import type {
   ForumPostCreateDto,
   ForumPostResponseDto,
   ForumPostUpdateDto,
+  ForumReplyCreateDto,
+  ForumReplyResponseDto,
+  ForumReplyUpdateDto,
 } from '../types'
 
 const DEFAULT_BASE_URL = 'http://localhost:8080'
@@ -70,8 +73,67 @@ export async function updateForumPost(
   return response.data
 }
 
+export async function updatePost(
+  id: number,
+  payload: ForumPostUpdateDto,
+  userId: number = DEFAULT_USER_ID,
+): Promise<ForumPostResponseDto> {
+  return updateForumPost(id, payload, userId)
+}
+
 export async function deleteForumPost(id: number, userId: number = DEFAULT_USER_ID): Promise<void> {
   await forumApiClient.delete(`/api/forum/posts/${id}`, {
+    headers: withUserHeader(userId),
+  })
+}
+
+export async function getRepliesByPostId(postId: number): Promise<ForumReplyResponseDto[]> {
+  const response = await forumApiClient.get<ForumReplyResponseDto[]>(
+    `/api/forum/posts/${postId}/replies`,
+  )
+
+  return response.data
+}
+
+export async function createReply(
+  postId: number,
+  payload: ForumReplyCreateDto,
+  userId: number = DEFAULT_USER_ID,
+): Promise<ForumReplyResponseDto> {
+  const response = await forumApiClient.post<ForumReplyResponseDto>(
+    `/api/forum/posts/${postId}/replies`,
+    payload,
+    {
+      headers: withUserHeader(userId),
+    },
+  )
+
+  return response.data
+}
+
+export async function updateReply(
+  postId: number,
+  id: number,
+  payload: ForumReplyUpdateDto,
+  userId: number = DEFAULT_USER_ID,
+): Promise<ForumReplyResponseDto> {
+  const response = await forumApiClient.put<ForumReplyResponseDto>(
+    `/api/forum/posts/${postId}/replies/${id}`,
+    payload,
+    {
+      headers: withUserHeader(userId),
+    },
+  )
+
+  return response.data
+}
+
+export async function deleteReply(
+  postId: number,
+  id: number,
+  userId: number = DEFAULT_USER_ID,
+): Promise<void> {
+  await forumApiClient.delete(`/api/forum/posts/${postId}/replies/${id}`, {
     headers: withUserHeader(userId),
   })
 }
