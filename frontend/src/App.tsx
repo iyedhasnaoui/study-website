@@ -45,7 +45,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-transparent text-slate-900 dark:text-zinc-100">
+    <div className="min-h-screen bg-transparent text-slate-900 dark:text-zinc-100 dark:bg-gray-800">
       <Navbar activeRoute={route} onNavigate={navigate} />
       {route === 'create' ? (
         <CreatePostPage onBackToFeed={() => navigate('feed')} onCreated={() => navigate('feed')} />

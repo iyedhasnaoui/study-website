@@ -7,11 +7,11 @@ interface NavbarProps {
 
 export function Navbar({ activeRoute, onNavigate }: NavbarProps) {
   return (
-    <nav className="sticky top-0 z-50 border-b border-white/60 bg-white/85 backdrop-blur-xl dark:border-zinc-900/70 dark:bg-zinc-950/80">
+    <nav className="sticky top-0 z-50 border-b border-white/60 bg-white/85 backdrop-blur-xl dark:border-zinc-900/70 dark:bg-zinc-950/80 ">
       <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-3 font-semibold text-slate-900 dark:text-zinc-100">
           <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-violet-600 text-lg text-white shadow-sm">
-            
+          :)
           </span>
           <span className="text-lg tracking-tight">Forum</span>
         </div>
