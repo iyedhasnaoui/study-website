@@ -17,7 +17,7 @@ public class RoadmapNodeService {
     }
 
     public RoadmapNode getById(Long id) {
-        return roadmapNodeRepository.findById(id).orElseThrow(() -> new RuntimeException("Entity not found"));
+        return roadmapNodeRepository.findById(id).orElseThrow(() -> new RuntimeException("Roadmap node not found"));
     }
 
     public List<RoadmapNode> getAll() {
@@ -29,11 +29,10 @@ public class RoadmapNodeService {
     }
 
     public List<RoadmapNode> findByRoadmapId(Long roadmapId) {
-        return roadmapNodeRepository.findByRoadmap_Id(roadmapId);
+        return roadmapNodeRepository.findByRoadmap_IdOrderByOrderIndexAscIdAsc(roadmapId);
     }
 
     public List<RoadmapNode> findByParentId(Long parentId) {
-        return roadmapNodeRepository.findByParentStep_Id(parentId);
+        return roadmapNodeRepository.findByParentStep_IdOrderByOrderIndexAscIdAsc(parentId);
     }
 }
-

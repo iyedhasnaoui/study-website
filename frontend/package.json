@@ -11,12 +11,14 @@
   },
   "dependencies": {
     "@react-buddy/ide-toolbox": "^2.5.0",
+    "@xyflow/react": "^12.11.5",
     "axios": "^1.20.0",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "react-markdown": "^10.1.0"
   },
-    "tailwindcss": "^4.1.12",
-    "@tailwindcss/vite": "^4.1.12",
+  "tailwindcss": "^4.1.12",
+  "@tailwindcss/vite": "^4.1.12",
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24.13.3",

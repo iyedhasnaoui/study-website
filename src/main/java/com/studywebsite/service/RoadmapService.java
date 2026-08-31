@@ -17,7 +17,7 @@ public class RoadmapService {
     }
 
     public Roadmap getById(Long id) {
-        return roadmapRepository.findById(id).orElseThrow(() -> new RuntimeException("Entity not found"));
+        return roadmapRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Roadmap not found"));
     }
 
     public List<Roadmap> getAll() {
@@ -36,4 +36,3 @@ public class RoadmapService {
         return roadmapRepository.findByTitleContainingIgnoreCase(titlePart);
     }
 }
-
