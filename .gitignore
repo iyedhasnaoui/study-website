@@ -9,3 +9,6 @@ build/
 *.iml
 *.ipr
 out/
+
+frontend/dist/
+frontend/node_modules/
