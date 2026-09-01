@@ -96,7 +96,7 @@ class AuthControllerIntegrationTest {
 
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"wrong@example.com\",\"password\":\"wrong-password\"}"))
+                        .content("{\"email\":\"wrong@example.com\", \"username\": \"wrong\" ,\"password\":\"wrong-password\"}"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.message").value("Invalid email or password"));
     }
@@ -146,6 +146,6 @@ class AuthControllerIntegrationTest {
     }
 
     private String registerJson(String email) {
-        return "{\"email\":\"" + email + "\",\"password\":\"correct-horse\"}";
+        return "{\"email\":\"" + email + "\",\"username\":\"" + email.substring(0, email.indexOf("@")) + "\",\"password\":\"correct-horse\"}";
     }
 }

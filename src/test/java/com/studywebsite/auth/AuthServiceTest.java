@@ -72,7 +72,7 @@ class AuthServiceTest {
         });
 
         RegisterResponse response = authService.register(
-                new RegisterRequest("  Student@Example.COM ", "correct-horse")
+                new RegisterRequest("  Student@Example.COM ", "Student-example","correct-horse")
         );
 
         ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
@@ -92,7 +92,7 @@ class AuthServiceTest {
         when(userRepository.existsByEmailIgnoreCase("student@example.com")).thenReturn(true);
 
         assertThatThrownBy(() -> authService.register(
-                new RegisterRequest("student@example.com", "correct-horse")
+                new RegisterRequest("  Student@Example.COM ", "Student-example","correct-horse")
         )).isInstanceOf(DuplicateEmailException.class);
 
         verify(userRepository, never()).saveAndFlush(any());

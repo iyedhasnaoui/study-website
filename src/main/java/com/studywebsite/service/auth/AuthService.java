@@ -50,9 +50,14 @@ public class AuthService {
         if (userRepository.existsByEmailIgnoreCase(email)) {
             throw new DuplicateEmailException();
         }
+        String username = request.username();
+        if (userRepository.existsByUsername(username)) {
+            throw new DuplicateUsernameException();
+        }
 
         User user = new User();
         user.setEmail(email);
+        user.setUsername(request.username());
         user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.setNumberContributions(0);
         user.setTrustScore(0.0);
