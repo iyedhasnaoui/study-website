@@ -23,6 +23,8 @@ public class ForumPostCreateDto {
     @Size(min = 10, max = 10000)
     private String content;
 
+    private Long topicId;
+
     private List<String> tags;
 }
 

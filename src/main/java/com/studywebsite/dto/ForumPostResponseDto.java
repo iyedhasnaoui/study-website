@@ -18,6 +18,12 @@ public class ForumPostResponseDto {
     private String content;
     private Long authorId;
     private String authorUsername;
+
+    private Long topicId;
+    private String topicName;
+    private String topicSlug;
+    private String topicIcon;
+
     private List<String> tags;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
