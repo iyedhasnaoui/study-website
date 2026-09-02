@@ -6,6 +6,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,6 +26,7 @@ public class RoadmapNode {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "roadmap_id", nullable = false)
+    @OnDelete(action= OnDeleteAction.CASCADE)
     private Roadmap roadmap;
 
     @ManyToOne(fetch = FetchType.LAZY)

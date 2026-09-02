@@ -56,7 +56,7 @@ class ForumPostServiceTest {
 
         assertThatThrownBy(() -> forumPostService.getById(99L))
                 .isInstanceOf(RuntimeException.class)
-                .hasMessage("Entity not found");
+                .hasMessage("ForumPost entity not found");
         verify(forumPostRepository).findById(99L);
     }
 
@@ -77,8 +77,11 @@ class ForumPostServiceTest {
 
     @Test
     void delete_shouldDelegateToRepository() {
+        when(forumPostRepository.existsById(1L)).thenReturn(true);
+
         forumPostService.delete(1L);
 
+        verify(forumPostRepository).existsById(1L);
         verify(forumPostRepository).deleteById(1L);
     }
 
