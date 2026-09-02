@@ -3,15 +3,25 @@ export const FORUM_POST_TITLE_MAX_LENGTH = 150
 export const FORUM_POST_CONTENT_MIN_LENGTH = 10
 export const FORUM_POST_CONTENT_MAX_LENGTH = 10000
 
+export interface ForumTopicResponseDto {
+  id: number
+  name: string
+  slug: string
+  icon: string | null
+  description: string | null
+}
+
 export interface ForumPostCreateDto {
   title: string
   content: string
+  topicId?: number | null
   tags?: string[] | null
 }
 
 export interface ForumPostUpdateDto {
   title?: string | null
   content?: string | null
+  topicId?: number | null
   tags?: string[] | null
 }
 
@@ -21,6 +31,10 @@ export interface ForumPostResponseDto {
   content: string
   authorId: number | null
   authorUsername: string | null
+  topicId: number | null
+  topicName: string | null
+  topicSlug: string | null
+  topicIcon: string | null
   tags: string[]
   createdAt: string | null
   updatedAt: string | null
