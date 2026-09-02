@@ -2,6 +2,7 @@ package com.studywebsite.service;
 
 import com.studywebsite.model.Roadmap;
 import com.studywebsite.repository.RoadmapRepository;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -17,7 +18,7 @@ public class RoadmapService {
     }
 
     public Roadmap getById(Long id) {
-        return roadmapRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Roadmap not found"));
+        return roadmapRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("Roadmap entity not found"));
     }
 
     public List<Roadmap> getAll() {
@@ -25,6 +26,9 @@ public class RoadmapService {
     }
 
     public void delete(Long id) {
+        if (!roadmapRepository.existsById(id)) {
+            throw new EntityNotFoundException("Roadmap entity not found");
+        }
         roadmapRepository.deleteById(id);
     }
 

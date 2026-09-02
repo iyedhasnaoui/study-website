@@ -2,6 +2,7 @@ package com.studywebsite.service;
 
 import com.studywebsite.model.ForumPost;
 import com.studywebsite.repository.ForumPostRepository;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -17,7 +18,7 @@ public class ForumPostService {
     }
 
     public ForumPost getById(Long id) {
-        return forumPostRepository.findById(id).orElseThrow(() -> new RuntimeException("Entity not found"));
+        return forumPostRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("ForumPost entity not found"));
     }
 
     public List<ForumPost> getAll() {
@@ -25,6 +26,9 @@ public class ForumPostService {
     }
 
     public void delete(Long id) {
+        if (!forumPostRepository.existsById(id)) {
+            throw new EntityNotFoundException("ForumPost entity not found");
+        }
         forumPostRepository.deleteById(id);
     }
 
