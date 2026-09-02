@@ -43,6 +43,7 @@ export function RoadmapPage() {
         roadmapId={route.roadmapId}
         nodeId={route.nodeId}
         onBack={() => navigate({ name: 'detail', roadmapId: route.roadmapId })}
+        onOpenNode={(nodeId) => navigate({ name: 'node', roadmapId: route.roadmapId, nodeId })}
       />
     )
   }

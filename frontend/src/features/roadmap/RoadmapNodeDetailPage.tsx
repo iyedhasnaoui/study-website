@@ -8,6 +8,7 @@ interface RoadmapNodeDetailPageProps {
     roadmapId: number
     nodeId: number
     onBack: () => void
+    onOpenNode?: (nodeId: number) => void
     onUpdated?: (node: RoadmapNodeResponseDto) => void
     onDeleted?: (nodeId: number) => void
 }
@@ -16,6 +17,7 @@ export function RoadmapNodeDetailPage({
                                           roadmapId,
                                           nodeId,
                                           onBack,
+                                          onOpenNode,
                                           onUpdated,
                                           onDeleted,
                                       }: RoadmapNodeDetailPageProps) {
@@ -68,6 +70,7 @@ export function RoadmapNodeDetailPage({
         if (!node?.parentStepId) return 'Root node'
         return `Parent #${node.parentStepId}`
     }, [node?.parentStepId])
+
 
     const handleSave = async () => {
         if (!node) return
@@ -126,7 +129,8 @@ export function RoadmapNodeDetailPage({
                 content: 'Add content here...',
                 parentStepId: nodeId
             })
-            window.location.hash = `#roadmaps/${roadmapId}/nodes/${childNode.id}`
+            // window.location.hash = `#roadmaps/${roadmapId}/nodes/${childNode.id}`
+            onOpenNode?.(childNode.id)
         } catch (e) {
             console.error('Failed to create child node', e)
         }

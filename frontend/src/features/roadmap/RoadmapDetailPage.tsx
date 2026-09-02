@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-import { getRoadmapById } from './api/roadmapApi'
+import { getRoadmapById, createRoadmapNode } from './api/roadmapApi'
 import { RoadmapTree } from './components/RoadmapTree'
 import type { RoadmapResponseDto } from './types'
 import { countNodes, formatDateTime } from './utils'
@@ -18,6 +18,7 @@ export function RoadmapDetailPage({ roadmapId, onBackToFeed, onOpenNode }: Roadm
   const [roadmap, setRoadmap] = useState<RoadmapResponseDto | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isCreatingNode, setIsCreatingNode] = useState(false)
 
   useEffect(() => {
     let isMounted = true
@@ -46,6 +47,26 @@ export function RoadmapDetailPage({ roadmapId, onBackToFeed, onOpenNode }: Roadm
       isMounted = false
     }
   }, [roadmapId])
+
+  const handleAddRootNode = async () => {
+    setIsCreatingNode(true)
+    setError(null)
+
+    try {
+      const newNode = await createRoadmapNode(roadmapId, {
+        title: 'New Step',
+        content: 'Write step notes or instructions here...',
+        parentStepId: null,
+        orderIndex: roadmap?.nodes?.length ?? 0,
+      })
+
+      onOpenNode(newNode.id)
+    } catch (createError) {
+      setError(getErrorMessage(createError))
+    } finally {
+      setIsCreatingNode(false)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -98,6 +119,15 @@ export function RoadmapDetailPage({ roadmapId, onBackToFeed, onOpenNode }: Roadm
             className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-violet-300 hover:text-violet-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:border-violet-500/50 dark:hover:text-violet-200"
           >
             Back to roadmaps
+          </button>
+
+          <button
+              type="button"
+              onClick={handleAddRootNode}
+              disabled={isCreatingNode}
+              className="inline-flex items-center justify-center rounded-full bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isCreatingNode ? 'Adding…' : '+ Add step'}
           </button>
         </div>
 
