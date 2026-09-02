@@ -9,7 +9,7 @@ interface NavbarProps {
 
 export function Navbar({
   activeSection,
-  activeForumRoute,
+  // activeForumRoute,
   onNavigateForum,
   onNavigateRoadmaps,
 }: NavbarProps) {
@@ -46,19 +46,19 @@ export function Navbar({
           >
             Roadmaps
           </button>
-          {activeSection === 'forum' ? (
-            <button
-              type="button"
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                activeForumRoute === 'create'
-                  ? 'bg-violet-600 text-white shadow-sm'
-                  : 'border border-slate-200 bg-white text-slate-700 hover:border-violet-300 hover:text-violet-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200'
-              }`}
-              onClick={() => onNavigateForum('create')}
-            >
-              New post
-            </button>
-          ) : null}
+          {/*{activeSection === 'forum' ? (*/}
+          {/*  <button*/}
+          {/*    type="button"*/}
+          {/*    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${*/}
+          {/*      activeForumRoute === 'create'*/}
+          {/*        ? 'bg-violet-600 text-white shadow-sm'*/}
+          {/*        : 'border border-slate-200 bg-white text-slate-700 hover:border-violet-300 hover:text-violet-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200'*/}
+          {/*    }`}*/}
+          {/*    onClick={() => onNavigateForum('create')}*/}
+          {/*  >*/}
+          {/*    New post*/}
+          {/*  </button>*/}
+          {/*) : null}*/}
         </div>
       </div>
     </nav>
