@@ -1,5 +1,3 @@
-import axios from 'axios'
-
 import type {
   ForumPostCreateDto,
   ForumPostResponseDto,
@@ -8,26 +6,14 @@ import type {
   ForumReplyResponseDto,
   ForumReplyUpdateDto,
 } from '../types'
+import { apiClient, requireAuthenticatedUser } from '../../../lib/apiClient'
 
-const DEFAULT_BASE_URL = 'http://localhost:8080'
-const DEFAULT_USER_ID = 1
+export const forumApiClient = apiClient
 
-const normalizeBaseUrl = (value: string): string => value.replace(/\/+$/, '')
-
-const apiBaseUrl = normalizeBaseUrl(
-  import.meta.env.VITE_API_BASE_URL?.trim() ?? DEFAULT_BASE_URL,
-)
-
-export const forumApiClient = axios.create({
-  baseURL: apiBaseUrl,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-})
-
-const withUserHeader = (userId: number = DEFAULT_USER_ID) => ({
-  'X-User-Id': String(userId),
-})
+const withUserHeader = (userId?: number) => {
+  const authenticatedUser = requireAuthenticatedUser()
+  return { 'X-User-Id': String(userId ?? authenticatedUser.id) }
+}
 
 export async function getForumPosts(tag?: string): Promise<ForumPostResponseDto[]> {
   const response = await forumApiClient.get<ForumPostResponseDto[]>('/api/forum/posts', {
@@ -44,7 +30,7 @@ export async function getForumPostById(id: number): Promise<ForumPostResponseDto
 
 export async function createForumPost(
   payload: ForumPostCreateDto,
-  userId: number = DEFAULT_USER_ID,
+  userId?: number,
 ): Promise<ForumPostResponseDto> {
   const response = await forumApiClient.post<ForumPostResponseDto>(
     '/api/forum/posts',
@@ -60,7 +46,7 @@ export async function createForumPost(
 export async function updateForumPost(
   id: number,
   payload: ForumPostUpdateDto,
-  userId: number = DEFAULT_USER_ID,
+  userId?: number,
 ): Promise<ForumPostResponseDto> {
   const response = await forumApiClient.put<ForumPostResponseDto>(
     `/api/forum/posts/${id}`,
@@ -76,12 +62,12 @@ export async function updateForumPost(
 export async function updatePost(
   id: number,
   payload: ForumPostUpdateDto,
-  userId: number = DEFAULT_USER_ID,
+  userId?: number,
 ): Promise<ForumPostResponseDto> {
   return updateForumPost(id, payload, userId)
 }
 
-export async function deleteForumPost(id: number, userId: number = DEFAULT_USER_ID): Promise<void> {
+export async function deleteForumPost(id: number, userId?: number): Promise<void> {
   await forumApiClient.delete(`/api/forum/posts/${id}`, {
     headers: withUserHeader(userId),
   })
@@ -98,7 +84,7 @@ export async function getRepliesByPostId(postId: number): Promise<ForumReplyResp
 export async function createReply(
   postId: number,
   payload: ForumReplyCreateDto,
-  userId: number = DEFAULT_USER_ID,
+  userId?: number,
 ): Promise<ForumReplyResponseDto> {
   const response = await forumApiClient.post<ForumReplyResponseDto>(
     `/api/forum/posts/${postId}/replies`,
@@ -115,7 +101,7 @@ export async function updateReply(
   postId: number,
   id: number,
   payload: ForumReplyUpdateDto,
-  userId: number = DEFAULT_USER_ID,
+  userId?: number,
 ): Promise<ForumReplyResponseDto> {
   const response = await forumApiClient.put<ForumReplyResponseDto>(
     `/api/forum/posts/${postId}/replies/${id}`,
@@ -131,7 +117,7 @@ export async function updateReply(
 export async function deleteReply(
   postId: number,
   id: number,
-  userId: number = DEFAULT_USER_ID,
+  userId?: number,
 ): Promise<void> {
   await forumApiClient.delete(`/api/forum/posts/${postId}/replies/${id}`, {
     headers: withUserHeader(userId),

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 
+import { useAuth } from '../../auth/AuthContext'
 import { CreateRoadmapForm } from './components/CreateRoadmapForm'
 import { RoadmapFeed } from './components/RoadmapFeed'
 
@@ -9,6 +10,7 @@ export interface RoadmapFeedPageProps {
 }
 
 export function RoadmapFeedPage({ onOpenRoadmap, onCreateRoadmapDone }: RoadmapFeedPageProps) {
+  const { session } = useAuth()
   const [reloadKey, setReloadKey] = useState(0)
   const [searchDraft, setSearchDraft] = useState('')
   const [activeSearch, setActiveSearch] = useState<string | undefined>(undefined)
@@ -30,7 +32,7 @@ export function RoadmapFeedPage({ onOpenRoadmap, onCreateRoadmapDone }: RoadmapF
         <section className="mb-8 rounded-2xl border border-gray-200 bg-white/95 p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950/80">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="space-y-2">
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-violet-600 dark:text-violet-300">
+              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-amber-600 dark:text-amber-300">
                 Study Roadmaps
               </p>
               <h1 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-zinc-100">
@@ -44,11 +46,19 @@ export function RoadmapFeedPage({ onOpenRoadmap, onCreateRoadmapDone }: RoadmapF
         </section>
 
         <div className="grid gap-8 lg:grid-cols-3">
-          <div className="lg:sticky lg:top-8">
-            <CreateRoadmapForm
-                onCreated={handleCreated}
-                onSuccessNavigate={onCreateRoadmapDone}
-            />
+          <div className="lg:sticky lg:top-28">
+            {session ? (
+              <CreateRoadmapForm
+                  onCreated={handleCreated}
+                  onSuccessNavigate={onCreateRoadmapDone}
+              />
+            ) : (
+              <section className="rounded-2xl border border-amber-200 bg-amber-50 p-6 shadow-sm dark:border-amber-900/50 dark:bg-amber-950/20">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700 dark:text-amber-300">Members contribute</p>
+                <h2 className="mt-2 text-xl font-semibold text-slate-900 dark:text-zinc-100">Sign in to create a roadmap</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-zinc-300">Use the sign-in button above, then turn what you learned into a path others can follow.</p>
+              </section>
+            )}
           </div>
 
           <div className="space-y-6 lg:col-span-2">
@@ -73,7 +83,7 @@ export function RoadmapFeedPage({ onOpenRoadmap, onCreateRoadmapDone }: RoadmapF
                     value={searchDraft}
                     onChange={(event) => setSearchDraft(event.target.value)}
                     placeholder="Search roadmap title or description..."
-                    className="flex-1 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-violet-400 dark:focus:ring-violet-500/20"
+                    className="flex-1 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-amber-400 dark:focus:ring-amber-500/20"
                 />
                 <button
                     type="submit"

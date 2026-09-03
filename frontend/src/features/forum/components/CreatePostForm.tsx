@@ -121,7 +121,7 @@ export function CreatePostForm({ onCreate }: CreatePostFormProps) {
             aria-invalid={Boolean(fieldErrors.title)}
             aria-describedby={fieldErrors.title ? 'forum-post-title-error' : undefined}
             placeholder="Title"
-            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-violet-400 dark:focus:ring-violet-500/20"
+            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-amber-400 dark:focus:ring-amber-500/20"
           />
           {fieldErrors.title ? (
             <p className="text-sm text-rose-600 dark:text-rose-300" id="forum-post-title-error">
@@ -141,7 +141,7 @@ export function CreatePostForm({ onCreate }: CreatePostFormProps) {
             aria-invalid={Boolean(fieldErrors.content)}
             aria-describedby={fieldErrors.content ? 'forum-post-content-error' : undefined}
             placeholder="Write your post"
-            className="min-h-44 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-violet-400 dark:focus:ring-violet-500/20"
+            className="min-h-44 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-amber-400 dark:focus:ring-amber-500/20"
           />
           {fieldErrors.content ? (
             <p className="text-sm text-rose-600 dark:text-rose-300" id="forum-post-content-error">
@@ -157,7 +157,7 @@ export function CreatePostForm({ onCreate }: CreatePostFormProps) {
             value={formState.tagsText}
             onChange={handleChange('tagsText')}
             placeholder="Tags"
-            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-violet-400 dark:focus:ring-violet-500/20"
+            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-amber-400 dark:focus:ring-amber-500/20"
           />
         </label>
 
@@ -170,7 +170,7 @@ export function CreatePostForm({ onCreate }: CreatePostFormProps) {
         <div className="flex justify-end pt-2">
           <button
             type="submit"
-            className="inline-flex items-center justify-center rounded-full bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center justify-center rounded-full bg-amber-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isSubmitting}
           >
             {isSubmitting ? 'Posting…' : 'Post'}

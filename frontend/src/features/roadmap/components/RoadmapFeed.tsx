@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 
+import { useAuth } from '../../../auth/AuthContext'
 import { deleteRoadmap, getRoadmaps } from '../api/roadmapApi'
 import type { RoadmapResponseDto } from '../types'
 import { countNodes, formatDateTime } from '../utils'
@@ -14,6 +15,7 @@ const getErrorMessage = (error: unknown): string =>
     error instanceof Error ? error.message : 'Unable to load roadmaps.'
 
 export function RoadmapFeed({ reloadKey = 0, searchFilter, onSelectRoadmap }: RoadmapFeedProps = {}) {
+  const { session } = useAuth()
   const [roadmaps, setRoadmaps] = useState<RoadmapResponseDto[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -129,7 +131,7 @@ export function RoadmapFeed({ reloadKey = 0, searchFilter, onSelectRoadmap }: Ro
                       <button
                           type="button"
                           onClick={() => handleOpen(roadmap.id)}
-                          className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-violet-300 hover:text-violet-700 dark:border-zinc-700 dark:text-zinc-200 dark:hover:border-violet-500/50 dark:hover:text-violet-200"
+                          className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-amber-300 hover:text-amber-700 dark:border-zinc-700 dark:text-zinc-200 dark:hover:border-amber-500/50 dark:hover:text-amber-200"
                       >
                         Open
                       </button>
@@ -166,13 +168,13 @@ export function RoadmapFeed({ reloadKey = 0, searchFilter, onSelectRoadmap }: Ro
                   </dl>
 
                   <div className="mt-5 flex items-center gap-2">
-                    <button
+                    {session?.user.id === roadmap.authorId ? <button
                         type="button"
                         onClick={() => handleOpen(roadmap.id)}
-                        className="rounded-full bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-500"
+                        className="rounded-full bg-amber-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-500"
                     >
                       View roadmap
-                    </button>
+                    </button> : null}
 
                     <button
                         type="button"

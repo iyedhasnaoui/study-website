@@ -8,26 +8,14 @@ import type {
   RoadmapResponseDto,
   RoadmapUpdateDto,
 } from '../types'
+import { apiClient, requireAuthenticatedUser } from '../../../lib/apiClient'
 
-const DEFAULT_BASE_URL = 'http://localhost:8080'
-const DEFAULT_USER_ID = 1
+export const roadmapApiClient = apiClient
 
-const normalizeBaseUrl = (value: string): string => value.replace(/\/+$/, '')
-
-const apiBaseUrl = normalizeBaseUrl(
-  import.meta.env.VITE_API_BASE_URL?.trim() ?? DEFAULT_BASE_URL,
-)
-
-export const roadmapApiClient = axios.create({
-  baseURL: apiBaseUrl,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-})
-
-const withUserHeader = (userId: number = DEFAULT_USER_ID) => ({
-  'X-User-Id': String(userId),
-})
+const withUserHeader = (userId?: number) => {
+  const authenticatedUser = requireAuthenticatedUser()
+  return { 'X-User-Id': String(userId ?? authenticatedUser.id) }
+}
 
 const extractErrorMessage = (error: unknown, fallback: string): string => {
   if (axios.isAxiosError(error)) {
@@ -55,7 +43,7 @@ export async function getRoadmapById(id: number): Promise<RoadmapResponseDto> {
 
 export async function createRoadmap(
   payload: RoadmapCreateDto,
-  userId: number = DEFAULT_USER_ID,
+  userId?: number,
 ): Promise<RoadmapResponseDto> {
   const response = await roadmapApiClient.post<RoadmapResponseDto>('/api/roadmaps', payload, {
     headers: withUserHeader(userId),
@@ -67,11 +55,13 @@ export async function updateRoadmap(
   id: number,
   payload: RoadmapUpdateDto,
 ): Promise<RoadmapResponseDto> {
+  requireAuthenticatedUser()
   const response = await roadmapApiClient.put<RoadmapResponseDto>(`/api/roadmaps/${id}`, payload)
   return response.data
 }
 
 export async function deleteRoadmap(id: number): Promise<void> {
+  requireAuthenticatedUser()
   await roadmapApiClient.delete(`/api/roadmaps/${id}`)
 }
 
@@ -111,6 +101,7 @@ export async function updateRoadmapNode(
   nodeId: number,
   payload: RoadmapNodeUpdateDto,
 ): Promise<RoadmapNodeResponseDto> {
+  requireAuthenticatedUser()
   const response = await roadmapApiClient.put<RoadmapNodeResponseDto>(
     `/api/roadmaps/${roadmapId}/nodes/${nodeId}`,
     payload,
@@ -119,6 +110,7 @@ export async function updateRoadmapNode(
 }
 
 export async function deleteRoadmapNode(roadmapId: number, nodeId: number): Promise<void> {
+  requireAuthenticatedUser()
   await roadmapApiClient.delete(`/api/roadmaps/${roadmapId}/nodes/${nodeId}`)
 }
 

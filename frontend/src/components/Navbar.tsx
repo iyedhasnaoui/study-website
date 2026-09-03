@@ -1,66 +1,107 @@
+import { useEffect, useState } from 'react'
+
+import type { AuthUser } from '../auth/types'
 import type { ForumRoute } from '../features/forum/forumRoutes'
 
 interface NavbarProps {
-  activeSection: 'forum' | 'roadmaps'
+  activeSection: 'home' | 'forum' | 'roadmaps'
   activeForumRoute: ForumRoute
+  user: AuthUser | null
+  onNavigateHome: () => void
   onNavigateForum: (route: ForumRoute) => void
   onNavigateRoadmaps: () => void
+  onOpenLogin: () => void
+  onOpenRegister: () => void
+  onLogout: () => Promise<void>
+  onDeleteAccount: () => Promise<void>
 }
 
 export function Navbar({
   activeSection,
   activeForumRoute,
+  user,
+  onNavigateHome,
   onNavigateForum,
   onNavigateRoadmaps,
+  onOpenLogin,
+  onOpenRegister,
+  onLogout,
+  onDeleteAccount,
 }: NavbarProps) {
-  return (
-    <nav className="sticky top-0 z-50 border-b border-white/60 bg-white/85 backdrop-blur-xl dark:border-zinc-900/70 dark:bg-zinc-950/80">
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-3 font-semibold text-slate-900 dark:text-zinc-100">
-          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-violet-600 text-lg text-white shadow-sm">
-            :)
-          </span>
-          <span className="text-lg tracking-tight">Study Website</span>
-        </div>
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
+  const [isDark, setIsDark] = useState(() => window.localStorage.getItem('iac.theme') === 'dark')
 
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-              activeSection === 'forum'
-                ? 'bg-violet-600 text-white shadow-sm'
-                : 'border border-slate-200 bg-white text-slate-700 hover:border-violet-300 hover:text-violet-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200'
-            }`}
-            onClick={() => onNavigateForum('feed')}
-          >
-            Forum
-          </button>
-          <button
-            type="button"
-            className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-              activeSection === 'roadmaps'
-                ? 'bg-violet-600 text-white shadow-sm'
-                : 'border border-slate-200 bg-white text-slate-700 hover:border-violet-300 hover:text-violet-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200'
-            }`}
-            onClick={onNavigateRoadmaps}
-          >
-            Roadmaps
-          </button>
-          {activeSection === 'forum' ? (
-            <button
-              type="button"
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                activeForumRoute === 'create'
-                  ? 'bg-violet-600 text-white shadow-sm'
-                  : 'border border-slate-200 bg-white text-slate-700 hover:border-violet-300 hover:text-violet-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200'
-              }`}
-              onClick={() => onNavigateForum('create')}
-            >
-              New post
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', isDark)
+    window.localStorage.setItem('iac.theme', isDark ? 'dark' : 'light')
+  }, [isDark])
+
+  const navigate = (action: () => void) => {
+    action()
+    setIsMenuOpen(false)
+  }
+
+  return (
+    <header className="nav-wrap">
+      <nav className="iac-nav" aria-label="Main navigation">
+        <button className="brand" type="button" onClick={() => navigate(onNavigateHome)}>
+          <span className="brand__mark"><img src="/assets/iac-logo.jpeg" alt="" /></span>
+          <span className="brand__name">Ifriqiya <b>Academic Circle</b></span>
+        </button>
+
+        <button
+          type="button"
+          className="nav-toggle"
+          aria-label="Toggle navigation menu"
+          aria-expanded={isMenuOpen}
+          onClick={() => setIsMenuOpen((current) => !current)}
+        >
+          <span /><span />
+        </button>
+
+        <div className={`nav-panel ${isMenuOpen ? 'is-open' : ''}`}>
+          <div className="nav-links">
+            <button className={activeSection === 'home' ? 'is-active' : ''} type="button" onClick={() => navigate(onNavigateHome)}>Home</button>
+            <button className={activeSection === 'forum' ? 'is-active' : ''} type="button" onClick={() => navigate(() => onNavigateForum('feed'))}>Forum</button>
+            <button className={activeSection === 'roadmaps' ? 'is-active' : ''} type="button" onClick={() => navigate(onNavigateRoadmaps)}>Roadmaps</button>
+            {activeSection === 'forum' && activeForumRoute === 'create' ? <span className="nav-context">Writing a post</span> : null}
+          </div>
+
+          <div className="nav-actions">
+            <button className="theme-toggle" type="button" onClick={() => setIsDark((current) => !current)} aria-label={`Use ${isDark ? 'light' : 'dark'} theme`}>
+              <span>{isDark ? '☀' : '☾'}</span>
             </button>
-          ) : null}
+
+            {user ? (
+              <div className="profile-menu">
+                <button className="profile-trigger" type="button" onClick={() => setIsProfileOpen((current) => !current)} aria-expanded={isProfileOpen}>
+                  <span>{user.username.slice(0, 1).toUpperCase()}</span>
+                  <div><small>Signed in as</small><strong>{user.username}</strong></div>
+                  <i>⌄</i>
+                </button>
+                {isProfileOpen ? (
+                  <div className="profile-popover">
+                    <p>{user.email}</p>
+                    <button type="button" onClick={() => { setIsProfileOpen(false); void onLogout() }}>Sign out</button>
+                    <button className="danger-link" type="button" onClick={() => {
+                      if (window.confirm('Delete your IAC account? This cannot be undone.')) {
+                        setIsProfileOpen(false)
+                        void onDeleteAccount()
+                      }
+                    }}>Delete account</button>
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <>
+                <button className="nav-login" type="button" onClick={onOpenLogin}>Sign in</button>
+                <button className="nav-join" type="button" onClick={onOpenRegister}>Join us <span>↗</span></button>
+              </>
+            )}
+          </div>
         </div>
-      </div>
-    </nav>
+      </nav>
+    </header>
   )
 }

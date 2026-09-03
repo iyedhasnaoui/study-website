@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 
+import { useAuth } from '../../../auth/AuthContext'
 import { createReply } from '../api/forumApi'
 import type { ForumReplyResponseDto } from '../types'
 
@@ -11,6 +12,7 @@ interface CreateReplyFormProps {
 const REPLY_CONTENT_MAX_LENGTH = 5000
 
 export function CreateReplyForm({ postId, onCreated }: CreateReplyFormProps) {
+  const { session } = useAuth()
   const [content, setContent] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -38,6 +40,14 @@ export function CreateReplyForm({ postId, onCreated }: CreateReplyFormProps) {
     }
   }
 
+  if (!session) {
+    return (
+      <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
+        Sign in from the navigation to add your reply.
+      </p>
+    )
+  }
+
   return (
     <form className="mt-4 space-y-3" onSubmit={handleSubmit} noValidate>
       <label className="block space-y-2">
@@ -48,7 +58,7 @@ export function CreateReplyForm({ postId, onCreated }: CreateReplyFormProps) {
           rows={4}
           maxLength={REPLY_CONTENT_MAX_LENGTH}
           placeholder="Share your thoughts..."
-          className="min-h-28 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-violet-400 dark:focus:ring-violet-500/20"
+          className="min-h-28 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-amber-400 dark:focus:ring-amber-500/20"
         />
       </label>
 
@@ -62,7 +72,7 @@ export function CreateReplyForm({ postId, onCreated }: CreateReplyFormProps) {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="inline-flex items-center justify-center rounded-full bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex items-center justify-center rounded-full bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isSubmitting ? 'Posting…' : 'Post reply'}
         </button>

@@ -58,7 +58,7 @@ export function CreateRoadmapForm({ onCreated }: CreateRoadmapFormProps) {
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             placeholder="e.g. Frontend Foundations"
-            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-violet-400 dark:focus:ring-violet-500/20"
+            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-amber-400 dark:focus:ring-amber-500/20"
           />
         </label>
 
@@ -71,7 +71,7 @@ export function CreateRoadmapForm({ onCreated }: CreateRoadmapFormProps) {
             onChange={(event) => setDescription(event.target.value)}
             rows={6}
             placeholder="Describe the path and goals..."
-            className="min-h-36 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-violet-400 dark:focus:ring-violet-500/20"
+            className="min-h-36 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-amber-400 dark:focus:ring-amber-500/20"
           />
         </label>
 
@@ -84,7 +84,7 @@ export function CreateRoadmapForm({ onCreated }: CreateRoadmapFormProps) {
         <button
           type="submit"
           disabled={isSaving}
-          className="w-full rounded-full bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
+          className="w-full rounded-full bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isSaving ? 'Creating…' : 'Create roadmap'}
         </button>
