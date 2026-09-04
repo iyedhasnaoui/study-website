@@ -8,8 +8,8 @@ interface CreatePostPageProps {
 }
 
 export function CreatePostPage({ onBackToFeed, onCreated }: CreatePostPageProps) {
-  const handleCreate = async (payload: ForumPostCreateDto) => {
-    await createForumPost(payload)
+  const handleCreate = async (payload: ForumPostCreateDto, files: File[]) => {
+    await createForumPost(payload, undefined, files)
     onCreated()
   }
 

@@ -4,6 +4,7 @@ import { useAuth } from '../../../auth/AuthContext'
 import { updatePost } from '../api/forumApi'
 import type { ForumPostResponseDto, ForumPostUpdateDto } from '../types'
 import { ReplyList } from './ReplyList'
+import { AttachmentGallery } from './AttachmentGallery'
 
 interface PostCardProps {
   post: ForumPostResponseDto
@@ -88,8 +89,8 @@ export function PostCard({ post, onDelete, onUpdated, deleting = false }: PostCa
       return
     }
 
-    if (!nextContent) {
-      setError('Post content cannot be empty.')
+    if (!nextContent && !post.attachments?.length) {
+      setError('Keep some text or at least one media attachment.')
       return
     }
 
@@ -202,9 +203,13 @@ export function PostCard({ post, onDelete, onUpdated, deleting = false }: PostCa
 
       {!isEditing ? (
         <>
-          <p className="mt-5 whitespace-pre-wrap text-sm leading-7 text-slate-700 dark:text-zinc-300">
-            {post.content}
-          </p>
+          {post.content ? (
+            <p className="mt-5 whitespace-pre-wrap text-sm leading-7 text-slate-700 dark:text-zinc-300">
+              {post.content}
+            </p>
+          ) : null}
+
+          <AttachmentGallery attachments={post.attachments} />
 
           <div className="mt-5 flex flex-wrap items-center gap-2">
             {post.tags.length > 0 ? (

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../../../auth/AuthContext'
 import { deleteReply, updateReply } from '../api/forumApi'
 import type { ForumReplyResponseDto, ForumReplyUpdateDto } from '../types'
+import { AttachmentGallery } from './AttachmentGallery'
 
 interface ReplyItemProps {
   reply: ForumReplyResponseDto
@@ -64,8 +65,8 @@ export function ReplyItem({ reply, onUpdated, onDeleted }: ReplyItemProps) {
 
   const handleSave = async () => {
     const trimmedContent = draftContent.trim()
-    if (!trimmedContent) {
-      setError('Reply content cannot be empty.')
+    if (!trimmedContent && !reply.attachments?.length) {
+      setError('Keep some text or at least one media attachment.')
       return
     }
 
@@ -175,7 +176,11 @@ export function ReplyItem({ reply, onUpdated, onDeleted }: ReplyItemProps) {
           </div>
         ) : (
           <>
-            <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700 dark:text-zinc-300">{reply.content}</p>
+            {reply.content ? (
+              <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700 dark:text-zinc-300">{reply.content}</p>
+            ) : null}
+
+            <AttachmentGallery attachments={reply.attachments} compact />
 
             {error ? (
               <p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-200">

@@ -31,7 +31,19 @@ export async function getForumPostById(id: number): Promise<ForumPostResponseDto
 export async function createForumPost(
   payload: ForumPostCreateDto,
   userId?: number,
+  files: File[] = [],
 ): Promise<ForumPostResponseDto> {
+  if (files.length > 0) {
+    const formData = new FormData()
+    formData.append('payload', new Blob([JSON.stringify(payload)], { type: 'application/json' }))
+    files.forEach((file) => formData.append('files', file, file.name))
+
+    const response = await forumApiClient.post<ForumPostResponseDto>('/api/forum/posts', formData, {
+      headers: withUserHeader(userId),
+    })
+    return response.data
+  }
+
   const response = await forumApiClient.post<ForumPostResponseDto>(
     '/api/forum/posts',
     payload,
@@ -85,7 +97,21 @@ export async function createReply(
   postId: number,
   payload: ForumReplyCreateDto,
   userId?: number,
+  files: File[] = [],
 ): Promise<ForumReplyResponseDto> {
+  if (files.length > 0) {
+    const formData = new FormData()
+    formData.append('payload', new Blob([JSON.stringify(payload)], { type: 'application/json' }))
+    files.forEach((file) => formData.append('files', file, file.name))
+
+    const response = await forumApiClient.post<ForumReplyResponseDto>(
+      `/api/forum/posts/${postId}/replies`,
+      formData,
+      { headers: withUserHeader(userId) },
+    )
+    return response.data
+  }
+
   const response = await forumApiClient.post<ForumReplyResponseDto>(
     `/api/forum/posts/${postId}/replies`,
     payload,

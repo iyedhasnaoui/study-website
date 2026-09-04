@@ -1,16 +1,20 @@
 package com.studywebsite.controller;
 
 import com.studywebsite.dto.ForumReplyCreateDto;
+import com.studywebsite.dto.ForumAttachmentResponseDto;
 import com.studywebsite.dto.ForumReplyResponseDto;
 import com.studywebsite.dto.ForumReplyUpdateDto;
 import com.studywebsite.model.ForumReply;
 import com.studywebsite.model.User;
 import com.studywebsite.service.ForumReplyService;
+import com.studywebsite.service.media.ForumAttachmentService;
+import com.studywebsite.service.media.InvalidForumContributionException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URI;
 import java.util.List;
@@ -22,31 +26,27 @@ import java.util.stream.Collectors;
 public class ForumReplyController {
 
     private final ForumReplyService forumReplyService;
+    private final ForumAttachmentService forumAttachmentService;
 
-    @PostMapping
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ForumReplyResponseDto> createReply(
             @PathVariable Long postId,
             @RequestHeader(value = "X-User-Id", defaultValue = "1") Long userId,
             @Valid @RequestBody ForumReplyCreateDto dto) {
 
-        ForumReply toSave = new ForumReply();
-        toSave.setContent(dto.getContent());
-        
-        // Create a minimal post reference (only use id for relation)
-        com.studywebsite.model.ForumPost post = new com.studywebsite.model.ForumPost();
-        post.setId(postId);
-        toSave.setPost(post);
-        
-        // set minimal author reference (service/repository will only use id for relation)
-        User author = new User();
-        author.setId(userId);
-        toSave.setAuthor(author);
+        requireTextOrFiles(dto.getContent(), List.of());
+        return createReply(postId, userId, dto, List.of());
+    }
 
-        ForumReply saved = forumReplyService.create(toSave);
-
-        ForumReplyResponseDto response = toResponseDto(saved);
-
-        return ResponseEntity.created(URI.create("/api/forum/posts/" + postId + "/replies/" + saved.getId())).body(response);
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ForumReplyResponseDto> createReplyWithMedia(
+            @PathVariable Long postId,
+            @RequestHeader(value = "X-User-Id", defaultValue = "1") Long userId,
+            @Valid @RequestPart("payload") ForumReplyCreateDto dto,
+            @RequestPart(value = "files", required = false) List<MultipartFile> files) {
+        List<MultipartFile> safeFiles = files == null ? List.of() : files;
+        requireTextOrFiles(dto.getContent(), safeFiles);
+        return createReply(postId, userId, dto, safeFiles);
     }
 
     @GetMapping
@@ -84,7 +84,11 @@ public class ForumReplyController {
 
         // Optionally, you might want to check that the updating user is the author; omitted for simplicity
         if (dto.getContent() != null) {
-            existing.setContent(dto.getContent());
+            String content = dto.getContent().strip();
+            if (content.isBlank() && (existing.getAttachments() == null || existing.getAttachments().isEmpty())) {
+                throw new InvalidForumContributionException("Write a reply or attach a PDF, audio, or video file");
+            }
+            existing.setContent(content);
         }
 
         ForumReply saved = forumReplyService.create(existing);
@@ -102,6 +106,7 @@ public class ForumReplyController {
             return ResponseEntity.notFound().build();
         }
         
+        forumAttachmentService.deleteForReply(replyId);
         forumReplyService.delete(replyId);
         return ResponseEntity.noContent().build();
     }
@@ -125,9 +130,40 @@ public class ForumReplyController {
                 .content(r.getContent())
                 .authorId(authorId)
                 .authorUsername(authorUsername)
+                .attachments(r.getAttachments() == null ? List.of() : r.getAttachments().stream()
+                        .map(ForumAttachmentResponseDto::from)
+                        .toList())
                 .createdAt(r.getCreatedAt())
                 .updatedAt(r.getUpdatedAt())
                 .build();
+    }
+
+    private ResponseEntity<ForumReplyResponseDto> createReply(
+            Long postId,
+            Long userId,
+            ForumReplyCreateDto dto,
+            List<MultipartFile> files
+    ) {
+        ForumReply toSave = new ForumReply();
+        toSave.setContent(dto.getContent() == null ? "" : dto.getContent().strip());
+
+        com.studywebsite.model.ForumPost post = new com.studywebsite.model.ForumPost();
+        post.setId(postId);
+        toSave.setPost(post);
+        User author = new User();
+        author.setId(userId);
+        toSave.setAuthor(author);
+
+        ForumReply saved = forumReplyService.create(toSave);
+        saved.getAttachments().addAll(forumAttachmentService.attachToReply(saved, files));
+        ForumReplyResponseDto response = toResponseDto(saved);
+        return ResponseEntity.created(URI.create("/api/forum/posts/" + postId + "/replies/" + saved.getId())).body(response);
+    }
+
+    private void requireTextOrFiles(String content, List<MultipartFile> files) {
+        if ((content == null || content.isBlank()) && files.isEmpty()) {
+            throw new InvalidForumContributionException("Write a reply or attach a PDF, audio, or video file");
+        }
     }
 }
 

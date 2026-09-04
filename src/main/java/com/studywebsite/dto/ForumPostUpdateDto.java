@@ -17,7 +17,7 @@ public class ForumPostUpdateDto {
     @Size(min = 5, max = 150)
     private String title;
 
-    @Size(min = 10, max = 10000)
+    @Size(max = 10000)
     private String content;
 
     private List<String> tags;

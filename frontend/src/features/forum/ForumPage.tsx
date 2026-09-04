@@ -18,8 +18,8 @@ export function ForumPage() {
     return `Tag: #${activeTagFilter}`
   }, [activeTagFilter])
 
-  const handleCreate = async (payload: ForumPostCreateDto) => {
-    await createForumPost(payload)
+  const handleCreate = async (payload: ForumPostCreateDto, files: File[]) => {
+    await createForumPost(payload, undefined, files)
     setReloadKey((current) => current + 1)
   }
 

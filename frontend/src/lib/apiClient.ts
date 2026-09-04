@@ -9,10 +9,22 @@ const normalizeBaseUrl = (value: string): string => value.replace(/\/+$/, '')
 
 export const apiClient = axios.create({
   baseURL: normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL?.trim() ?? DEFAULT_BASE_URL),
-  headers: {
-    'Content-Type': 'application/json',
-  },
 })
+
+export function resolveApiUrl(path: string): string {
+  if (/^https?:\/\//i.test(path)) return path
+  const baseUrl = String(apiClient.defaults.baseURL ?? DEFAULT_BASE_URL).replace(/\/$/, '')
+  return `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`
+}
+
+export function getApiErrorMessage(error: unknown, fallback: string): string {
+  if (axios.isAxiosError(error)) {
+    const message = (error.response?.data as { message?: unknown } | undefined)?.message
+    if (typeof message === 'string' && message.trim()) return message
+    if (!error.response) return 'The API server is not reachable. Check that the backend is running.'
+  }
+  return error instanceof Error && error.message ? error.message : fallback
+}
 
 export function readStoredSession(): AuthSession | null {
   if (typeof window === 'undefined') return null
