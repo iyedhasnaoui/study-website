@@ -168,7 +168,7 @@ export function RoadmapNodeDetailPage({
             className="rounded-2xl border border-gray-200 bg-white/95 p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950/80">
             <div className="flex items-start justify-between gap-4">
                 <div className="space-y-2">
-                    <p className="text-sm font-semibold uppercase tracking-[0.24em] text-violet-600 dark:text-violet-300">
+                    <p className="text-sm font-semibold uppercase tracking-[0.24em] text-amber-600 dark:text-amber-300">
                         Roadmap node
                     </p>
                     {isEditing ? (
@@ -176,13 +176,13 @@ export function RoadmapNodeDetailPage({
                             <input
                                 value={draft.title ?? ''}
                                 onChange={(event) => setDraft((current) => ({...current, title: event.target.value}))}
-                                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-violet-400 dark:focus:ring-violet-500/20"
+                                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-amber-400 dark:focus:ring-amber-500/20"
                             />
                             <textarea
                                 value={draft.content ?? ''}
                                 onChange={(event) => setDraft((current) => ({...current, content: event.target.value}))}
                                 rows={12}
-                                className="min-h-52 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-violet-400 dark:focus:ring-violet-500/20"
+                                className="min-h-52 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-amber-400 dark:focus:ring-amber-500/20"
                             />
                             <div className="flex flex-wrap gap-2">
                                 <button
@@ -196,7 +196,7 @@ export function RoadmapNodeDetailPage({
                                     type="button"
                                     onClick={handleSave}
                                     disabled={isSaving}
-                                    className="rounded-full bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
+                                    className="rounded-full bg-amber-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                     {isSaving ? 'Saving…' : 'Save changes'}
                                 </button>
@@ -216,7 +216,7 @@ export function RoadmapNodeDetailPage({
                     <button
                         type="button"
                         onClick={onBack}
-                        className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-violet-300 hover:text-violet-700 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-violet-500/50 dark:hover:text-violet-200"
+                        className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-amber-300 hover:text-amber-700 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-amber-500/50 dark:hover:text-amber-200"
                     >
                         Back
                     </button>
@@ -224,7 +224,7 @@ export function RoadmapNodeDetailPage({
                         <button
                             type="button"
                             onClick={() => setIsEditing(true)}
-                            className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-violet-300 hover:text-violet-700 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-violet-500/50 dark:hover:text-violet-200"
+                            className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-amber-300 hover:text-amber-700 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-amber-500/50 dark:hover:text-amber-200"
                         >
                             Edit
                         </button>
@@ -264,7 +264,7 @@ export function RoadmapNodeDetailPage({
                         <button
                             type="button"
                             onClick={() => setIsEditing(true)}
-                            className="rounded-full bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-500"
+                            className="rounded-full bg-amber-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-500"
                         >
                             Edit node
                         </button>

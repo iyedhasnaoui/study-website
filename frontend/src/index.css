@@ -1,81 +1,93 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
-@layer base {
-  * {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-  }
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #0a244f;
+  background: #f7f4ec;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  --navy-950: #061936;
+  --navy-900: #082651;
+  --navy-800: #0c356b;
+  --navy-700: #174a86;
+  --gold-600: #a97920;
+  --gold-500: #c39538;
+  --gold-400: #ddb55b;
+  --cream: #f7f4ec;
+  --paper: #fffdf8;
+  --ink: #0a244f;
+  --muted: #667085;
+  --line: rgba(8, 38, 81, 0.13);
+}
 
-  :root {
-    font-family:
-      -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
-    line-height: 1.6;
-    font-weight: 400;
-    color: #0f172a;
-    background:
-      radial-gradient(circle at top left, rgba(124, 58, 237, 0.12), transparent 28%),
-      radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 24%),
-      linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
-    font-synthesis: none;
-    text-rendering: optimizeLegibility;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    font-size: 16px;
-  }
+* {
+  box-sizing: border-box;
+}
 
-  body {
-    margin: 0;
-    min-width: 320px;
-    background: transparent;
-  }
+html {
+  scroll-behavior: smooth;
+}
 
-  #root {
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-  }
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 6% 8%, rgba(195, 149, 56, 0.11), transparent 24rem),
+    linear-gradient(180deg, #faf8f2 0%, var(--cream) 100%);
+}
 
-  button,
-  input,
-  textarea,
-  select {
-    font: inherit;
-    color: inherit;
-  }
+body.modal-open {
+  overflow: hidden;
+}
 
-  button {
-    cursor: pointer;
-  }
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
 
-  a {
-    color: inherit;
-    text-decoration: none;
-  }
+button {
+  cursor: pointer;
+}
 
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
-    line-height: 1.2;
-    font-weight: 700;
-  }
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid rgba(195, 149, 56, 0.45);
+  outline-offset: 3px;
+}
 
-  h1 {
-    font-size: 2.5rem;
-  }
+a {
+  color: inherit;
+  text-decoration: none;
+}
 
-  h2 {
-    font-size: 2rem;
-  }
+#root {
+  min-height: 100vh;
+}
 
-  h3 {
-    font-size: 1.5rem;
-  }
+.dark body {
+  color: #f6f0df;
+  background:
+    radial-gradient(circle at 85% 3%, rgba(195, 149, 56, 0.12), transparent 28rem),
+    var(--navy-950);
+}
 
-  p {
-    margin: 0;
+::selection {
+  background: var(--gold-400);
+  color: var(--navy-950);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
   }
 }

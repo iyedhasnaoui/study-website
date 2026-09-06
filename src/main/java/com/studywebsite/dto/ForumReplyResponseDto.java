@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -17,6 +18,7 @@ public class ForumReplyResponseDto {
     private String content;
     private Long authorId;
     private String authorUsername;
+    private List<ForumAttachmentResponseDto> attachments;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

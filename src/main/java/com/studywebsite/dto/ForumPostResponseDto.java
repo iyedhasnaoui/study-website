@@ -19,6 +19,7 @@ public class ForumPostResponseDto {
     private Long authorId;
     private String authorUsername;
     private List<String> tags;
+    private List<ForumAttachmentResponseDto> attachments;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

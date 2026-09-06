@@ -2,15 +2,16 @@ import { useState, type ChangeEvent, type FormEvent } from 'react'
 
 import {
   FORUM_POST_CONTENT_MAX_LENGTH,
-  FORUM_POST_CONTENT_MIN_LENGTH,
   FORUM_POST_TITLE_MAX_LENGTH,
   FORUM_POST_TITLE_MIN_LENGTH,
   type ForumPostCreateDto,
   type ForumPostFormErrors,
 } from '../types'
+import { MediaComposer } from './MediaComposer'
+import { getApiErrorMessage } from '../../../lib/apiClient'
 
 interface CreatePostFormProps {
-  onCreate: (payload: ForumPostCreateDto) => Promise<void>
+  onCreate: (payload: ForumPostCreateDto, files: File[]) => Promise<void>
 }
 
 const initialFormState = {
@@ -19,7 +20,7 @@ const initialFormState = {
   tagsText: '',
 }
 
-const validateForm = (state: typeof initialFormState): ForumPostFormErrors => {
+const validateForm = (state: typeof initialFormState, files: File[]): ForumPostFormErrors => {
   const errors: ForumPostFormErrors = {}
   const title = state.title.trim()
   const content = state.content.trim()
@@ -30,8 +31,8 @@ const validateForm = (state: typeof initialFormState): ForumPostFormErrors => {
     errors.title = `Title must be at most ${FORUM_POST_TITLE_MAX_LENGTH} characters long.`
   }
 
-  if (content.length < FORUM_POST_CONTENT_MIN_LENGTH) {
-    errors.content = `Content must be at least ${FORUM_POST_CONTENT_MIN_LENGTH} characters long.`
+  if (!content && files.length === 0) {
+    errors.content = 'Write something or add a PDF, audio, video, or voice recording.'
   } else if (content.length > FORUM_POST_CONTENT_MAX_LENGTH) {
     errors.content = `Content must be at most ${FORUM_POST_CONTENT_MAX_LENGTH} characters long.`
   }
@@ -54,6 +55,7 @@ export function CreatePostForm({ onCreate }: CreatePostFormProps) {
   const [fieldErrors, setFieldErrors] = useState<ForumPostFormErrors>({})
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [files, setFiles] = useState<File[]>([])
 
   const handleChange = (field: keyof typeof initialFormState) => (
     event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -67,7 +69,7 @@ export function CreatePostForm({ onCreate }: CreatePostFormProps) {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
-    const nextErrors = validateForm(formState)
+    const nextErrors = validateForm(formState, files)
     setFieldErrors(nextErrors)
 
     if (Object.keys(nextErrors).length > 0) {
@@ -84,12 +86,13 @@ export function CreatePostForm({ onCreate }: CreatePostFormProps) {
         title: formState.title.trim(),
         content: formState.content.trim(),
         tags: tags.length > 0 ? tags : undefined,
-      })
+      }, files)
 
       setFormState(initialFormState)
+      setFiles([])
       setFieldErrors({})
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : 'Unable to create the post.')
+      setSubmitError(getApiErrorMessage(error, 'Unable to create the post.'))
     } finally {
       setIsSubmitting(false)
     }
@@ -121,7 +124,7 @@ export function CreatePostForm({ onCreate }: CreatePostFormProps) {
             aria-invalid={Boolean(fieldErrors.title)}
             aria-describedby={fieldErrors.title ? 'forum-post-title-error' : undefined}
             placeholder="Title"
-            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-violet-400 dark:focus:ring-violet-500/20"
+            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-amber-400 dark:focus:ring-amber-500/20"
           />
           {fieldErrors.title ? (
             <p className="text-sm text-rose-600 dark:text-rose-300" id="forum-post-title-error">
@@ -131,17 +134,16 @@ export function CreatePostForm({ onCreate }: CreatePostFormProps) {
         </label>
 
         <label className="block space-y-2">
-          <span className="text-sm font-medium text-slate-700 dark:text-zinc-200">Content</span>
+          <span className="text-sm font-medium text-slate-700 dark:text-zinc-200">Story or context <small>(optional with media)</small></span>
           <textarea
             value={formState.content}
             onChange={handleChange('content')}
-            minLength={FORUM_POST_CONTENT_MIN_LENGTH}
             maxLength={FORUM_POST_CONTENT_MAX_LENGTH}
             rows={9}
             aria-invalid={Boolean(fieldErrors.content)}
             aria-describedby={fieldErrors.content ? 'forum-post-content-error' : undefined}
-            placeholder="Write your post"
-            className="min-h-44 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-violet-400 dark:focus:ring-violet-500/20"
+            placeholder="Write your post, or leave this empty and record your experience below"
+            className="min-h-44 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-amber-400 dark:focus:ring-amber-500/20"
           />
           {fieldErrors.content ? (
             <p className="text-sm text-rose-600 dark:text-rose-300" id="forum-post-content-error">
@@ -150,6 +152,8 @@ export function CreatePostForm({ onCreate }: CreatePostFormProps) {
           ) : null}
         </label>
 
+        <MediaComposer files={files} onFilesChange={setFiles} disabled={isSubmitting} />
+
         <label className="block space-y-2">
           <span className="text-sm font-medium text-slate-700 dark:text-zinc-200">Tags</span>
           <input
@@ -157,7 +161,7 @@ export function CreatePostForm({ onCreate }: CreatePostFormProps) {
             value={formState.tagsText}
             onChange={handleChange('tagsText')}
             placeholder="Tags"
-            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-violet-400 dark:focus:ring-violet-500/20"
+            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-amber-400 dark:focus:ring-amber-500/20"
           />
         </label>
 
@@ -170,7 +174,7 @@ export function CreatePostForm({ onCreate }: CreatePostFormProps) {
         <div className="flex justify-end pt-2">
           <button
             type="submit"
-            className="inline-flex items-center justify-center rounded-full bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center justify-center rounded-full bg-amber-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isSubmitting}
           >
             {isSubmitting ? 'Posting…' : 'Post'}

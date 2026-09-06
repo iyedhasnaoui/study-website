@@ -2,8 +2,12 @@ package com.studywebsite.controller;
 
 import com.studywebsite.dto.ForumPostCreateDto;
 import com.studywebsite.model.ForumPost;
+import com.studywebsite.model.ForumAttachment;
+import com.studywebsite.model.ForumAttachmentType;
 import com.studywebsite.model.User;
 import com.studywebsite.service.ForumPostService;
+import com.studywebsite.service.auth.AuthTokenService;
+import com.studywebsite.service.media.ForumAttachmentService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +16,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.mock.web.MockMultipartFile;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDateTime;
@@ -23,6 +28,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -38,6 +44,12 @@ class ForumPostControllerTest {
 
     @MockitoBean
     private ForumPostService forumPostService;
+
+    @MockitoBean
+    private ForumAttachmentService forumAttachmentService;
+
+    @MockitoBean
+    private AuthTokenService authTokenService;
 
     @Test
     void postValidInputReturnsCreated() throws Exception {
@@ -85,6 +97,56 @@ class ForumPostControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(create)))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void postAcceptsAnAudioOnlyExperience() throws Exception {
+        ForumPostCreateDto create = ForumPostCreateDto.builder()
+                .title("My exchange experience")
+                .content("")
+                .build();
+        User author = new User();
+        author.setId(2L);
+        author.setUsername("jdoe");
+        ForumPost saved = ForumPost.builder()
+                .id(11L)
+                .title(create.getTitle())
+                .content("")
+                .author(author)
+                .build();
+        ForumAttachment attachment = ForumAttachment.builder()
+                .id(21L)
+                .post(saved)
+                .author(author)
+                .originalFilename("voice-experience.webm")
+                .storedFilename("opaque.webm")
+                .mimeType("audio/webm")
+                .type(ForumAttachmentType.AUDIO)
+                .sizeBytes(4L)
+                .build();
+
+        when(forumPostService.create(ArgumentMatchers.any(ForumPost.class))).thenReturn(saved);
+        when(forumAttachmentService.attachToPost(
+                ArgumentMatchers.any(ForumPost.class),
+                ArgumentMatchers.anyList()
+        )).thenReturn(List.of(attachment));
+
+        MockMultipartFile payload = new MockMultipartFile(
+                "payload", "", MediaType.APPLICATION_JSON_VALUE, objectMapper.writeValueAsBytes(create)
+        );
+        MockMultipartFile audio = new MockMultipartFile(
+                "files", "voice-experience.webm", "audio/webm", new byte[]{1, 2, 3, 4}
+        );
+
+        mockMvc.perform(multipart("/api/forum/posts")
+                        .file(payload)
+                        .file(audio)
+                        .with(csrf())
+                        .header("X-User-Id", "2"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.content").value(""))
+                .andExpect(jsonPath("$.attachments[0].type").value("AUDIO"))
+                .andExpect(jsonPath("$.attachments[0].contentUrl").value("/api/forum/attachments/21/content"));
     }
 
     @Test

@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 
+import { useAuth } from '../../../auth/AuthContext'
 import { deleteReply, updateReply } from '../api/forumApi'
 import type { ForumReplyResponseDto, ForumReplyUpdateDto } from '../types'
+import { AttachmentGallery } from './AttachmentGallery'
 
 interface ReplyItemProps {
   reply: ForumReplyResponseDto
@@ -30,6 +32,7 @@ const formatDateTime = (value: string | null): string => {
 }
 
 export function ReplyItem({ reply, onUpdated, onDeleted }: ReplyItemProps) {
+  const { session } = useAuth()
   const [isEditing, setIsEditing] = useState(false)
   const [draftContent, setDraftContent] = useState(reply.content)
   const [isSaving, setIsSaving] = useState(false)
@@ -62,8 +65,8 @@ export function ReplyItem({ reply, onUpdated, onDeleted }: ReplyItemProps) {
 
   const handleSave = async () => {
     const trimmedContent = draftContent.trim()
-    if (!trimmedContent) {
-      setError('Reply content cannot be empty.')
+    if (!trimmedContent && !reply.attachments?.length) {
+      setError('Keep some text or at least one media attachment.')
       return
     }
 
@@ -108,31 +111,31 @@ export function ReplyItem({ reply, onUpdated, onDeleted }: ReplyItemProps) {
   }
 
   return (
-    <article className="rounded-2xl border-l-4 border-violet-300 bg-white/80 px-4 py-4 shadow-sm ring-1 ring-slate-200/80 transition dark:border-violet-500/40 dark:bg-zinc-950/60 dark:ring-zinc-800">
+    <article className="rounded-2xl border-l-4 border-amber-300 bg-white/80 px-4 py-4 shadow-sm ring-1 ring-slate-200/80 transition dark:border-amber-500/40 dark:bg-zinc-950/60 dark:ring-zinc-800">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1 space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-wide text-violet-600 dark:text-violet-300">Reply</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-300">Reply</p>
           <p className="text-sm font-medium text-slate-700 dark:text-zinc-200">{authorLabel}</p>
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          {isEditing ? null : (
+          {isEditing || session?.user.id !== reply.authorId ? null : (
             <button
               type="button"
               onClick={handleStartEditing}
-              className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-violet-300 hover:text-violet-700 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-violet-500/50 dark:hover:text-violet-200"
+              className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-amber-300 hover:text-amber-700 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-amber-500/50 dark:hover:text-amber-200"
             >
               Edit
             </button>
           )}
-          <button
+          {session?.user.id === reply.authorId ? <button
             type="button"
             onClick={handleDelete}
             disabled={isDeleting}
             className="rounded-full border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-900/70 dark:text-rose-300 dark:hover:bg-rose-950/40"
           >
             {isDeleting ? 'Deleting…' : 'Delete'}
-          </button>
+          </button> : null}
         </div>
       </div>
 
@@ -144,7 +147,7 @@ export function ReplyItem({ reply, onUpdated, onDeleted }: ReplyItemProps) {
               onChange={(event) => setDraftContent(event.target.value)}
               rows={4}
               maxLength={REPLY_CONTENT_MAX_LENGTH}
-              className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-violet-400 dark:focus:ring-violet-500/20"
+              className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-amber-400 dark:focus:ring-amber-500/20"
             />
 
             {error ? (
@@ -165,7 +168,7 @@ export function ReplyItem({ reply, onUpdated, onDeleted }: ReplyItemProps) {
                 type="button"
                 onClick={handleSave}
                 disabled={isSaving}
-                className="rounded-full bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-full bg-amber-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isSaving ? 'Saving…' : 'Save'}
               </button>
@@ -173,7 +176,11 @@ export function ReplyItem({ reply, onUpdated, onDeleted }: ReplyItemProps) {
           </div>
         ) : (
           <>
-            <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700 dark:text-zinc-300">{reply.content}</p>
+            {reply.content ? (
+              <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700 dark:text-zinc-300">{reply.content}</p>
+            ) : null}
+
+            <AttachmentGallery attachments={reply.attachments} compact />
 
             {error ? (
               <p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-200">

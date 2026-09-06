@@ -5,6 +5,8 @@ import com.studywebsite.model.ForumPost;
 import com.studywebsite.model.ForumReply;
 import com.studywebsite.model.User;
 import com.studywebsite.service.ForumReplyService;
+import com.studywebsite.service.auth.AuthTokenService;
+import com.studywebsite.service.media.ForumAttachmentService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +39,12 @@ class ForumReplyControllerTest {
 
     @MockitoBean
     private ForumReplyService forumReplyService;
+
+    @MockitoBean
+    private ForumAttachmentService forumAttachmentService;
+
+    @MockitoBean
+    private AuthTokenService authTokenService;
 
     @Test
     void postValidInputReturnsCreated() throws Exception {

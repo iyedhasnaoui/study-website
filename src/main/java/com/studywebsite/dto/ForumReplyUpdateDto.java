@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @Builder
 public class ForumReplyUpdateDto {
 
-    @Size(min = 1, max = 5000)
+    @Size(max = 5000)
     private String content;
 }
 
