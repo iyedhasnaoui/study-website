@@ -5,8 +5,11 @@ import com.studywebsite.dto.RoadmapNodeResponseDto;
 import com.studywebsite.dto.RoadmapNodeUpdateDto;
 import com.studywebsite.model.Roadmap;
 import com.studywebsite.model.RoadmapNode;
-import com.studywebsite.service.RoadmapNodeService;
+import com.studywebsite.model.RoadmapNodeType;
+import com.studywebsite.security.AuthenticatedUserPrincipal;
+import com.studywebsite.security.CurrentUser;
 import com.studywebsite.service.RoadmapService;
+import com.studywebsite.service.roadmap.RoadmapGraphService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -14,8 +17,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
 import java.util.List;
-//import java.util.Map;
-//import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/roadmaps/{roadmapId}/nodes")
@@ -23,13 +24,14 @@ import java.util.List;
 public class RoadmapNodeController {
 
     private final RoadmapService roadmapService;
-    private final RoadmapNodeService roadmapNodeService;
+    private final RoadmapGraphService roadmapGraphService;
+    private final RoadmapMapper mapper;
 
     @GetMapping
     public ResponseEntity<List<RoadmapNodeResponseDto>> getAll(@PathVariable Long roadmapId) {
-        roadmapService.getById(roadmapId); // validate roadmap exists
-        List<RoadmapNode> nodes = roadmapNodeService.findByRoadmapId(roadmapId);
-        return ResponseEntity.ok(nodes.stream().map(this::toDto).toList());
+        roadmapService.getById(roadmapId);
+        return ResponseEntity.ok(
+                roadmapGraphService.findNodes(roadmapId).stream().map(mapper::toNodeDto).toList());
     }
 
     @GetMapping("/{nodeId}")
@@ -37,14 +39,7 @@ public class RoadmapNodeController {
             @PathVariable Long roadmapId,
             @PathVariable Long nodeId) {
 
-        roadmapService.getById(roadmapId);
-        RoadmapNode node = roadmapNodeService.getById(nodeId);
-
-        if (node.getRoadmap() == null || !roadmapId.equals(node.getRoadmap().getId())) {
-            return ResponseEntity.notFound().build();
-        }
-
-        return ResponseEntity.ok(toDto(node));
+        return ResponseEntity.ok(mapper.toNodeDto(roadmapGraphService.getNode(roadmapId, nodeId)));
     }
 
     @PostMapping
@@ -52,25 +47,19 @@ public class RoadmapNodeController {
             @PathVariable Long roadmapId,
             @Valid @RequestBody RoadmapNodeCreateDto dto) {
 
-        Roadmap roadmap = roadmapService.getById(roadmapId);
+        Roadmap roadmap = requireEditableRoadmap(roadmapId);
 
         RoadmapNode node = new RoadmapNode();
-        node.setRoadmap(roadmap);
         node.setTitle(dto.getTitle());
+        node.setDescription(dto.getDescription());
         node.setContent(dto.getContent());
-        node.setOrderIndex(dto.getOrderIndex());
+        node.setNodeType(dto.getNodeType() == null ? RoadmapNodeType.PRIMARY : dto.getNodeType());
+        node.setPositionX(dto.getPositionX() == null ? 0.0 : dto.getPositionX());
+        node.setPositionY(dto.getPositionY() == null ? 0.0 : dto.getPositionY());
 
-        if (dto.getParentStepId() != null) {
-            RoadmapNode parent = roadmapNodeService.getById(dto.getParentStepId());
-            if (parent.getRoadmap() == null || !roadmapId.equals(parent.getRoadmap().getId())) {
-                throw new RuntimeException("Parent node does not belong to this roadmap");
-            }
-            node.setParentStep(parent);
-        }
-
-        RoadmapNode saved = roadmapNodeService.create(node);
+        RoadmapNode saved = roadmapGraphService.createNode(roadmap, node);
         return ResponseEntity.created(URI.create("/api/roadmaps/" + roadmapId + "/nodes/" + saved.getId()))
-                .body(toDto(saved));
+                .body(mapper.toNodeDto(saved));
     }
 
     @PutMapping("/{nodeId}")
@@ -79,32 +68,29 @@ public class RoadmapNodeController {
             @PathVariable Long nodeId,
             @Valid @RequestBody RoadmapNodeUpdateDto dto) {
 
-        RoadmapNode existing = roadmapNodeService.getById(nodeId);
-        if (existing.getRoadmap() == null || !roadmapId.equals(existing.getRoadmap().getId())) {
-            return ResponseEntity.notFound().build();
-        }
+        requireEditableRoadmap(roadmapId);
+        RoadmapNode existing = roadmapGraphService.getNode(roadmapId, nodeId);
 
         if (dto.getTitle() != null) {
             existing.setTitle(dto.getTitle());
         }
+        if (dto.getDescription() != null) {
+            existing.setDescription(dto.getDescription());
+        }
         if (dto.getContent() != null) {
             existing.setContent(dto.getContent());
         }
-        if (dto.getOrderIndex() != null) {
-            existing.setOrderIndex(dto.getOrderIndex());
+        if (dto.getNodeType() != null && existing.getNodeType() != RoadmapNodeType.ROOT) {
+            existing.setNodeType(dto.getNodeType());
         }
-        if (dto.getParentStepId() != null) {
-            RoadmapNode parent = roadmapNodeService.getById(dto.getParentStepId());
-            if (parent.getRoadmap() == null || !roadmapId.equals(parent.getRoadmap().getId())) {
-                throw new RuntimeException("Parent node does not belong to this roadmap");
-            }
-            existing.setParentStep(parent);
-        } else {
-            existing.setParentStep(null);
+        if (dto.getPositionX() != null) {
+            existing.setPositionX(dto.getPositionX());
+        }
+        if (dto.getPositionY() != null) {
+            existing.setPositionY(dto.getPositionY());
         }
 
-        RoadmapNode saved = roadmapNodeService.create(existing);
-        return ResponseEntity.ok(toDto(saved));
+        return ResponseEntity.ok(mapper.toNodeDto(roadmapGraphService.updateNode(existing)));
     }
 
     @DeleteMapping("/{nodeId}")
@@ -112,24 +98,15 @@ public class RoadmapNodeController {
             @PathVariable Long roadmapId,
             @PathVariable Long nodeId) {
 
-        RoadmapNode existing = roadmapNodeService.getById(nodeId);
-        if (existing.getRoadmap() == null || !roadmapId.equals(existing.getRoadmap().getId())) {
-            return ResponseEntity.notFound().build();
-        }
-
-        roadmapNodeService.delete(nodeId);
+        requireEditableRoadmap(roadmapId);
+        roadmapGraphService.deleteNode(roadmapId, nodeId);
         return ResponseEntity.noContent().build();
     }
 
-    private RoadmapNodeResponseDto toDto(RoadmapNode node) {
-        return RoadmapNodeResponseDto.builder()
-                .id(node.getId())
-                .roadmapId(node.getRoadmap() != null ? node.getRoadmap().getId() : null)
-                .parentStepId(node.getParentStep() != null ? node.getParentStep().getId() : null)
-                .title(node.getTitle())
-                .content(node.getContent())
-                .orderIndex(node.getOrderIndex())
-                .childSteps(List.of())
-                .build();
+    private Roadmap requireEditableRoadmap(Long roadmapId) {
+        AuthenticatedUserPrincipal principal = CurrentUser.require();
+        Roadmap roadmap = roadmapService.getById(roadmapId);
+        roadmapService.assertCanEdit(roadmap, principal.userId());
+        return roadmap;
     }
 }

@@ -7,10 +7,3 @@ export const formatDateTime = (value: string | null): string => {
     timeStyle: 'short',
   }).format(parsed)
 }
-
-export const countNodes = (nodes: { childSteps: unknown[] }[]): number => {
-  const walk = (list: { childSteps: unknown[] }[]): number =>
-    list.reduce((total, node) => total + 1 + walk(node.childSteps as { childSteps: unknown[] }[]), 0)
-
-  return walk(nodes)
-}

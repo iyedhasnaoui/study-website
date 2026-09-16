@@ -1,23 +1,21 @@
 package com.studywebsite.controller;
 
 import com.studywebsite.dto.RoadmapCreateDto;
-import com.studywebsite.dto.RoadmapNodeResponseDto;
 import com.studywebsite.dto.RoadmapResponseDto;
 import com.studywebsite.dto.RoadmapUpdateDto;
 import com.studywebsite.model.Roadmap;
-import com.studywebsite.model.RoadmapNode;
 import com.studywebsite.model.User;
-import com.studywebsite.service.RoadmapNodeService;
+import com.studywebsite.security.AuthenticatedUserPrincipal;
+import com.studywebsite.security.CurrentUser;
 import com.studywebsite.service.RoadmapService;
+import com.studywebsite.service.roadmap.RoadmapGraphService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -26,7 +24,8 @@ import java.util.stream.Collectors;
 public class RoadmapController {
 
     private final RoadmapService roadmapService;
-    private final RoadmapNodeService roadmapNodeService;
+    private final RoadmapGraphService roadmapGraphService;
+    private final RoadmapMapper mapper;
 
     @GetMapping
     public ResponseEntity<List<RoadmapResponseDto>> getAll(
@@ -50,31 +49,29 @@ public class RoadmapController {
                     .collect(Collectors.toList());
         }
 
-        return ResponseEntity.ok(roadmaps.stream().map(this::toResponseDtoWithTree).toList());
+        return ResponseEntity.ok(roadmaps.stream().map(this::toDto).toList());
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<RoadmapResponseDto> getById(@PathVariable Long id) {
-        Roadmap roadmap = roadmapService.getById(id);
-        return ResponseEntity.ok(toResponseDtoWithTree(roadmap));
+        return ResponseEntity.ok(toDto(roadmapService.getById(id)));
     }
 
     @PostMapping
-    public ResponseEntity<RoadmapResponseDto> create(
-            @RequestHeader(value = "X-User-Id", defaultValue = "1") Long userId,
-            @Valid @RequestBody RoadmapCreateDto dto) {
+    public ResponseEntity<RoadmapResponseDto> create(@Valid @RequestBody RoadmapCreateDto dto) {
+        AuthenticatedUserPrincipal principal = CurrentUser.require();
 
         Roadmap roadmap = new Roadmap();
         roadmap.setTitle(dto.getTitle());
         roadmap.setDescription(dto.getDescription());
 
         User author = new User();
-        author.setId(userId);
+        author.setId(principal.userId());
         roadmap.setAuthor(author);
 
         Roadmap saved = roadmapService.create(roadmap);
         return ResponseEntity.created(URI.create("/api/roadmaps/" + saved.getId()))
-                .body(toResponseDtoWithTree(saved));
+                .body(toDto(saved));
     }
 
     @PutMapping("/{id}")
@@ -82,7 +79,10 @@ public class RoadmapController {
             @PathVariable Long id,
             @Valid @RequestBody RoadmapUpdateDto dto) {
 
+        AuthenticatedUserPrincipal principal = CurrentUser.require();
         Roadmap existing = roadmapService.getById(id);
+        roadmapService.assertCanEdit(existing, principal.userId());
+
         if (dto.getTitle() != null) {
             existing.setTitle(dto.getTitle());
         }
@@ -90,72 +90,22 @@ public class RoadmapController {
             existing.setDescription(dto.getDescription());
         }
 
-        Roadmap saved = roadmapService.create(existing);
-        return ResponseEntity.ok(toResponseDtoWithTree(saved));
+        return ResponseEntity.ok(toDto(roadmapService.save(existing)));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
+        AuthenticatedUserPrincipal principal = CurrentUser.require();
+        roadmapService.assertCanEdit(roadmapService.getById(id), principal.userId());
+
         roadmapService.delete(id);
         return ResponseEntity.noContent().build();
     }
 
-    private RoadmapResponseDto toResponseDtoWithTree(Roadmap roadmap) {
-        List<RoadmapNode> allNodes = roadmapNodeService.findByRoadmapId(roadmap.getId());
-        Map<Long, List<RoadmapNode>> childrenByParent = allNodes.stream()
-                .filter(node -> node.getParentStep() != null && node.getParentStep().getId() != null)
-                .collect(Collectors.groupingBy(node -> node.getParentStep().getId()));
-
-        List<RoadmapNodeResponseDto> rootNodes = allNodes.stream()
-                .filter(node -> node.getParentStep() == null || node.getParentStep().getId() == null)
-                .sorted((a, b) -> compareOrder(a.getOrderIndex(), b.getOrderIndex(), a.getId(), b.getId()))
-                .map(node -> toNodeTreeDto(node, childrenByParent))
-                .toList();
-
-        Long authorId = roadmap.getAuthor() != null ? roadmap.getAuthor().getId() : null;
-        String authorUsername = roadmap.getAuthor() != null ? roadmap.getAuthor().getUsername() : null;
-
-        return RoadmapResponseDto.builder()
-                .id(roadmap.getId())
-                .authorId(authorId)
-                .authorUsername(authorUsername)
-                .title(roadmap.getTitle())
-                .description(roadmap.getDescription())
-                .createdAt(roadmap.getCreatedAt())
-                .updatedAt(roadmap.getUpdatedAt())
-                .nodes(rootNodes)
-                .build();
-    }
-
-    private RoadmapNodeResponseDto toNodeTreeDto(
-            RoadmapNode node,
-            Map<Long, List<RoadmapNode>> childrenByParent) {
-
-        List<RoadmapNodeResponseDto> children = childrenByParent
-                .getOrDefault(node.getId(), List.of())
-                .stream()
-                .sorted((a, b) -> compareOrder(a.getOrderIndex(), b.getOrderIndex(), a.getId(), b.getId()))
-                .map(child -> toNodeTreeDto(child, childrenByParent))
-                .toList();
-
-        return RoadmapNodeResponseDto.builder()
-                .id(node.getId())
-                .roadmapId(node.getRoadmap() != null ? node.getRoadmap().getId() : null)
-                .parentStepId(node.getParentStep() != null ? node.getParentStep().getId() : null)
-                .title(node.getTitle())
-                .content(node.getContent())
-                .orderIndex(node.getOrderIndex())
-                .childSteps(children)
-                .build();
-    }
-
-    private int compareOrder(Integer leftOrder, Integer rightOrder, Long leftId, Long rightId) {
-        int left = leftOrder != null ? leftOrder : Integer.MAX_VALUE;
-        int right = rightOrder != null ? rightOrder : Integer.MAX_VALUE;
-        int compare = Integer.compare(left, right);
-        if (compare != 0) return compare;
-        long leftValue = leftId != null ? leftId : Long.MAX_VALUE;
-        long rightValue = rightId != null ? rightId : Long.MAX_VALUE;
-        return Long.compare(leftValue, rightValue);
+    private RoadmapResponseDto toDto(Roadmap roadmap) {
+        return mapper.toRoadmapDto(
+                roadmap,
+                roadmapGraphService.findNodes(roadmap.getId()),
+                roadmapGraphService.findEdges(roadmap.getId()));
     }
 }

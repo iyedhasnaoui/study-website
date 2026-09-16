@@ -13,12 +13,12 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class RoadmapResponseDto {
-    private Long id;
-    private Long authorId;
-    private String authorUsername;
+public class RoadmapGraphResponseDto {
+    private Long roadmapId;
     private String title;
     private String description;
+    private Long authorId;
+    private String authorUsername;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 

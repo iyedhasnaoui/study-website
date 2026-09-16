@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../../../auth/AuthContext'
 import { deleteRoadmap, getRoadmaps } from '../api/roadmapApi'
 import type { RoadmapResponseDto } from '../types'
-import { countNodes, formatDateTime } from '../utils'
+import { formatDateTime } from '../utils'
 
 export interface RoadmapFeedProps {
   reloadKey?: number
@@ -83,7 +83,7 @@ export function RoadmapFeed({ reloadKey = 0, searchFilter, onSelectRoadmap }: Ro
               Available roadmaps
             </h2>
             <p className="mt-1 text-sm text-slate-500 dark:text-zinc-400">
-              Open a roadmap to explore its tree and individual study nodes.
+              Open a roadmap to explore its graph and drill into each step.
             </p>
           </div>
         </div>
@@ -115,7 +115,7 @@ export function RoadmapFeed({ reloadKey = 0, searchFilter, onSelectRoadmap }: Ro
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-2" aria-live="polite">
           {roadmaps.map((roadmap) => {
-            const nodeCount = countNodes(roadmap.nodes)
+            const nodeCount = roadmap.nodes.length
 
             return (
                 <article
@@ -176,14 +176,14 @@ export function RoadmapFeed({ reloadKey = 0, searchFilter, onSelectRoadmap }: Ro
                       View roadmap
                     </button> : null}
 
-                    <button
+                    {session?.user.id === roadmap.authorId ? <button
                         type="button"
                         onClick={() => handleDelete(roadmap.id)}
                         disabled={deletingRoadmapId === roadmap.id}
                         className="rounded-full border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-900/70 dark:text-rose-300 dark:hover:bg-rose-950/40"
                     >
                       {deletingRoadmapId === roadmap.id ? 'Deleting…' : 'Delete'}
-                    </button>
+                    </button> : null}
                   </div>
                 </article>
             )

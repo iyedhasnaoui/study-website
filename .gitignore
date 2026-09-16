@@ -12,3 +12,5 @@ demo/
 *.iml
 *.ipr
 out/
+
+bin/

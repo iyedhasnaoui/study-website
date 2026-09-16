@@ -1,5 +1,6 @@
 package com.studywebsite.dto;
 
+import com.studywebsite.model.RoadmapNodeType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
@@ -13,10 +14,15 @@ public class RoadmapNodeCreateDto {
     @Size(max = 200)
     private String title;
 
+    @Size(max = 500)
+    private String description;
+
     @Size(max = 100000)
     private String content;
 
-    private Long parentStepId;
+    private RoadmapNodeType nodeType;
 
-    private Integer orderIndex;
+    private Double positionX;
+
+    private Double positionY;
 }

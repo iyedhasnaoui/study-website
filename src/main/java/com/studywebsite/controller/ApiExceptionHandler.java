@@ -9,6 +9,9 @@ import com.studywebsite.service.auth.InvalidCredentialsException;
 import com.studywebsite.service.media.ForumAttachmentStorageException;
 import com.studywebsite.service.media.InvalidForumAttachmentException;
 import com.studywebsite.service.media.InvalidForumContributionException;
+import com.studywebsite.security.UnauthenticatedException;
+import com.studywebsite.service.roadmap.InvalidRoadmapGraphException;
+import com.studywebsite.service.roadmap.RoadmapAccessDeniedException;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
@@ -84,6 +87,30 @@ public class ApiExceptionHandler {
             HttpServletRequest request
     ) {
         return response(HttpStatus.PAYLOAD_TOO_LARGE, "The upload is larger than the 200 MB request limit", request, Map.of());
+    }
+
+    @ExceptionHandler(UnauthenticatedException.class)
+    public ResponseEntity<ApiErrorResponse> handleUnauthenticated(
+            UnauthenticatedException exception,
+            HttpServletRequest request
+    ) {
+        return response(HttpStatus.UNAUTHORIZED, exception.getMessage(), request, Map.of());
+    }
+
+    @ExceptionHandler(RoadmapAccessDeniedException.class)
+    public ResponseEntity<ApiErrorResponse> handleRoadmapAccessDenied(
+            RoadmapAccessDeniedException exception,
+            HttpServletRequest request
+    ) {
+        return response(HttpStatus.FORBIDDEN, exception.getMessage(), request, Map.of());
+    }
+
+    @ExceptionHandler(InvalidRoadmapGraphException.class)
+    public ResponseEntity<ApiErrorResponse> handleInvalidRoadmapGraph(
+            InvalidRoadmapGraphException exception,
+            HttpServletRequest request
+    ) {
+        return response(HttpStatus.BAD_REQUEST, exception.getMessage(), request, Map.of());
     }
 
     @ExceptionHandler(EntityNotFoundException.class)

@@ -2,6 +2,8 @@ import axios from 'axios'
 
 import type {
   RoadmapCreateDto,
+  RoadmapGraphResponseDto,
+  RoadmapGraphSaveDto,
   RoadmapNodeCreateDto,
   RoadmapNodeResponseDto,
   RoadmapNodeUpdateDto,
@@ -11,11 +13,6 @@ import type {
 import { apiClient, requireAuthenticatedUser } from '../../../lib/apiClient'
 
 export const roadmapApiClient = apiClient
-
-const withUserHeader = (userId?: number) => {
-  const authenticatedUser = requireAuthenticatedUser()
-  return { 'X-User-Id': String(userId ?? authenticatedUser.id) }
-}
 
 const extractErrorMessage = (error: unknown, fallback: string): string => {
   if (axios.isAxiosError(error)) {
@@ -41,13 +38,9 @@ export async function getRoadmapById(id: number): Promise<RoadmapResponseDto> {
   return response.data
 }
 
-export async function createRoadmap(
-  payload: RoadmapCreateDto,
-  userId?: number,
-): Promise<RoadmapResponseDto> {
-  const response = await roadmapApiClient.post<RoadmapResponseDto>('/api/roadmaps', payload, {
-    headers: withUserHeader(userId),
-  })
+export async function createRoadmap(payload: RoadmapCreateDto): Promise<RoadmapResponseDto> {
+  requireAuthenticatedUser()
+  const response = await roadmapApiClient.post<RoadmapResponseDto>('/api/roadmaps', payload)
   return response.data
 }
 
@@ -63,6 +56,25 @@ export async function updateRoadmap(
 export async function deleteRoadmap(id: number): Promise<void> {
   requireAuthenticatedUser()
   await roadmapApiClient.delete(`/api/roadmaps/${id}`)
+}
+
+export async function getRoadmapGraph(roadmapId: number): Promise<RoadmapGraphResponseDto> {
+  const response = await roadmapApiClient.get<RoadmapGraphResponseDto>(
+    `/api/roadmaps/${roadmapId}/graph`,
+  )
+  return response.data
+}
+
+export async function saveRoadmapGraph(
+  roadmapId: number,
+  payload: RoadmapGraphSaveDto,
+): Promise<RoadmapGraphResponseDto> {
+  requireAuthenticatedUser()
+  const response = await roadmapApiClient.put<RoadmapGraphResponseDto>(
+    `/api/roadmaps/${roadmapId}/graph`,
+    payload,
+  )
+  return response.data
 }
 
 export async function getRoadmapNodes(roadmapId: number): Promise<RoadmapNodeResponseDto[]> {
@@ -86,12 +98,10 @@ export async function createRoadmapNode(
   roadmapId: number,
   payload: RoadmapNodeCreateDto,
 ): Promise<RoadmapNodeResponseDto> {
+  requireAuthenticatedUser()
   const response = await roadmapApiClient.post<RoadmapNodeResponseDto>(
     `/api/roadmaps/${roadmapId}/nodes`,
     payload,
-    {
-      headers: withUserHeader(),
-    },
   )
   return response.data
 }

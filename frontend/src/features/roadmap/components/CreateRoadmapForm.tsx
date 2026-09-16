@@ -4,8 +4,7 @@ import { createRoadmap } from '../api/roadmapApi'
 import type { RoadmapCreateDto } from '../types'
 
 interface CreateRoadmapFormProps {
-  onCreated?: () => void
-  onSuccessNavigate?: () => void
+  onCreated?: (roadmapId: number) => void
 }
 
 export function CreateRoadmapForm({ onCreated }: CreateRoadmapFormProps) {
@@ -31,10 +30,10 @@ export function CreateRoadmapForm({ onCreated }: CreateRoadmapFormProps) {
     setIsSaving(true)
 
     try {
-      await createRoadmap(payload)
+      const created = await createRoadmap(payload)
       setTitle('')
       setDescription('')
-      onCreated?.()
+      onCreated?.(created.id)
     } catch (submissionError) {
       setError(submissionError instanceof Error ? submissionError.message : 'Unable to create roadmap.')
     } finally {
@@ -47,6 +46,9 @@ export function CreateRoadmapForm({ onCreated }: CreateRoadmapFormProps) {
       <h2 className="text-xl font-semibold tracking-tight text-slate-900 dark:text-zinc-100">
         Create roadmap
       </h2>
+      <p className="mt-1 text-sm text-slate-500 dark:text-zinc-400">
+        You start with one main node, then build the graph around it.
+      </p>
 
       <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
         <label className="block space-y-2">

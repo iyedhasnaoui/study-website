@@ -6,10 +6,9 @@ import { RoadmapFeed } from './components/RoadmapFeed'
 
 export interface RoadmapFeedPageProps {
   onOpenRoadmap: (roadmapId: number) => void
-  onCreateRoadmapDone?: () => void
 }
 
-export function RoadmapFeedPage({ onOpenRoadmap, onCreateRoadmapDone }: RoadmapFeedPageProps) {
+export function RoadmapFeedPage({ onOpenRoadmap }: RoadmapFeedPageProps) {
   const { session } = useAuth()
   const [reloadKey, setReloadKey] = useState(0)
   const [searchDraft, setSearchDraft] = useState('')
@@ -20,11 +19,9 @@ export function RoadmapFeedPage({ onOpenRoadmap, onCreateRoadmapDone }: RoadmapF
     return `Search: ${activeSearch}`
   }, [activeSearch])
 
-  const handleCreated = () => {
+  const handleCreated = (roadmapId: number) => {
     setReloadKey((value) => value + 1)
-    if (onCreateRoadmapDone) {
-      onCreateRoadmapDone()
-    }
+    onOpenRoadmap(roadmapId)
   }
 
   return (
@@ -39,7 +36,7 @@ export function RoadmapFeedPage({ onOpenRoadmap, onCreateRoadmapDone }: RoadmapF
                 Learning paths
               </h1>
               <p className="max-w-2xl text-sm text-slate-500 dark:text-zinc-400">
-                Explore curated study plans, open a roadmap, and drill into each node in the tree.
+                Explore curated study plans as interactive graphs, and build your own.
               </p>
             </div>
           </div>
@@ -48,10 +45,7 @@ export function RoadmapFeedPage({ onOpenRoadmap, onCreateRoadmapDone }: RoadmapF
         <div className="grid gap-8 lg:grid-cols-3">
           <div className="lg:sticky lg:top-28">
             {session ? (
-              <CreateRoadmapForm
-                  onCreated={handleCreated}
-                  onSuccessNavigate={onCreateRoadmapDone}
-              />
+              <CreateRoadmapForm onCreated={handleCreated} />
             ) : (
               <section className="rounded-2xl border border-amber-200 bg-amber-50 p-6 shadow-sm dark:border-amber-900/50 dark:bg-amber-950/20">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700 dark:text-amber-300">Members contribute</p>

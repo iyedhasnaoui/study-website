@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 
 import { RoadmapDetailPage } from './RoadmapDetailPage'
 import { RoadmapFeedPage } from './RoadmapFeedPage'
-import { RoadmapNodeDetailPage } from './RoadmapNodeDetailPage'
 import { getRoadmapHash, getRoadmapRouteFromHash, type RoadmapRoute } from './roadmapRoutes'
 
 export function RoadmapPage() {
@@ -27,31 +26,20 @@ export function RoadmapPage() {
     setRoute(next)
   }
 
-  if (route.name === 'detail') {
+  if (route.name === 'detail' || route.name === 'node') {
+    const roadmapId = route.roadmapId
+
     return (
       <RoadmapDetailPage
-        roadmapId={route.roadmapId}
+        key={roadmapId}
+        roadmapId={roadmapId}
+        focusNodeId={route.name === 'node' ? route.nodeId : null}
         onBackToFeed={() => navigate({ name: 'feed' })}
-        onOpenNode={(nodeId) => navigate({ name: 'node', roadmapId: route.roadmapId, nodeId })}
-      />
-    )
-  }
-
-  if (route.name === 'node') {
-    return (
-      <RoadmapNodeDetailPage
-        roadmapId={route.roadmapId}
-        nodeId={route.nodeId}
-        onBack={() => navigate({ name: 'detail', roadmapId: route.roadmapId })}
-        onOpenNode={(nodeId) => navigate({ name: 'node', roadmapId: route.roadmapId, nodeId })}
       />
     )
   }
 
   return (
-    <RoadmapFeedPage
-      onOpenRoadmap={(roadmapId) => navigate({ name: 'detail', roadmapId })}
-      onCreateRoadmapDone={() => navigate({ name: 'feed' })}
-    />
+    <RoadmapFeedPage onOpenRoadmap={(roadmapId) => navigate({ name: 'detail', roadmapId })} />
   )
 }
