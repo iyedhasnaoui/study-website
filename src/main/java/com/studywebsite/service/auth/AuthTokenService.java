@@ -63,6 +63,10 @@ public class AuthTokenService {
                     }
 
                     User user = session.getUser();
+                    if (Boolean.TRUE.equals(user.getBanned())) {
+                        authSessionRepository.delete(session);
+                        return Optional.empty();
+                    }
                     Set<String> roles = user.getUserRoles().stream()
                             .map(role -> role.getRole())
                             .collect(Collectors.toUnmodifiableSet());

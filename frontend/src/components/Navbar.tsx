@@ -2,14 +2,15 @@ import { useEffect, useState } from 'react'
 
 import type { AuthUser } from '../auth/types'
 import type { ForumRoute } from '../features/forum/forumRoutes'
+import type { AppSection } from '../App'
 
 interface NavbarProps {
-  activeSection: 'home' | 'forum' | 'roadmaps'
+  activeSection: AppSection
   activeForumRoute: ForumRoute
   user: AuthUser | null
   onNavigateHome: () => void
-  onNavigateForum: (route: ForumRoute) => void
-  onNavigateRoadmaps: () => void
+  onNavigateZitouna: () => void
+  onNavigateAbout: () => void
   onOpenLogin: () => void
   onOpenRegister: () => void
   onLogout: () => Promise<void>
@@ -21,8 +22,8 @@ export function Navbar({
   activeForumRoute,
   user,
   onNavigateHome,
-  onNavigateForum,
-  onNavigateRoadmaps,
+  onNavigateZitouna,
+  onNavigateAbout,
   onOpenLogin,
   onOpenRegister,
   onLogout,
@@ -63,8 +64,8 @@ export function Navbar({
         <div className={`nav-panel ${isMenuOpen ? 'is-open' : ''}`}>
           <div className="nav-links">
             <button className={activeSection === 'home' ? 'is-active' : ''} type="button" onClick={() => navigate(onNavigateHome)}>Home</button>
-            <button className={activeSection === 'forum' ? 'is-active' : ''} type="button" onClick={() => navigate(() => onNavigateForum('feed'))}>Forum</button>
-            <button className={activeSection === 'roadmaps' ? 'is-active' : ''} type="button" onClick={() => navigate(onNavigateRoadmaps)}>Roadmaps</button>
+            <button className={activeSection === 'zitouna' ? 'is-active' : ''} type="button" onClick={() => navigate(onNavigateZitouna)}>Zitouna</button>
+            <button className={activeSection === 'about' ? 'is-active' : ''} type="button" onClick={() => navigate(onNavigateAbout)}>About us</button>
             {activeSection === 'forum' && activeForumRoute === 'create' ? <span className="nav-context">Writing a post</span> : null}
           </div>
 

@@ -7,11 +7,17 @@ import com.studywebsite.dto.RoadmapUpdateDto;
 import com.studywebsite.model.Roadmap;
 import com.studywebsite.model.RoadmapNode;
 import com.studywebsite.model.User;
+import com.studywebsite.security.AuthenticatedUserPrincipal;
 import com.studywebsite.service.RoadmapNodeService;
 import com.studywebsite.service.RoadmapService;
+import com.studywebsite.service.TagService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
@@ -28,12 +34,18 @@ public class RoadmapController {
     private final RoadmapService roadmapService;
     private final RoadmapNodeService roadmapNodeService;
 
+    @Autowired(required = false)
+    private TagService tagService;
+
     @GetMapping
     public ResponseEntity<List<RoadmapResponseDto>> getAll(
             @RequestParam(required = false) String q,
             @RequestParam(required = false) Long authorId) {
 
-        List<Roadmap> roadmaps = roadmapService.getAll();
+        List<Roadmap> roadmaps = roadmapService.getAll().stream()
+                .filter(roadmap -> roadmap.getModerationStatus() == null
+                        || roadmap.getModerationStatus() == com.studywebsite.model.ModerationStatus.APPROVED)
+                .toList();
 
         if (authorId != null) {
             roadmaps = roadmaps.stream()
@@ -56,12 +68,16 @@ public class RoadmapController {
     @GetMapping("/{id}")
     public ResponseEntity<RoadmapResponseDto> getById(@PathVariable Long id) {
         Roadmap roadmap = roadmapService.getById(id);
+        if (roadmap.getModerationStatus() != null
+                && roadmap.getModerationStatus() != com.studywebsite.model.ModerationStatus.APPROVED) {
+            return ResponseEntity.notFound().build();
+        }
         return ResponseEntity.ok(toResponseDtoWithTree(roadmap));
     }
 
     @PostMapping
     public ResponseEntity<RoadmapResponseDto> create(
-            @RequestHeader(value = "X-User-Id", defaultValue = "1") Long userId,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
             @Valid @RequestBody RoadmapCreateDto dto) {
 
         Roadmap roadmap = new Roadmap();
@@ -69,8 +85,13 @@ public class RoadmapController {
         roadmap.setDescription(dto.getDescription());
 
         User author = new User();
-        author.setId(userId);
+        author.setId(principal.userId());
         roadmap.setAuthor(author);
+        roadmap.setModerationStatus(com.studywebsite.model.ModerationStatus.PENDING);
+        if (tagService != null) {
+            TagService.AppliedTags selected = tagService.resolveSelection(dto.getTagSelection(), List.of(), principal.userId());
+            roadmap.setTags(selected.tags());
+        }
 
         Roadmap saved = roadmapService.create(roadmap);
         return ResponseEntity.created(URI.create("/api/roadmaps/" + saved.getId()))
@@ -79,10 +100,12 @@ public class RoadmapController {
 
     @PutMapping("/{id}")
     public ResponseEntity<RoadmapResponseDto> update(
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
             @PathVariable Long id,
             @Valid @RequestBody RoadmapUpdateDto dto) {
 
         Roadmap existing = roadmapService.getById(id);
+        requireOwner(existing, principal.userId());
         if (dto.getTitle() != null) {
             existing.setTitle(dto.getTitle());
         }
@@ -90,12 +113,18 @@ public class RoadmapController {
             existing.setDescription(dto.getDescription());
         }
 
+        existing.setModerationStatus(com.studywebsite.model.ModerationStatus.PENDING);
+        existing.setModerationNote(null);
+
         Roadmap saved = roadmapService.create(existing);
         return ResponseEntity.ok(toResponseDtoWithTree(saved));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+            @PathVariable Long id) {
+        requireOwner(roadmapService.getById(id), principal.userId());
         roadmapService.delete(id);
         return ResponseEntity.noContent().build();
     }
@@ -124,6 +153,14 @@ public class RoadmapController {
                 .createdAt(roadmap.getCreatedAt())
                 .updatedAt(roadmap.getUpdatedAt())
                 .nodes(rootNodes)
+                .tags(roadmap.getTags() == null ? List.of() : roadmap.getTags().stream()
+                        .map(com.studywebsite.model.ZitounaTag::getName)
+                        .sorted()
+                        .toList())
+                .moderationStatus(roadmap.getModerationStatus() == null
+                        ? com.studywebsite.model.ModerationStatus.APPROVED
+                        : roadmap.getModerationStatus())
+                .moderationNote(roadmap.getModerationNote())
                 .build();
     }
 
@@ -157,5 +194,11 @@ public class RoadmapController {
         long leftValue = leftId != null ? leftId : Long.MAX_VALUE;
         long rightValue = rightId != null ? rightId : Long.MAX_VALUE;
         return Long.compare(leftValue, rightValue);
+    }
+
+    private void requireOwner(Roadmap roadmap, Long userId) {
+        if (roadmap.getAuthor() == null || !userId.equals(roadmap.getAuthor().getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only the author can change this roadmap");
+        }
     }
 }

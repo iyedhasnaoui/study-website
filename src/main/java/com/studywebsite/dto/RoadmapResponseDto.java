@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import com.studywebsite.model.ModerationStatus;
 
 @Data
 @NoArgsConstructor
@@ -22,4 +23,7 @@ public class RoadmapResponseDto {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private List<RoadmapNodeResponseDto> nodes = new ArrayList<>();
+    private List<String> tags = new ArrayList<>();
+    private ModerationStatus moderationStatus;
+    private String moderationNote;
 }

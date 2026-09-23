@@ -6,6 +6,7 @@ import {
   FORUM_POST_TITLE_MIN_LENGTH,
   type ForumPostCreateDto,
   type ForumPostFormErrors,
+  type TagSelectionDto,
 } from '../types'
 import { MediaComposer } from './MediaComposer'
 import { getApiErrorMessage } from '../../../lib/apiClient'
@@ -14,13 +15,35 @@ interface CreatePostFormProps {
   onCreate: (payload: ForumPostCreateDto, files: File[]) => Promise<void>
 }
 
-const initialFormState = {
-  title: '',
-  content: '',
-  tagsText: '',
+interface ZitounaPostPrefill {
+  tags?: Array<{ id: number; name: string }>
+  tagSelection?: TagSelectionDto
 }
 
-const validateForm = (state: typeof initialFormState, files: File[]): ForumPostFormErrors => {
+const readPostPrefill = (): ZitounaPostPrefill | null => {
+  try {
+    const value = window.sessionStorage.getItem('iac.zitouna.post-prefill')
+    return value ? JSON.parse(value) as ZitounaPostPrefill : null
+  } catch {
+    window.sessionStorage.removeItem('iac.zitouna.post-prefill')
+    return null
+  }
+}
+
+const createInitialFormState = () => {
+  const prefill = readPostPrefill()
+  return {
+  title: '',
+  content: '',
+    tagsText: prefill?.tags?.map((tag) => tag.name).join(', ') ?? '',
+    tagSelection: prefill?.tagSelection,
+  }
+}
+
+type FormState = ReturnType<typeof createInitialFormState>
+type TextField = 'title' | 'content' | 'tagsText'
+
+const validateForm = (state: FormState, files: File[]): ForumPostFormErrors => {
   const errors: ForumPostFormErrors = {}
   const title = state.title.trim()
   const content = state.content.trim()
@@ -51,13 +74,13 @@ const parseTags = (value: string): string[] =>
   )
 
 export function CreatePostForm({ onCreate }: CreatePostFormProps) {
-  const [formState, setFormState] = useState(initialFormState)
+  const [formState, setFormState] = useState(createInitialFormState)
   const [fieldErrors, setFieldErrors] = useState<ForumPostFormErrors>({})
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [files, setFiles] = useState<File[]>([])
 
-  const handleChange = (field: keyof typeof initialFormState) => (
+  const handleChange = (field: TextField) => (
     event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     setFormState((current) => ({
@@ -86,9 +109,11 @@ export function CreatePostForm({ onCreate }: CreatePostFormProps) {
         title: formState.title.trim(),
         content: formState.content.trim(),
         tags: tags.length > 0 ? tags : undefined,
+        tagSelection: formState.tagSelection,
       }, files)
 
-      setFormState(initialFormState)
+      window.sessionStorage.removeItem('iac.zitouna.post-prefill')
+      setFormState(createInitialFormState())
       setFiles([])
       setFieldErrors({})
     } catch (error) {
@@ -113,6 +138,11 @@ export function CreatePostForm({ onCreate }: CreatePostFormProps) {
       </div>
 
       <form className="space-y-4" onSubmit={handleSubmit} noValidate>
+        {formState.tagSelection ? (
+          <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+            Your active Zitouna filters have been added to this post.
+          </p>
+        ) : null}
         <label className="block space-y-2">
           <span className="text-sm font-medium text-slate-700 dark:text-zinc-200">Title</span>
           <input

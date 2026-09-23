@@ -94,6 +94,14 @@ public class ApiExceptionHandler {
         return response(HttpStatus.NOT_FOUND, exception.getMessage(), request, Map.of());
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiErrorResponse> handleInvalidRequest(
+            IllegalArgumentException exception,
+            HttpServletRequest request
+    ) {
+        return response(HttpStatus.BAD_REQUEST, exception.getMessage(), request, Map.of());
+    }
+
     @ExceptionHandler(ForumAttachmentStorageException.class)
     public ResponseEntity<ApiErrorResponse> handleStorageFailure(
             ForumAttachmentStorageException exception,

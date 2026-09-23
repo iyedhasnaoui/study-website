@@ -9,13 +9,17 @@ import { CreatePostPage } from './features/forum/CreatePostPage'
 import { ForumFeedPage } from './features/forum/ForumFeedPage'
 import { getForumHash, getForumRouteFromHash, type ForumRoute } from './features/forum/forumRoutes'
 import { RoadmapPage } from './features/roadmap/RoadmapPage'
+import { ZitounaPage } from './features/zitouna/ZitounaPage'
 import { HomePage } from './pages/HomePage'
+import { AboutPage } from './pages/AboutPage'
 
-type AppSection = 'home' | 'forum' | 'roadmaps'
+export type AppSection = 'home' | 'zitouna' | 'forum' | 'roadmaps' | 'about'
 
 const getSectionFromHash = (hash: string): AppSection => {
   if (hash.startsWith('#roadmaps')) return 'roadmaps'
   if (hash.startsWith('#forum')) return 'forum'
+  if (hash.startsWith('#zitouna')) return 'zitouna'
+  if (hash.startsWith('#about')) return 'about'
   return 'home'
 }
 
@@ -65,6 +69,16 @@ function App() {
     setSection('roadmaps')
   }
 
+  const navigateZitouna = () => {
+    window.location.hash = '#zitouna'
+    setSection('zitouna')
+  }
+
+  const navigateAbout = () => {
+    window.location.hash = '#about'
+    setSection('about')
+  }
+
   const openAuth = (mode: AuthMode) => setAuthDialog({ open: true, mode })
 
   const handleLogout = async () => {
@@ -90,8 +104,8 @@ function App() {
         activeForumRoute={forumRoute}
         user={session?.user ?? null}
         onNavigateHome={navigateHome}
-        onNavigateForum={navigateForum}
-        onNavigateRoadmaps={navigateRoadmaps}
+        onNavigateZitouna={navigateZitouna}
+        onNavigateAbout={navigateAbout}
         onOpenLogin={() => openAuth('login')}
         onOpenRegister={() => openAuth('register')}
         onLogout={handleLogout}
@@ -100,14 +114,29 @@ function App() {
 
       {section === 'home' ? (
         <HomePage
+          onOpenZitouna={navigateZitouna}
+          onOpenAbout={navigateAbout}
+          onOpenProfile={() => session ? navigateZitouna() : openAuth('register')}
+        />
+      ) : section === 'zitouna' ? (
+        <ZitounaPage
+          onCreatePost={() => navigateForum('create')}
           onOpenForum={() => navigateForum('feed')}
           onOpenRoadmaps={navigateRoadmaps}
-          onJoin={() => session ? navigateForum('feed') : openAuth('register')}
+          onRequireLogin={() => openAuth('login')}
         />
+      ) : section === 'about' ? (
+        <AboutPage />
       ) : section === 'roadmaps' ? (
         <RoadmapPage />
       ) : forumRoute === 'create' ? (
-        <CreatePostPage onBackToFeed={() => navigateForum('feed')} onCreated={() => navigateForum('feed')} />
+        <CreatePostPage
+          onBackToFeed={() => navigateForum('feed')}
+          onCreated={() => {
+            setToast('Your post is waiting for admin approval.')
+            navigateForum('feed')
+          }}
+        />
       ) : (
         <ForumFeedPage onCreateNew={() => navigateForum('create')} />
       )}
@@ -119,7 +148,7 @@ function App() {
             <span className="brand__name">Ifriqiya <b>Academic Circle</b></span>
           </button>
           <p>Built for curious minds and generous contributors.</p>
-          <div><button type="button" onClick={() => navigateForum('feed')}>Forum</button><button type="button" onClick={navigateRoadmaps}>Roadmaps</button></div>
+          <div><button type="button" onClick={navigateZitouna}>Zitouna</button><button type="button" onClick={navigateAbout}>About us</button></div>
           <small>© {new Date().getFullYear()} Ifriqiya Academic Circle</small>
         </div>
       </footer>

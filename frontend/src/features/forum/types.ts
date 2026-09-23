@@ -14,10 +14,27 @@ export interface ForumAttachmentResponseDto {
   createdAt: string | null
 }
 
+export interface TagProposalDto {
+  name: string
+  field: 'INSTITUTION' | 'PROGRAM' | 'TOPIC' | 'SUBTOPIC'
+  parentId?: number | null
+}
+
+export interface TagSelectionDto {
+  homeInstitutionId?: number | null
+  partnerInstitutionId?: number | null
+  institutionIds?: number[]
+  programIds?: number[]
+  topicIds?: number[]
+  subtopicIds?: number[]
+  proposals?: TagProposalDto[]
+}
+
 export interface ForumPostCreateDto {
   title: string
   content: string
   tags?: string[] | null
+  tagSelection?: TagSelectionDto | null
 }
 
 export interface ForumPostUpdateDto {

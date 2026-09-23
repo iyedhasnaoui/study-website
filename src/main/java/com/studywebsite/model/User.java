@@ -45,6 +45,10 @@ public class User {
     @Column(name = "additional_info", columnDefinition = "TEXT")
     private String additionalInfo;
 
+    @Builder.Default
+    @Column
+    private Boolean banned = false;
+
     @OneToMany(mappedBy = "user")
     @JsonIgnore
     private List<UserRole> userRoles = new ArrayList<>();

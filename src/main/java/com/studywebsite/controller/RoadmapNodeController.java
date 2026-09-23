@@ -5,11 +5,15 @@ import com.studywebsite.dto.RoadmapNodeResponseDto;
 import com.studywebsite.dto.RoadmapNodeUpdateDto;
 import com.studywebsite.model.Roadmap;
 import com.studywebsite.model.RoadmapNode;
+import com.studywebsite.security.AuthenticatedUserPrincipal;
 import com.studywebsite.service.RoadmapNodeService;
 import com.studywebsite.service.RoadmapService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
@@ -49,10 +53,12 @@ public class RoadmapNodeController {
 
     @PostMapping
     public ResponseEntity<RoadmapNodeResponseDto> create(
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
             @PathVariable Long roadmapId,
             @Valid @RequestBody RoadmapNodeCreateDto dto) {
 
         Roadmap roadmap = roadmapService.getById(roadmapId);
+        requireOwner(roadmap, principal.userId());
 
         RoadmapNode node = new RoadmapNode();
         node.setRoadmap(roadmap);
@@ -75,6 +81,7 @@ public class RoadmapNodeController {
 
     @PutMapping("/{nodeId}")
     public ResponseEntity<RoadmapNodeResponseDto> update(
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
             @PathVariable Long roadmapId,
             @PathVariable Long nodeId,
             @Valid @RequestBody RoadmapNodeUpdateDto dto) {
@@ -83,6 +90,7 @@ public class RoadmapNodeController {
         if (existing.getRoadmap() == null || !roadmapId.equals(existing.getRoadmap().getId())) {
             return ResponseEntity.notFound().build();
         }
+        requireOwner(existing.getRoadmap(), principal.userId());
 
         if (dto.getTitle() != null) {
             existing.setTitle(dto.getTitle());
@@ -109,6 +117,7 @@ public class RoadmapNodeController {
 
     @DeleteMapping("/{nodeId}")
     public ResponseEntity<Void> delete(
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
             @PathVariable Long roadmapId,
             @PathVariable Long nodeId) {
 
@@ -116,6 +125,7 @@ public class RoadmapNodeController {
         if (existing.getRoadmap() == null || !roadmapId.equals(existing.getRoadmap().getId())) {
             return ResponseEntity.notFound().build();
         }
+        requireOwner(existing.getRoadmap(), principal.userId());
 
         roadmapNodeService.delete(nodeId);
         return ResponseEntity.noContent().build();
@@ -131,5 +141,11 @@ public class RoadmapNodeController {
                 .orderIndex(node.getOrderIndex())
                 .childSteps(List.of())
                 .build();
+    }
+
+    private void requireOwner(Roadmap roadmap, Long userId) {
+        if (roadmap.getAuthor() == null || !userId.equals(roadmap.getAuthor().getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only the author can change this roadmap");
+        }
     }
 }

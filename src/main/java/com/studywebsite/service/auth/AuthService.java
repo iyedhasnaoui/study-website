@@ -12,8 +12,10 @@ import com.studywebsite.repository.UserRepository;
 import com.studywebsite.repository.UserRoleRepository;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.Locale;
@@ -63,6 +65,7 @@ public class AuthService {
         user.setNumberContributions(0);
         user.setTrustScore(0.0);
         user.setJoinedAt(LocalDateTime.now());
+        user.setBanned(false);
 
         try {
             userRepository.saveAndFlush(user);
@@ -92,6 +95,10 @@ public class AuthService {
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             throw new InvalidCredentialsException();
+        }
+
+        if (Boolean.TRUE.equals(user.getBanned())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "This account has been banned");
         }
 
         AuthTokenService.IssuedToken token = authTokenService.issueAuthentication(user);

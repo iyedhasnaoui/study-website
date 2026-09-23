@@ -12,6 +12,7 @@ import java.util.List;
 public interface UserRoleRepository extends JpaRepository<UserRole, UserRoleId> {
     List<UserRole> findByUser_Id(Long userId);
     List<UserRole> findByIdRole(String role);
+    boolean existsByIdUserIdAndIdRoleIgnoreCase(Long userId, String role);
 
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("delete from UserRole role where role.user.id = :userId")

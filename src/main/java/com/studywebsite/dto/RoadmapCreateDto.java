@@ -1,5 +1,6 @@
 package com.studywebsite.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
@@ -15,4 +16,7 @@ public class RoadmapCreateDto {
 
     @Size(max = 100000)
     private String description;
+
+    @Valid
+    private TagSelectionDto tagSelection;
 }

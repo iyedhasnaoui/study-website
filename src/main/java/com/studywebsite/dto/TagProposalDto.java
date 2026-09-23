@@ -1,31 +1,25 @@
 package com.studywebsite.dto;
 
+import com.studywebsite.model.TagField;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ForumPostCreateDto {
-
+public class TagProposalDto {
     @NotBlank
-    @Size(min = 5, max = 150)
-    private String title;
+    @Size(max = 120)
+    private String name;
 
-    @Size(max = 10000)
-    private String content;
+    @NotNull
+    private TagField field;
 
-    private List<String> tags;
-
-    @Valid
-    private TagSelectionDto tagSelection;
+    private Long parentId;
 }
-
