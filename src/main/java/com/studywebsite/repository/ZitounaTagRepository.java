@@ -15,19 +15,13 @@ public interface ZitounaTagRepository extends JpaRepository<ZitounaTag, Long> {
     Optional<ZitounaTag> findByNormalizedNameAndParent_Id(String normalizedName, Long parentId);
     List<ZitounaTag> findByStatusOrderByNameAsc(TagStatus status);
 
-    @Query(value = """
-            SELECT zt.* FROM zitouna_tags zt
-            JOIN tag_types tt ON tt.id = zt.type_id
-            LEFT JOIN zitouna_tags pt ON pt.id = zt.parent_id
-            WHERE (:status IS NULL OR zt.status = CAST(:#{#status?.name()} AS VARCHAR))
-              AND (:field IS NULL OR tt.field = CAST(:#{#field?.name()} AS VARCHAR))
-              AND (
-                :query IS NULL OR :query = ''
-                OR LOWER(CAST(zt.name AS VARCHAR)) LIKE LOWER(CONCAT('%', CAST(:query AS VARCHAR), '%'))
-                OR (zt.aliases IS NOT NULL AND LOWER(CAST(zt.aliases AS VARCHAR)) LIKE LOWER(CONCAT('%', CAST(:query AS VARCHAR), '%')))
-              )
-            ORDER BY zt.name ASC
-            """, nativeQuery = true)
+    @Query("SELECT zt FROM ZitounaTag zt JOIN zt.type tt " +
+            "WHERE (:status IS NULL OR zt.status = :status) " +
+            "  AND (:field IS NULL OR tt.field = :field) " +
+            "  AND (:query IS NULL OR :query = '' " +
+            "       OR LOWER(zt.name) LIKE LOWER(CONCAT('%', :query, '%')) " +
+            "       OR (zt.aliases IS NOT NULL AND LOWER(zt.aliases) LIKE LOWER(CONCAT('%', :query, '%')))) " +
+            "ORDER BY zt.name ASC")
     List<ZitounaTag> search(
             @Param("status") TagStatus status,
             @Param("field") TagField field,
