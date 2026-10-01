@@ -1,2 +1,0 @@
--- No users are seeded. Create accounts through /api/auth/register so every
--- account has a valid password hash and the standard USER role.
