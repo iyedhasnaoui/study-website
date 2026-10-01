@@ -15,16 +15,19 @@ public interface ZitounaTagRepository extends JpaRepository<ZitounaTag, Long> {
     Optional<ZitounaTag> findByNormalizedNameAndParent_Id(String normalizedName, Long parentId);
     List<ZitounaTag> findByStatusOrderByNameAsc(TagStatus status);
 
-    @Query("""
-            select tag from ZitounaTag tag
-            join fetch tag.type type
-            left join fetch tag.parent parent
-            where tag.status = :status
-              and (:field is null or type.field = :field)
-              and (:query is null or lower(tag.name) like lower(concat('%', :query, '%'))
-                   or lower(coalesce(tag.aliases, '')) like lower(concat('%', :query, '%')))
-            order by tag.name
-            """)
+    @Query(value = """
+            SELECT zt.* FROM zitouna_tags zt
+            JOIN tag_types tt ON tt.id = zt.type_id
+            LEFT JOIN zitouna_tags pt ON pt.id = zt.parent_id
+            WHERE (:status IS NULL OR zt.status = CAST(:#{#status?.name()} AS VARCHAR))
+              AND (:field IS NULL OR tt.field = CAST(:#{#field?.name()} AS VARCHAR))
+              AND (
+                :query IS NULL OR :query = ''
+                OR LOWER(CAST(zt.name AS VARCHAR)) LIKE LOWER(CONCAT('%', CAST(:query AS VARCHAR), '%'))
+                OR (zt.aliases IS NOT NULL AND LOWER(CAST(zt.aliases AS VARCHAR)) LIKE LOWER(CONCAT('%', CAST(:query AS VARCHAR), '%')))
+              )
+            ORDER BY zt.name ASC
+            """, nativeQuery = true)
     List<ZitounaTag> search(
             @Param("status") TagStatus status,
             @Param("field") TagField field,
