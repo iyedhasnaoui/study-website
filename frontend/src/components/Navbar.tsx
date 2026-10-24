@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 
-import type { AuthUser } from '../auth/types'
+import { ROLE_DESCRIPTIONS, type AuthUser } from '../auth/types'
+import { RoleBadge } from './RoleBadge'
 import type { ForumRoute } from '../features/forum/forumRoutes'
 import type { AppSection } from '../App'
 
@@ -14,7 +15,8 @@ interface NavbarProps {
   onOpenLogin: () => void
   onOpenRegister: () => void
   onLogout: () => Promise<void>
-  onDeleteAccount: () => Promise<void>
+  onNavigateAdmin: () => void
+  isAdmin: boolean
 }
 
 export function Navbar({
@@ -27,7 +29,8 @@ export function Navbar({
   onOpenLogin,
   onOpenRegister,
   onLogout,
-  onDeleteAccount,
+  onNavigateAdmin,
+  isAdmin,
 }: NavbarProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isProfileOpen, setIsProfileOpen] = useState(false)
@@ -66,6 +69,9 @@ export function Navbar({
             <button className={activeSection === 'home' ? 'is-active' : ''} type="button" onClick={() => navigate(onNavigateHome)}>Home</button>
             <button className={activeSection === 'zitouna' ? 'is-active' : ''} type="button" onClick={() => navigate(onNavigateZitouna)}>Zitouna</button>
             <button className={activeSection === 'about' ? 'is-active' : ''} type="button" onClick={() => navigate(onNavigateAbout)}>About us</button>
+            {isAdmin ? (
+              <button className={activeSection === 'admin' ? 'is-active' : ''} type="button" onClick={() => navigate(onNavigateAdmin)}>Members</button>
+            ) : null}
             {activeSection === 'forum' && activeForumRoute === 'create' ? <span className="nav-context">Writing a post</span> : null}
           </div>
 
@@ -79,18 +85,17 @@ export function Navbar({
                 <button className="profile-trigger" type="button" onClick={() => setIsProfileOpen((current) => !current)} aria-expanded={isProfileOpen}>
                   <span>{user.username.slice(0, 1).toUpperCase()}</span>
                   <div><small>Signed in as</small><strong>{user.username}</strong></div>
+                  <RoleBadge role={user.role} title={ROLE_DESCRIPTIONS[user.role]} />
                   <i>⌄</i>
                 </button>
                 {isProfileOpen ? (
                   <div className="profile-popover">
                     <p>{user.email}</p>
+                    <p className="role-note">{ROLE_DESCRIPTIONS[user.role]}</p>
+                    {isAdmin ? (
+                      <button type="button" onClick={() => { setIsProfileOpen(false); navigate(onNavigateAdmin) }}>Manage members</button>
+                    ) : null}
                     <button type="button" onClick={() => { setIsProfileOpen(false); void onLogout() }}>Sign out</button>
-                    <button className="danger-link" type="button" onClick={() => {
-                      if (window.confirm('Delete your IAC account? This cannot be undone.')) {
-                        setIsProfileOpen(false)
-                        void onDeleteAccount()
-                      }
-                    }}>Delete account</button>
                   </div>
                 ) : null}
               </div>

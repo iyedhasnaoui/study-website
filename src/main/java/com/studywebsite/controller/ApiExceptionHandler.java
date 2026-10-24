@@ -2,14 +2,12 @@ package com.studywebsite.controller;
 
 import com.studywebsite.dto.auth.ApiErrorResponse;
 import com.studywebsite.service.auth.AccountDeletionBlockedException;
-import com.studywebsite.service.auth.DuplicateAccountException;
-import com.studywebsite.service.auth.DuplicateEmailException;
-import com.studywebsite.service.auth.DuplicateUsernameException;
-import com.studywebsite.service.auth.InvalidCredentialsException;
 import com.studywebsite.service.media.ForumAttachmentStorageException;
 import com.studywebsite.service.media.InvalidForumAttachmentException;
 import com.studywebsite.service.media.InvalidForumContributionException;
 import com.studywebsite.security.UnauthenticatedException;
+import com.studywebsite.service.admin.ProtectedRoleException;
+import org.springframework.security.access.AccessDeniedException;
 import com.studywebsite.service.roadmap.InvalidRoadmapGraphException;
 import com.studywebsite.service.roadmap.RoadmapAccessDeniedException;
 import jakarta.persistence.EntityNotFoundException;
@@ -41,28 +39,12 @@ public class ApiExceptionHandler {
         return response(HttpStatus.BAD_REQUEST, "Request validation failed", request, fieldErrors);
     }
 
-    @ExceptionHandler({DuplicateEmailException.class, DuplicateUsernameException.class, DuplicateAccountException.class})
-    public ResponseEntity<ApiErrorResponse> handleDuplicateAccount(
-            RuntimeException exception,
-            HttpServletRequest request
-    ) {
-        return response(HttpStatus.CONFLICT, exception.getMessage(), request, Map.of());
-    }
-
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ApiErrorResponse> handleMalformedJson(
             HttpMessageNotReadableException exception,
             HttpServletRequest request
     ) {
         return response(HttpStatus.BAD_REQUEST, "Malformed JSON request", request, Map.of());
-    }
-
-    @ExceptionHandler(InvalidCredentialsException.class)
-    public ResponseEntity<ApiErrorResponse> handleInvalidCredentials(
-            InvalidCredentialsException exception,
-            HttpServletRequest request
-    ) {
-        return response(HttpStatus.UNAUTHORIZED, exception.getMessage(), request, Map.of());
     }
 
     @ExceptionHandler(AccountDeletionBlockedException.class)
@@ -95,6 +77,23 @@ public class ApiExceptionHandler {
             HttpServletRequest request
     ) {
         return response(HttpStatus.UNAUTHORIZED, exception.getMessage(), request, Map.of());
+    }
+
+    @ExceptionHandler(ProtectedRoleException.class)
+    public ResponseEntity<ApiErrorResponse> handleProtectedRole(
+            ProtectedRoleException exception,
+            HttpServletRequest request
+    ) {
+        return response(HttpStatus.FORBIDDEN, exception.getMessage(), request, Map.of());
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiErrorResponse> handleAccessDenied(
+            AccessDeniedException exception,
+            HttpServletRequest request
+    ) {
+        return response(HttpStatus.FORBIDDEN,
+                "Your role does not allow this action", request, Map.of());
     }
 
     @ExceptionHandler(RoadmapAccessDeniedException.class)

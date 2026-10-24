@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import './App.css'
-import { AuthModal, type AuthMode } from './auth/AuthModal'
 import { useAuth } from './auth/AuthContext'
-import { getAuthError } from './auth/authApi'
 import { Navbar } from './components/Navbar'
 import { CreatePostPage } from './features/forum/CreatePostPage'
 import { ForumFeedPage } from './features/forum/ForumFeedPage'
@@ -12,22 +10,23 @@ import { RoadmapPage } from './features/roadmap/RoadmapPage'
 import { ZitounaPage } from './features/zitouna/ZitounaPage'
 import { HomePage } from './pages/HomePage'
 import { AboutPage } from './pages/AboutPage'
+import { AdminUsersPage } from './features/admin/AdminUsersPage'
 
-export type AppSection = 'home' | 'zitouna' | 'forum' | 'roadmaps' | 'about'
+export type AppSection = 'home' | 'zitouna' | 'forum' | 'roadmaps' | 'about' | 'admin'
 
 const getSectionFromHash = (hash: string): AppSection => {
   if (hash.startsWith('#roadmaps')) return 'roadmaps'
   if (hash.startsWith('#forum')) return 'forum'
   if (hash.startsWith('#zitouna')) return 'zitouna'
   if (hash.startsWith('#about')) return 'about'
+  if (hash.startsWith('#admin')) return 'admin'
   return 'home'
 }
 
 function App() {
-  const { session, logout, removeAccount } = useAuth()
+  const { session, logout, login, register, isAdmin } = useAuth()
   const [section, setSection] = useState<AppSection>(() => getSectionFromHash(window.location.hash))
   const [forumRoute, setForumRoute] = useState<ForumRoute>(() => getForumRouteFromHash(window.location.hash))
-  const [authDialog, setAuthDialog] = useState<{ open: boolean; mode: AuthMode }>({ open: false, mode: 'login' })
   const [toast, setToast] = useState<string | null>(null)
 
   useEffect(() => {
@@ -55,7 +54,7 @@ function App() {
 
   const navigateForum = (nextRoute: ForumRoute) => {
     if (nextRoute === 'create' && !session) {
-      setAuthDialog({ open: true, mode: 'login' })
+      openAuth('login')
       return
     }
     const nextHash = getForumHash(nextRoute)
@@ -74,27 +73,23 @@ function App() {
     setSection('zitouna')
   }
 
+  const navigateAdmin = () => {
+    window.location.hash = '#admin'
+    setSection('admin')
+  }
+
   const navigateAbout = () => {
     window.location.hash = '#about'
     setSection('about')
   }
 
-  const openAuth = (mode: AuthMode) => setAuthDialog({ open: true, mode })
+  // Credentials live in Keycloak, so signing in and joining hand off to its hosted pages.
+  const openAuth = (mode: 'login' | 'register') => (mode === 'login' ? login() : register())
 
   const handleLogout = async () => {
     await logout()
     setToast('You have signed out safely.')
     navigateHome()
-  }
-
-  const handleDeleteAccount = async () => {
-    try {
-      await removeAccount()
-      setToast('Your account has been deleted.')
-      navigateHome()
-    } catch (error) {
-      setToast(getAuthError(error, 'The account could not be deleted.').message)
-    }
   }
 
   return (
@@ -109,7 +104,8 @@ function App() {
         onOpenLogin={() => openAuth('login')}
         onOpenRegister={() => openAuth('register')}
         onLogout={handleLogout}
-        onDeleteAccount={handleDeleteAccount}
+        onNavigateAdmin={navigateAdmin}
+        isAdmin={isAdmin}
       />
 
       {section === 'home' ? (
@@ -127,6 +123,8 @@ function App() {
         />
       ) : section === 'about' ? (
         <AboutPage />
+      ) : section === 'admin' ? (
+        <AdminUsersPage />
       ) : section === 'roadmaps' ? (
         <RoadmapPage />
       ) : forumRoute === 'create' ? (
@@ -153,12 +151,6 @@ function App() {
         </div>
       </footer>
 
-      <AuthModal
-        key={`${authDialog.mode}-${authDialog.open}`}
-        isOpen={authDialog.open}
-        initialMode={authDialog.mode}
-        onClose={() => setAuthDialog((current) => ({ ...current, open: false }))}
-      />
 
       {toast ? <div className="toast" role="status">{toast}</div> : null}
     </div>

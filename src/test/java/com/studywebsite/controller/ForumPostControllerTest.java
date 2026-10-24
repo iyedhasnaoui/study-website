@@ -2,18 +2,19 @@ package com.studywebsite.controller;
 
 import com.studywebsite.dto.ForumPostCreateDto;
 import com.studywebsite.model.ForumPost;
+import com.studywebsite.model.ModerationStatus;
 import com.studywebsite.model.ForumAttachment;
 import com.studywebsite.model.ForumAttachmentType;
 import com.studywebsite.model.User;
 import com.studywebsite.service.ForumPostService;
-import com.studywebsite.service.auth.AuthTokenService;
 import com.studywebsite.service.media.ForumAttachmentService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import com.studywebsite.security.LocalUserProvisioningService;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.mock.web.MockMultipartFile;
@@ -24,6 +25,8 @@ import java.util.List;
 
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
+import com.studywebsite.support.TestAuth;
+
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -33,7 +36,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = ForumPostController.class)
-@WithMockUser // creates a fake authentification token, without this annotation these tests will fail ( Spring Security will reject all HTTP requests )
 class ForumPostControllerTest {
 
     @Autowired
@@ -48,8 +50,13 @@ class ForumPostControllerTest {
     @MockitoBean
     private ForumAttachmentService forumAttachmentService;
 
+    // The resource server needs a decoder bean; tests authenticate directly instead of
+    // presenting a real Keycloak token.
     @MockitoBean
-    private AuthTokenService authTokenService;
+    private JwtDecoder jwtDecoder;
+
+    @MockitoBean
+    private LocalUserProvisioningService localUserProvisioningService;
 
     @Test
     void postValidInputReturnsCreated() throws Exception {
@@ -75,7 +82,7 @@ class ForumPostControllerTest {
         when(forumPostService.create(ArgumentMatchers.any(ForumPost.class))).thenReturn(saved);
 
         mockMvc.perform(post("/api/forum/posts")
-                        .with(csrf())
+                        .with(csrf()).with(TestAuth.contributor(2L))
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("X-User-Id", "2")
                         .content(objectMapper.writeValueAsString(create)))
@@ -93,7 +100,7 @@ class ForumPostControllerTest {
                 .content("This content is fine and long enough.")
                 .build();
 
-        mockMvc.perform(post("/api/forum/posts").with(csrf())
+        mockMvc.perform(post("/api/forum/posts").with(csrf()).with(TestAuth.contributor(2L))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(create)))
                 .andExpect(status().isBadRequest());
@@ -141,7 +148,7 @@ class ForumPostControllerTest {
         mockMvc.perform(multipart("/api/forum/posts")
                         .file(payload)
                         .file(audio)
-                        .with(csrf())
+                        .with(csrf()).with(TestAuth.contributor(2L))
                         .header("X-User-Id", "2"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.content").value(""))
@@ -160,13 +167,15 @@ class ForumPostControllerTest {
                 .title("Hello")
                 .content("Content here")
                 .author(author)
+                // Posts await moderation by default, and only approved ones are readable.
+                .moderationStatus(ModerationStatus.APPROVED)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
 
         when(forumPostService.getById(7L)).thenReturn(post);
 
-        mockMvc.perform(get("/api/forum/posts/7").with(csrf()))
+        mockMvc.perform(get("/api/forum/posts/7").with(csrf()).with(TestAuth.contributor(2L)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(7))
                 .andExpect(jsonPath("$.authorId").value(5))
@@ -177,7 +186,7 @@ class ForumPostControllerTest {
     void deleteByIdReturnsNoContent() throws Exception {
         doNothing().when(forumPostService).delete(99L);
 
-        mockMvc.perform(delete("/api/forum/posts/99").with(csrf()))
+        mockMvc.perform(delete("/api/forum/posts/99").with(csrf()).with(TestAuth.admin(1L)))
                 .andExpect(status().isNoContent());
     }
 }

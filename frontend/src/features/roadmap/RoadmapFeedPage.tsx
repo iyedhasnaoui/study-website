@@ -9,7 +9,7 @@ export interface RoadmapFeedPageProps {
 }
 
 export function RoadmapFeedPage({ onOpenRoadmap }: RoadmapFeedPageProps) {
-  const { session } = useAuth()
+  const { session, canContribute } = useAuth()
   const [reloadKey, setReloadKey] = useState(0)
   const [searchDraft, setSearchDraft] = useState('')
   const [activeSearch, setActiveSearch] = useState<string | undefined>(undefined)
@@ -44,13 +44,19 @@ export function RoadmapFeedPage({ onOpenRoadmap }: RoadmapFeedPageProps) {
 
         <div className="grid gap-8 lg:grid-cols-3">
           <div className="lg:sticky lg:top-28">
-            {session ? (
+            {session && canContribute ? (
               <CreateRoadmapForm onCreated={handleCreated} />
             ) : (
               <section className="rounded-2xl border border-amber-200 bg-amber-50 p-6 shadow-sm dark:border-amber-900/50 dark:bg-amber-950/20">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700 dark:text-amber-300">Members contribute</p>
-                <h2 className="mt-2 text-xl font-semibold text-slate-900 dark:text-zinc-100">Sign in to create a roadmap</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-zinc-300">Use the sign-in button above, then turn what you learned into a path others can follow.</p>
+                <h2 className="mt-2 text-xl font-semibold text-slate-900 dark:text-zinc-100">
+                  {session ? 'Contributor access needed' : 'Sign in to create a roadmap'}
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-zinc-300">
+                  {session
+                    ? 'Your account can browse every roadmap. Ask an administrator for contributor access to publish your own.'
+                    : 'Use the sign-in button above, then turn what you learned into a path others can follow.'}
+                </p>
               </section>
             )}
           </div>

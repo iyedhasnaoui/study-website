@@ -15,6 +15,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
@@ -73,6 +74,7 @@ public class RoadmapController {
         return ResponseEntity.ok(toDto(roadmap));
     }
 
+    @PreAuthorize("hasAnyRole('CONTRIBUTOR','ADMIN')")
     @PostMapping
     public ResponseEntity<RoadmapResponseDto> create(@Valid @RequestBody RoadmapCreateDto dto) {
         AuthenticatedUserPrincipal principal = CurrentUser.require();
@@ -97,6 +99,7 @@ public class RoadmapController {
                 .body(toDto(saved));
     }
 
+    @PreAuthorize("hasAnyRole('CONTRIBUTOR','ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<RoadmapResponseDto> update(
             @PathVariable Long id,
@@ -104,7 +107,7 @@ public class RoadmapController {
 
         AuthenticatedUserPrincipal principal = CurrentUser.require();
         Roadmap existing = roadmapService.getById(id);
-        roadmapService.assertCanEdit(existing, principal.userId());
+        roadmapService.assertCanEdit(existing, principal);
 
         if (dto.getTitle() != null) {
             existing.setTitle(dto.getTitle());
@@ -120,10 +123,12 @@ public class RoadmapController {
         return ResponseEntity.ok(toDto(roadmapService.save(existing)));
     }
 
+    // Deleting whole roadmaps is reserved for ADMIN; contributors may not delete content.
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         AuthenticatedUserPrincipal principal = CurrentUser.require();
-        roadmapService.assertCanEdit(roadmapService.getById(id), principal.userId());
+        roadmapService.assertCanEdit(roadmapService.getById(id), principal);
 
         roadmapService.delete(id);
         return ResponseEntity.noContent().build();

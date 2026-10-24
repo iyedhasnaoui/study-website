@@ -2,6 +2,7 @@ package com.studywebsite.service;
 
 import com.studywebsite.model.Roadmap;
 import com.studywebsite.repository.RoadmapRepository;
+import com.studywebsite.security.AuthenticatedUserPrincipal;
 import com.studywebsite.service.roadmap.RoadmapAccessDeniedException;
 import com.studywebsite.service.roadmap.RoadmapGraphService;
 import jakarta.persistence.EntityNotFoundException;
@@ -56,9 +57,15 @@ public class RoadmapService {
         return roadmapRepository.findByTitleContainingIgnoreCase(titlePart);
     }
 
-    public void assertCanEdit(Roadmap roadmap, Long userId) {
+    public void assertCanEdit(Roadmap roadmap, AuthenticatedUserPrincipal principal) {
+        if (principal.isAdmin()) {
+            return;
+        }
+        if (!principal.canContribute()) {
+            throw new RoadmapAccessDeniedException("Your role does not allow changing roadmaps");
+        }
         Long authorId = roadmap.getAuthor() != null ? roadmap.getAuthor().getId() : null;
-        if (authorId == null || !authorId.equals(userId)) {
+        if (authorId == null || !authorId.equals(principal.userId())) {
             throw new RoadmapAccessDeniedException("Only the author can change this roadmap");
         }
     }

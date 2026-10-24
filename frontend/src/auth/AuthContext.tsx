@@ -1,54 +1,72 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 
-import { AUTH_STORAGE_KEY, readStoredSession } from '../lib/apiClient'
-import { deleteAccount, loginAccount, logoutSession, registerAccount } from './authApi'
-import type { AuthSession, LoginPayload, RegisterPayload } from './types'
+import { apiClient } from '../lib/apiClient'
+import { initKeycloak, keycloak } from './keycloak'
+import type { AppRole, AuthSession, CurrentUser } from './types'
 
 interface AuthContextValue {
   session: AuthSession | null
-  login: (payload: LoginPayload) => Promise<void>
-  register: (payload: RegisterPayload) => Promise<void>
+  role: AppRole | null
+  canContribute: boolean
+  isAdmin: boolean
+  isReady: boolean
+  login: () => void
+  register: () => void
   logout: () => Promise<void>
-  removeAccount: () => Promise<void>
+  refresh: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<AuthSession | null>(() => readStoredSession())
+  const [me, setMe] = useState<CurrentUser | null>(null)
+  const [isReady, setIsReady] = useState(false)
 
-  const saveSession = (nextSession: AuthSession | null) => {
-    setSession(nextSession)
-    if (nextSession) {
-      window.sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextSession))
-    } else {
-      window.sessionStorage.removeItem(AUTH_STORAGE_KEY)
+  // The role shown here comes from the backend, which reads it from the Keycloak token, so the
+  // interface can never claim a permission the server would refuse.
+  const loadMe = useCallback(async () => {
+    if (!keycloak.authenticated) {
+      setMe(null)
+      return
     }
-  }
+    try {
+      const response = await apiClient.get<CurrentUser>('/api/me')
+      setMe(response.data)
+    } catch {
+      setMe(null)
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const start = async () => {
+      await initKeycloak()
+      if (cancelled) return
+      await loadMe()
+      if (!cancelled) setIsReady(true)
+    }
+
+    void start()
+    return () => {
+      cancelled = true
+    }
+  }, [loadMe])
 
   const value = useMemo<AuthContextValue>(() => ({
-    session,
-    login: async (payload) => {
-      const nextSession = await loginAccount(payload)
-      saveSession(nextSession)
-    },
-    register: async (payload) => {
-      await registerAccount(payload)
-      const nextSession = await loginAccount({ email: payload.email, password: payload.password })
-      saveSession(nextSession)
-    },
+    session: me ? { user: { id: me.userId, username: me.username, email: me.email, role: me.role, roles: [me.role] } } : null,
+    role: me?.role ?? null,
+    canContribute: me?.canContribute ?? false,
+    isAdmin: me?.canAdminister ?? false,
+    isReady,
+    login: () => void keycloak.login({ redirectUri: window.location.href }),
+    register: () => void keycloak.register({ redirectUri: window.location.href }),
     logout: async () => {
-      try {
-        await logoutSession()
-      } finally {
-        saveSession(null)
-      }
+      setMe(null)
+      await keycloak.logout({ redirectUri: window.location.origin })
     },
-    removeAccount: async () => {
-      await deleteAccount()
-      saveSession(null)
-    },
-  }), [session])
+    refresh: loadMe,
+  }), [me, isReady, loadMe])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

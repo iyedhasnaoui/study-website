@@ -1,27 +1,50 @@
+export type AppRole = 'VIEWER' | 'CONTRIBUTOR' | 'ADMIN'
+
+export const ROLE_LABELS: Record<AppRole, string> = {
+  VIEWER: 'Viewer',
+  CONTRIBUTOR: 'Contributor',
+  ADMIN: 'Administrator',
+}
+
+export const ROLE_DESCRIPTIONS: Record<AppRole, string> = {
+  VIEWER: 'You can browse everything. Ask an administrator for contributor access to publish.',
+  CONTRIBUTOR: 'You can create and edit your own contributions.',
+  ADMIN: 'You can manage all content and all members.',
+}
+
+/** Mirrors the backend's /api/me response. */
+export interface CurrentUser {
+  userId: number
+  keycloakId: string
+  username: string
+  email: string
+  role: AppRole
+  canContribute: boolean
+  canAdminister: boolean
+}
+
 export interface AuthUser {
   id: number
   username: string
   email: string
+  role: AppRole
   roles: string[]
-  joinedAt: string
 }
 
 export interface AuthSession {
-  accessToken: string
-  tokenType: 'Bearer'
-  expiresAt: string
   user: AuthUser
 }
 
-export interface RegisterPayload {
+export interface ManagedUser {
+  keycloakId: string
+  localUserId: number | null
   username: string
-  email: string
-  password: string
-}
-
-export interface LoginPayload {
-  email: string
-  password: string
+  email: string | null
+  role: AppRole
+  enabled: boolean
+  banned: boolean
+  activeSessions: number
+  protectedAccount: boolean
 }
 
 export interface ApiErrorPayload {

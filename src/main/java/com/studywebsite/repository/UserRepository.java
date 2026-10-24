@@ -21,6 +21,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @EntityGraph(attributePaths = "userRoles")
     Optional<User> findByEmailIgnoreCase(String email);
 
+    Optional<User> findByUsernameIgnoreCase(String username);
+
+    Optional<User> findByKeycloakId(String keycloakId);
+
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("delete from User user where user.id = :userId")
     int deleteAccountById(@Param("userId") Long userId);

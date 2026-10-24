@@ -1,9 +1,8 @@
 import axios from 'axios'
 
-import type { AuthSession } from '../auth/types'
+import { currentToken, keycloak } from '../auth/keycloak'
 
 const DEFAULT_BASE_URL = 'http://localhost:8080'
-export const AUTH_STORAGE_KEY = 'iac.auth.session'
 
 const normalizeBaseUrl = (value: string): string => value.replace(/\/+$/, '')
 
@@ -19,6 +18,15 @@ export function resolveApiUrl(path: string): string {
 
 export function getApiErrorMessage(error: unknown, fallback: string): string {
   if (axios.isAxiosError(error)) {
+    if (error.response?.status === 403) {
+      const message = (error.response.data as { message?: unknown } | undefined)?.message
+      return typeof message === 'string' && message.trim()
+        ? message
+        : 'Your role does not allow this action.'
+    }
+    if (error.response?.status === 401) {
+      return 'Please sign in to continue.'
+    }
     const message = (error.response?.data as { message?: unknown } | undefined)?.message
     if (typeof message === 'string' && message.trim()) return message
     if (!error.response) return 'The API server is not reachable. Check that the backend is running.'
@@ -26,38 +34,22 @@ export function getApiErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback
 }
 
-export function readStoredSession(): AuthSession | null {
-  if (typeof window === 'undefined') return null
-
-  const rawSession = window.sessionStorage.getItem(AUTH_STORAGE_KEY)
-  if (!rawSession) return null
-
-  try {
-    const session = JSON.parse(rawSession) as AuthSession
-    if (!session.accessToken || !session.user?.id || new Date(session.expiresAt).getTime() <= Date.now()) {
-      window.sessionStorage.removeItem(AUTH_STORAGE_KEY)
-      return null
-    }
-    return session
-  } catch {
-    window.sessionStorage.removeItem(AUTH_STORAGE_KEY)
-    return null
-  }
+/** True when the backend refused the action because of the caller's role. */
+export function isForbidden(error: unknown): boolean {
+  return axios.isAxiosError(error) && error.response?.status === 403
 }
 
 export function requireAuthenticatedUser() {
-  const session = readStoredSession()
-  if (!session) {
+  if (!keycloak.authenticated) {
     throw new Error('Please sign in to contribute to the circle.')
   }
-  return session.user
+  return { id: keycloak.subject }
 }
 
-apiClient.interceptors.request.use((config) => {
-  const session = readStoredSession()
-  if (session) {
-    config.headers.Authorization = `${session.tokenType} ${session.accessToken}`
-    config.headers['X-User-Id'] = String(session.user.id)
+apiClient.interceptors.request.use(async (config) => {
+  const token = await currentToken()
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
   }
   return config
 })

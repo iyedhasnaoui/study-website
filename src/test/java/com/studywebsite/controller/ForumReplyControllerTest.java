@@ -5,14 +5,14 @@ import com.studywebsite.model.ForumPost;
 import com.studywebsite.model.ForumReply;
 import com.studywebsite.model.User;
 import com.studywebsite.service.ForumReplyService;
-import com.studywebsite.service.auth.AuthTokenService;
 import com.studywebsite.service.media.ForumAttachmentService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import com.studywebsite.security.LocalUserProvisioningService;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.ObjectMapper;
@@ -22,13 +22,14 @@ import java.util.List;
 
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
+import com.studywebsite.support.TestAuth;
+
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = ForumReplyController.class)
-@WithMockUser
 class ForumReplyControllerTest {
 
     @Autowired
@@ -43,8 +44,13 @@ class ForumReplyControllerTest {
     @MockitoBean
     private ForumAttachmentService forumAttachmentService;
 
+    // The resource server needs a decoder bean; tests authenticate directly instead of
+    // presenting a real Keycloak token.
     @MockitoBean
-    private AuthTokenService authTokenService;
+    private JwtDecoder jwtDecoder;
+
+    @MockitoBean
+    private LocalUserProvisioningService localUserProvisioningService;
 
     @Test
     void postValidInputReturnsCreated() throws Exception {
@@ -71,7 +77,7 @@ class ForumReplyControllerTest {
         when(forumReplyService.create(ArgumentMatchers.any(ForumReply.class))).thenReturn(saved);
 
         mockMvc.perform(post("/api/forum/posts/1/replies")
-                        .with(csrf())
+                        .with(csrf()).with(TestAuth.contributor(2L))
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("X-User-Id", "2")
                         .content(objectMapper.writeValueAsString(create)))
@@ -89,7 +95,7 @@ class ForumReplyControllerTest {
                 .content("")
                 .build();
 
-        mockMvc.perform(post("/api/forum/posts/1/replies").with(csrf())
+        mockMvc.perform(post("/api/forum/posts/1/replies").with(csrf()).with(TestAuth.contributor(2L))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(create)))
                 .andExpect(status().isBadRequest());
@@ -115,7 +121,7 @@ class ForumReplyControllerTest {
 
         when(forumReplyService.getById(7L)).thenReturn(reply);
 
-        mockMvc.perform(get("/api/forum/posts/1/replies/7").with(csrf()))
+        mockMvc.perform(get("/api/forum/posts/1/replies/7").with(csrf()).with(TestAuth.contributor(2L)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(7))
                 .andExpect(jsonPath("$.postId").value(1))
@@ -140,7 +146,7 @@ class ForumReplyControllerTest {
         when(forumReplyService.getById(99L)).thenReturn(reply);
         doNothing().when(forumReplyService).delete(99L);
 
-        mockMvc.perform(delete("/api/forum/posts/1/replies/99").with(csrf()))
+        mockMvc.perform(delete("/api/forum/posts/1/replies/99").with(csrf()).with(TestAuth.admin(1L)))
                 .andExpect(status().isNoContent());
     }
 }

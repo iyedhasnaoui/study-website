@@ -15,7 +15,7 @@ const getErrorMessage = (error: unknown): string =>
     error instanceof Error ? error.message : 'Unable to load roadmaps.'
 
 export function RoadmapFeed({ reloadKey = 0, searchFilter, onSelectRoadmap }: RoadmapFeedProps = {}) {
-  const { session } = useAuth()
+  const { session, isAdmin } = useAuth()
   const [roadmaps, setRoadmaps] = useState<RoadmapResponseDto[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -176,7 +176,7 @@ export function RoadmapFeed({ reloadKey = 0, searchFilter, onSelectRoadmap }: Ro
                       View roadmap
                     </button> : null}
 
-                    {session?.user.id === roadmap.authorId ? <button
+                    {isAdmin ? <button
                         type="button"
                         onClick={() => handleDelete(roadmap.id)}
                         disabled={deletingRoadmapId === roadmap.id}

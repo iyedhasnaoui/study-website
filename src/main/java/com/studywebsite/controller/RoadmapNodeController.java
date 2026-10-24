@@ -13,6 +13,7 @@ import com.studywebsite.service.roadmap.RoadmapGraphService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
@@ -42,6 +43,7 @@ public class RoadmapNodeController {
         return ResponseEntity.ok(mapper.toNodeDto(roadmapGraphService.getNode(roadmapId, nodeId)));
     }
 
+    @PreAuthorize("hasAnyRole('CONTRIBUTOR','ADMIN')")
     @PostMapping
     public ResponseEntity<RoadmapNodeResponseDto> create(
             @PathVariable Long roadmapId,
@@ -63,6 +65,7 @@ public class RoadmapNodeController {
                 .body(mapper.toNodeDto(saved));
     }
 
+    @PreAuthorize("hasAnyRole('CONTRIBUTOR','ADMIN')")
     @PutMapping("/{nodeId}")
     public ResponseEntity<RoadmapNodeResponseDto> update(
             @PathVariable Long roadmapId,
@@ -97,6 +100,7 @@ public class RoadmapNodeController {
         return ResponseEntity.ok(mapper.toNodeDto(roadmapGraphService.updateNode(existing)));
     }
 
+    @PreAuthorize("hasAnyRole('CONTRIBUTOR','ADMIN')")
     @DeleteMapping("/{nodeId}")
     public ResponseEntity<Void> delete(
             @PathVariable Long roadmapId,
@@ -110,7 +114,7 @@ public class RoadmapNodeController {
     private Roadmap requireEditableRoadmap(Long roadmapId) {
         AuthenticatedUserPrincipal principal = CurrentUser.require();
         Roadmap roadmap = roadmapService.getById(roadmapId);
-        roadmapService.assertCanEdit(roadmap, principal.userId());
+        roadmapService.assertCanEdit(roadmap, principal);
         return roadmap;
     }
 }

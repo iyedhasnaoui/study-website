@@ -26,6 +26,10 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
+    /** Subject of the Keycloak account this row belongs to; Keycloak owns identity and roles. */
+    @Column(name = "keycloak_id", unique = true)
+    private String keycloakId;
+
     @Column(nullable = false, unique = true)
     private String username;
 

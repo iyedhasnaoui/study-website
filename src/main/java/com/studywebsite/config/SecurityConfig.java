@@ -1,20 +1,18 @@
 package com.studywebsite.config;
 
-import com.studywebsite.security.BearerTokenAuthenticationFilter;
+import com.studywebsite.security.KeycloakRealmRoleConverter;
+import com.studywebsite.security.LocalUserProvisioningFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.HttpStatusEntryPoint;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -23,37 +21,44 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
-            BearerTokenAuthenticationFilter bearerTokenAuthenticationFilter
+            KeycloakRealmRoleConverter realmRoleConverter,
+            LocalUserProvisioningFilter localUserProvisioningFilter
     ) throws Exception {
         http
                 .cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/register", "/api/auth/login", "/error").permitAll()
-                        .requestMatchers("/api/auth/session", "/api/users/me").authenticated()
-                        .requestMatchers("/api/admin/**").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/learning-materials", "/api/tags/proposals").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/forum/**", "/api/roadmaps/**").authenticated()
-                        .requestMatchers(HttpMethod.PUT, "/api/forum/**", "/api/roadmaps/**").authenticated()
-                        .requestMatchers(HttpMethod.DELETE, "/api/forum/**", "/api/roadmaps/**").authenticated()
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/error").permitAll()
+
+                        // User management is ADMIN-only, enforced again on each method.
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+
+                        .requestMatchers("/api/users/me").authenticated()
+
+                        // Reading is open; every write needs an account, and the role is then
+                        // checked per action by @PreAuthorize on the controller methods.
+                        .requestMatchers(HttpMethod.POST, "/api/**").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/**").authenticated()
+                        .requestMatchers(HttpMethod.PATCH, "/api/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/**").authenticated()
+
                         .requestMatchers("/api/**").permitAll()
                         .anyRequest().permitAll()
                 )
-                .exceptionHandling(exceptions -> exceptions
-                        .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(realmRoleConverter))
                 )
-                .addFilterBefore(bearerTokenAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                // Runs before authorization so that the local user id and role are already
+                // attached when access rules and @PreAuthorize are evaluated.
+                .addFilterBefore(localUserProvisioningFilter, AuthorizationFilter.class);
 
         return http.build();
     }
@@ -62,7 +67,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(List.of("http://localhost:5173", "http://127.0.0.1:5173"));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"));
         config.setAllowedHeaders(List.of("*"));
         config.setExposedHeaders(List.of("*"));
         config.setAllowCredentials(true);

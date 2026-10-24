@@ -1,6 +1,5 @@
 package com.studywebsite.service.auth;
 
-import com.studywebsite.repository.AuthSessionRepository;
 import com.studywebsite.repository.UserRepository;
 import com.studywebsite.repository.UserRoleRepository;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -12,16 +11,13 @@ public class UserAccountService {
 
     private final UserRepository userRepository;
     private final UserRoleRepository userRoleRepository;
-    private final AuthSessionRepository authSessionRepository;
 
     public UserAccountService(
             UserRepository userRepository,
-            UserRoleRepository userRoleRepository,
-            AuthSessionRepository authSessionRepository
+            UserRoleRepository userRoleRepository
     ) {
         this.userRepository = userRepository;
         this.userRoleRepository = userRoleRepository;
-        this.authSessionRepository = authSessionRepository;
     }
 
     @Transactional
@@ -30,7 +26,6 @@ public class UserAccountService {
             return;
         }
 
-        authSessionRepository.deleteAllByUserId(userId);
         userRoleRepository.deleteAllByUserId(userId);
 
         try {

@@ -1,0 +1,109 @@
+{
+  "realm": "iac",
+  "enabled": true,
+  "displayName": "Ifriqiya Academic Circle",
+  "registrationAllowed": true,
+  "registrationEmailAsUsername": false,
+  "loginWithEmailAllowed": true,
+  "resetPasswordAllowed": true,
+  "verifyEmail": false,
+  "sslRequired": "external",
+  "accessTokenLifespan": 1800,
+  "roles": {
+    "realm": [
+      {
+        "name": "VIEWER",
+        "description": "Read-only access to published content."
+      },
+      {
+        "name": "CONTRIBUTOR",
+        "description": "May create roadmaps and other contributions, but may not delete content."
+      },
+      {
+        "name": "ADMIN",
+        "description": "Full control, including user management. Assigned only at deployment."
+      },
+      {
+        "name": "default-roles-iac",
+        "description": "Roles every new account receives",
+        "composite": true,
+        "clientRole": false,
+        "composites": {
+          "realm": ["VIEWER"]
+        }
+      }
+    ]
+  },
+  "defaultRole": {
+    "name": "default-roles-iac",
+    "composite": true,
+    "clientRole": false
+  },
+  "clients": [
+    {
+      "clientId": "iac-frontend",
+      "name": "IAC web client",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "rootUrl": "http://localhost:5173",
+      "baseUrl": "/",
+      "redirectUris": ["http://localhost:5173/*", "http://127.0.0.1:5173/*"],
+      "webOrigins": ["http://localhost:5173", "http://127.0.0.1:5173"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5173/*##http://127.0.0.1:5173/*"
+      },
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "basic",
+        "email"
+      ]
+    },
+    {
+      "clientId": "iac-backend",
+      "name": "IAC backend service account",
+      "enabled": true,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "secret": "${env.IAC_BACKEND_SECRET:backend-dev-secret}",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": false
+    }
+  ],
+  "users": [
+    {
+      "username": "${env.IAC_ADMIN_USERNAME:iac-admin}",
+      "email": "${env.IAC_ADMIN_EMAIL:admin@iac.local}",
+      "firstName": "IAC",
+      "lastName": "Administrator",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${env.IAC_ADMIN_PASSWORD:change-me}",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["ADMIN", "default-roles-iac"]
+    },
+    {
+      "username": "service-account-iac-backend",
+      "enabled": true,
+      "serviceAccountClientId": "iac-backend",
+      "clientRoles": {
+        "realm-management": ["view-users", "query-users", "manage-users", "view-realm"]
+      }
+    }
+  ]
+}

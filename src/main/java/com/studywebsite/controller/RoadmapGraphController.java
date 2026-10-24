@@ -14,6 +14,7 @@ import com.studywebsite.service.roadmap.RoadmapGraphValidator;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
@@ -40,6 +41,7 @@ public class RoadmapGraphController {
         return ResponseEntity.ok(readGraph(roadmap));
     }
 
+    @PreAuthorize("hasAnyRole('CONTRIBUTOR','ADMIN')")
     @PutMapping("/graph")
     public ResponseEntity<RoadmapGraphResponseDto> saveGraph(
             @PathVariable Long roadmapId,
@@ -51,6 +53,7 @@ public class RoadmapGraphController {
     }
 
     /** Splits a step and the branch below it into a roadmap of its own. */
+    @PreAuthorize("hasAnyRole('CONTRIBUTOR','ADMIN')")
     @PostMapping("/nodes/{nodeId}/extract")
     public ResponseEntity<RoadmapGraphResponseDto> extractNode(
             @PathVariable Long roadmapId,
@@ -58,7 +61,7 @@ public class RoadmapGraphController {
 
         AuthenticatedUserPrincipal principal = CurrentUser.require();
         Roadmap roadmap = roadmapService.getById(roadmapId);
-        roadmapService.assertCanEdit(roadmap, principal.userId());
+        roadmapService.assertCanEdit(roadmap, principal);
 
         User author = new User();
         author.setId(principal.userId());
@@ -71,7 +74,7 @@ public class RoadmapGraphController {
     private Roadmap requireEditableRoadmap(Long roadmapId) {
         AuthenticatedUserPrincipal principal = CurrentUser.require();
         Roadmap roadmap = roadmapService.getById(roadmapId);
-        roadmapService.assertCanEdit(roadmap, principal.userId());
+        roadmapService.assertCanEdit(roadmap, principal);
         return roadmap;
     }
 

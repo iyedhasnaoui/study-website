@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.*;
@@ -32,6 +33,7 @@ public class ForumReplyController {
     private final ForumReplyService forumReplyService;
     private final ForumAttachmentService forumAttachmentService;
 
+    @PreAuthorize("hasAnyRole('CONTRIBUTOR','ADMIN')")
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ForumReplyResponseDto> createReply(
             @PathVariable Long postId,
@@ -42,6 +44,7 @@ public class ForumReplyController {
         return createReply(postId, principal.userId(), dto, List.of());
     }
 
+    @PreAuthorize("hasAnyRole('CONTRIBUTOR','ADMIN')")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ForumReplyResponseDto> createReplyWithMedia(
             @PathVariable Long postId,
@@ -72,6 +75,7 @@ public class ForumReplyController {
         return ResponseEntity.ok(toResponseDto(reply));
     }
 
+    @PreAuthorize("hasAnyRole('CONTRIBUTOR','ADMIN')")
     @PutMapping("/{replyId}")
     public ResponseEntity<ForumReplyResponseDto> updateReply(
             @PathVariable Long postId,
@@ -85,7 +89,7 @@ public class ForumReplyController {
         if (!existing.getPost().getId().equals(postId)) {
             return ResponseEntity.notFound().build();
         }
-        requireOwner(existing, principal.userId());
+        requireOwner(existing, principal);
 
         // Optionally, you might want to check that the updating user is the author; omitted for simplicity
         if (dto.getContent() != null) {
@@ -100,6 +104,7 @@ public class ForumReplyController {
         return ResponseEntity.ok(toResponseDto(saved));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{replyId}")
     public ResponseEntity<Void> deleteReply(
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
@@ -111,7 +116,7 @@ public class ForumReplyController {
         if (!reply.getPost().getId().equals(postId)) {
             return ResponseEntity.notFound().build();
         }
-        requireOwner(reply, principal.userId());
+        requireOwner(reply, principal);
         
         forumAttachmentService.deleteForReply(replyId);
         forumReplyService.delete(replyId);
@@ -173,8 +178,12 @@ public class ForumReplyController {
         }
     }
 
-    private void requireOwner(ForumReply reply, Long userId) {
-        if (reply.getAuthor() == null || !userId.equals(reply.getAuthor().getId())) {
+    /** Admins may act on anyone's content; everyone else only on their own. */
+    private void requireOwner(ForumReply reply, AuthenticatedUserPrincipal principal) {
+        if (principal.isAdmin()) {
+            return;
+        }
+        if (reply.getAuthor() == null || !principal.userId().equals(reply.getAuthor().getId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only the author can change this comment");
         }
     }

@@ -10,5 +10,56 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
+  keycloak-db:
+    image: 'postgres:16-alpine'
+    # Keycloak's own store; the application must not treat it as its datasource.
+    labels:
+      org.springframework.boot.ignore: true
+    environment:
+      POSTGRES_DB: 'keycloak'
+      POSTGRES_USER: 'keycloak'
+      POSTGRES_PASSWORD: 'keycloak'
+    volumes:
+      - keycloakdata:/var/lib/postgresql/data
+
+  keycloak:
+    image: 'quay.io/keycloak/keycloak:26.0'
+    labels:
+      org.springframework.boot.ignore: true
+    command: ['start-dev', '--import-realm']
+    depends_on:
+      - keycloak-db
+    environment:
+      KC_DB: 'postgres'
+      KC_DB_URL: 'jdbc:postgresql://keycloak-db:5432/keycloak'
+      KC_DB_USERNAME: 'keycloak'
+      KC_DB_PASSWORD: 'keycloak'
+      # Console login for Keycloak itself, not for the application.
+      KC_BOOTSTRAP_ADMIN_USERNAME: '${KEYCLOAK_ADMIN_USER:-admin}'
+      KC_BOOTSTRAP_ADMIN_PASSWORD: '${KEYCLOAK_ADMIN_PASSWORD:-admin}'
+      KC_HEALTH_ENABLED: 'true'
+      # Seeds the application's own ADMIN account on first import.
+      IAC_ADMIN_USERNAME: '${IAC_ADMIN_USERNAME:-iac-admin}'
+      IAC_ADMIN_EMAIL: '${IAC_ADMIN_EMAIL:-admin@iac.local}'
+      IAC_ADMIN_PASSWORD: '${IAC_ADMIN_PASSWORD:-change-me}'
+      IAC_BACKEND_SECRET: '${IAC_BACKEND_SECRET:-backend-dev-secret}'
+    ports:
+      - '8081:8080'
+    volumes:
+      - ./keycloak:/opt/keycloak/data/import:ro
+    # The backend resolves the realm's keys at startup, so it must not start before Keycloak is
+    # ready. The image ships no curl, hence the bash /dev/tcp probe against the management port.
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep -q 'UP'",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
 volumes:
   pgdata:
+  keycloakdata:

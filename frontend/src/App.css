@@ -1888,3 +1888,11 @@
   .media-composer__file-size { display: none; }
   .attachment-gallery { grid-template-columns: 1fr; }
 }
+
+/* Short explanation of what the signed-in member's role allows. */
+.profile-popover .role-note {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  opacity: 0.75;
+}

@@ -6,18 +6,23 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.transaction.annotation.Transactional;
 import com.studywebsite.model.ModerationStatus;
+import com.studywebsite.model.User;
+import com.studywebsite.security.AppRole;
+import com.studywebsite.support.TestAuth;
 import com.studywebsite.model.Roadmap;
 import com.studywebsite.repository.RoadmapRepository;
+import com.studywebsite.repository.UserRepository;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -40,8 +45,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Transactional
 class RoadmapGraphIntegrationTest {
 
-    private static final Pattern ACCESS_TOKEN = Pattern.compile("\"accessToken\":\"([^\"]+)\"");
-
     @Autowired
     private MockMvc mockMvc;
 
@@ -51,9 +54,16 @@ class RoadmapGraphIntegrationTest {
     @Autowired
     private RoadmapRepository roadmapRepository;
 
+    @Autowired
+    private UserRepository userRepository;
+
+    // Keycloak is not running in tests; requests are authenticated directly.
+    @MockitoBean
+    private JwtDecoder jwtDecoder;
+
     @Test
     void newRoadmapStartsWithASingleMainNode() throws Exception {
-        String token = signIn("author.one");
+        RequestPostProcessor token = signIn("author.one");
         JsonNode roadmap = createRoadmap(token, "Analysis 1");
 
         assertThat(roadmap.get("nodes")).hasSize(1);
@@ -63,7 +73,7 @@ class RoadmapGraphIntegrationTest {
 
     @Test
     void graphSurvivesAFullEditAndReloadCycle() throws Exception {
-        String token = signIn("author.two");
+        RequestPostProcessor token = signIn("author.two");
         long roadmapId = createRoadmap(token, "Exchange prep").get("id").asLong();
         long rootId = rootIdOf(roadmapId, token);
 
@@ -108,7 +118,7 @@ class RoadmapGraphIntegrationTest {
 
     @Test
     void loopsAreRejected() throws Exception {
-        String token = signIn("author.loop");
+        RequestPostProcessor token = signIn("author.loop");
         long roadmapId = createRoadmap(token, "Loopy").get("id").asLong();
         long rootId = rootIdOf(roadmapId, token);
 
@@ -126,7 +136,7 @@ class RoadmapGraphIntegrationTest {
 
     @Test
     void unreachableNodesAreRejected() throws Exception {
-        String token = signIn("author.island");
+        RequestPostProcessor token = signIn("author.island");
         long roadmapId = createRoadmap(token, "Islands").get("id").asLong();
         long rootId = rootIdOf(roadmapId, token);
 
@@ -144,7 +154,7 @@ class RoadmapGraphIntegrationTest {
 
     @Test
     void branchingRequiresAGate() throws Exception {
-        String token = signIn("author.gate");
+        RequestPostProcessor token = signIn("author.gate");
         long roadmapId = createRoadmap(token, "Forks").get("id").asLong();
         long rootId = rootIdOf(roadmapId, token);
 
@@ -171,7 +181,7 @@ class RoadmapGraphIntegrationTest {
 
     @Test
     void graphSizeIsBounded() throws Exception {
-        String token = signIn("author.size");
+        RequestPostProcessor token = signIn("author.size");
         long roadmapId = createRoadmap(token, "Sizes").get("id").asLong();
         long rootId = rootIdOf(roadmapId, token);
 
@@ -202,7 +212,7 @@ class RoadmapGraphIntegrationTest {
 
     @Test
     void aBranchCanBecomeItsOwnRoadmap() throws Exception {
-        String token = signIn("author.split");
+        RequestPostProcessor token = signIn("author.split");
         long roadmapId = createRoadmap(token, "Big plan").get("id").asLong();
         long rootId = rootIdOf(roadmapId, token);
 
@@ -221,7 +231,7 @@ class RoadmapGraphIntegrationTest {
         long deepDiveId = nodeByTitle(saved, "Deep dive").get("id").asLong();
 
         String body = mockMvc.perform(post("/api/roadmaps/{id}/nodes/{nodeId}/extract", roadmapId, deepDiveId)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                        .with(token))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         JsonNode extracted = objectMapper.readTree(body);
@@ -243,7 +253,7 @@ class RoadmapGraphIntegrationTest {
 
     @Test
     void stepsWithoutABranchOfTheirOwnCannotBeExtracted() throws Exception {
-        String token = signIn("author.leaf");
+        RequestPostProcessor token = signIn("author.leaf");
         long roadmapId = createRoadmap(token, "Flat").get("id").asLong();
         long rootId = rootIdOf(roadmapId, token);
 
@@ -251,13 +261,13 @@ class RoadmapGraphIntegrationTest {
         long leafId = nodeByTitle(saved, "Flat step 2").get("id").asLong();
 
         mockMvc.perform(post("/api/roadmaps/{id}/nodes/{nodeId}/extract", roadmapId, leafId)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                        .with(token))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value(
                         org.hamcrest.Matchers.containsString("no branch of its own")));
 
         mockMvc.perform(post("/api/roadmaps/{id}/nodes/{nodeId}/extract", roadmapId, rootId)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                        .with(token))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value(
                         org.hamcrest.Matchers.containsString("main node cannot be split")));
@@ -265,7 +275,7 @@ class RoadmapGraphIntegrationTest {
 
     @Test
     void graphIsRejectedWithoutExactlyOneMainNode() throws Exception {
-        String token = signIn("author.three");
+        RequestPostProcessor token = signIn("author.three");
         long roadmapId = createRoadmap(token, "Bad graphs").get("id").asLong();
         long rootId = rootIdOf(roadmapId, token);
 
@@ -285,15 +295,15 @@ class RoadmapGraphIntegrationTest {
                 .andExpect(jsonPath("$.message").value("A node cannot be connected to itself"));
 
         mockMvc.perform(delete("/api/roadmaps/{id}/nodes/{nodeId}", roadmapId, rootId)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                        .with(token))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("The main node of a roadmap cannot be deleted"));
     }
 
     @Test
     void onlyTheAuthorCanChangeTheGraph() throws Exception {
-        String author = signIn("author.four");
-        String stranger = signIn("stranger");
+        RequestPostProcessor author = signIn("author.four");
+        RequestPostProcessor stranger = signIn("stranger");
         long roadmapId = createRoadmap(author, "Private path").get("id").asLong();
         long rootId = rootIdOf(roadmapId, author);
 
@@ -307,14 +317,14 @@ class RoadmapGraphIntegrationTest {
                 .andExpect(status().isUnauthorized());
 
         mockMvc.perform(post("/api/roadmaps/{id}/nodes/{nodeId}/extract", roadmapId, rootId)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + stranger))
+                        .with(stranger))
                 .andExpect(status().isForbidden());
 
         // While it waits for moderation only the author can see it.
         mockMvc.perform(get("/api/roadmaps/{id}/graph", roadmapId))
                 .andExpect(status().isNotFound());
         mockMvc.perform(get("/api/roadmaps/{id}/graph", roadmapId)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + author))
+                        .with(author))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nodes[0].title").value("Private path"));
 
@@ -329,14 +339,17 @@ class RoadmapGraphIntegrationTest {
 
     @Test
     void deletingARoadmapRemovesItsGraph() throws Exception {
-        String token = signIn("author.five");
+        RequestPostProcessor token = signIn("author.five");
+        RequestPostProcessor moderator = signIn("author.five.admin", AppRole.ADMIN);
         long roadmapId = createRoadmap(token, "Throwaway").get("id").asLong();
         long rootId = rootIdOf(roadmapId, token);
 
         saveGraph(token, roadmapId, chain(rootId, "Throwaway", 4).json());
 
-        mockMvc.perform(delete("/api/roadmaps/{id}", roadmapId)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+        // Deleting a whole roadmap is reserved for ADMIN.
+        mockMvc.perform(delete("/api/roadmaps/{id}", roadmapId).with(token))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(delete("/api/roadmaps/{id}", roadmapId).with(moderator))
                 .andExpect(status().isNoContent());
 
         mockMvc.perform(get("/api/roadmaps/{id}/graph", roadmapId))
@@ -404,31 +417,25 @@ class RoadmapGraphIntegrationTest {
 
     // --- helpers -------------------------------------------------------------
 
-    private String signIn(String username) throws Exception {
-        String email = username + "@example.com";
-        mockMvc.perform(post("/api/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"username":"%s","email":"%s","password":"correct horse battery"}
-                                """.formatted(username, email)))
-                .andExpect(status().isCreated());
-
-        String body = mockMvc.perform(post("/api/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"email":"%s","password":"correct horse battery"}
-                                """.formatted(email)))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
-
-        Matcher matcher = ACCESS_TOKEN.matcher(body);
-        assertThat(matcher.find()).as("login response carries an access token").isTrue();
-        return matcher.group(1);
+    /** Creates a local account and returns an authentication for it. */
+    private RequestPostProcessor signIn(String username) {
+        return signIn(username, AppRole.CONTRIBUTOR);
     }
 
-    private JsonNode createRoadmap(String token, String title) throws Exception {
+    private RequestPostProcessor signIn(String username, AppRole role) {
+        User user = new User();
+        user.setUsername(username);
+        user.setEmail(username + "@example.com");
+        user.setPasswordHash("external");
+        user.setKeycloakId("kc-" + username);
+        user.setBanned(false);
+        User saved = userRepository.saveAndFlush(user);
+        return TestAuth.as(saved.getId(), role);
+    }
+
+    private JsonNode createRoadmap(RequestPostProcessor token, String title) throws Exception {
         String body = mockMvc.perform(post("/api/roadmaps")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                        .with(token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"title":"%s","description":"generated by test"}
@@ -445,20 +452,20 @@ class RoadmapGraphIntegrationTest {
         roadmapRepository.saveAndFlush(roadmap);
     }
 
-    private long rootIdOf(long roadmapId, String token) throws Exception {
+    private long rootIdOf(long roadmapId, RequestPostProcessor token) throws Exception {
         return readGraph(roadmapId, token).get("nodes").get(0).get("id").asLong();
     }
 
     /** A roadmap stays PENDING until moderated, so reads are made as its author. */
-    private JsonNode readGraph(long roadmapId, String token) throws Exception {
+    private JsonNode readGraph(long roadmapId, RequestPostProcessor token) throws Exception {
         String body = mockMvc.perform(get("/api/roadmaps/{id}/graph", roadmapId)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                        .with(token))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
         return objectMapper.readTree(body);
     }
 
-    private JsonNode saveGraph(String token, long roadmapId, String payload) throws Exception {
+    private JsonNode saveGraph(RequestPostProcessor token, long roadmapId, String payload) throws Exception {
         String body = mockMvc.perform(graphSave(token, roadmapId, payload))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
@@ -466,9 +473,9 @@ class RoadmapGraphIntegrationTest {
     }
 
     private org.springframework.test.web.servlet.RequestBuilder graphSave(
-            String token, long roadmapId, String payload) {
+            RequestPostProcessor token, long roadmapId, String payload) {
         return put("/api/roadmaps/{id}/graph", roadmapId)
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .with(token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(payload);
     }

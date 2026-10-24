@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.*;
@@ -38,6 +39,7 @@ public class ForumPostController {
     @Autowired(required = false)
     private TagService tagService;
 
+    @PreAuthorize("hasAnyRole('CONTRIBUTOR','ADMIN')")
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ForumPostResponseDto> createPost(
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
@@ -47,6 +49,7 @@ public class ForumPostController {
         return createPost(dto, principal.userId(), List.of());
     }
 
+    @PreAuthorize("hasAnyRole('CONTRIBUTOR','ADMIN')")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ForumPostResponseDto> createPostWithMedia(
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
@@ -78,6 +81,7 @@ public class ForumPostController {
         return ResponseEntity.ok(toResponseDto(post));
     }
 
+    @PreAuthorize("hasAnyRole('CONTRIBUTOR','ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<ForumPostResponseDto> update(
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
@@ -85,7 +89,7 @@ public class ForumPostController {
             @Valid @RequestBody ForumPostUpdateDto dto) {
 
         ForumPost existing = forumPostService.getById(id);
-        requireOwner(existing, principal.userId());
+        requireOwner(existing, principal);
 
         // Optionally, you might want to check that the updating user is the author; omitted for simplicity
         if (dto.getTitle() != null) {
@@ -106,11 +110,12 @@ public class ForumPostController {
         return ResponseEntity.ok(toResponseDto(saved));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
             @PathVariable Long id) {
-        requireOwner(forumPostService.getById(id), principal.userId());
+        requireOwner(forumPostService.getById(id), principal);
         forumAttachmentService.deleteForPostTree(id);
         forumPostService.delete(id);
         return ResponseEntity.noContent().build();
@@ -179,8 +184,12 @@ public class ForumPostController {
         }
     }
 
-    private void requireOwner(ForumPost post, Long userId) {
-        if (post.getAuthor() == null || !userId.equals(post.getAuthor().getId())) {
+    /** Admins may act on anyone's content; everyone else only on their own. */
+    private void requireOwner(ForumPost post, AuthenticatedUserPrincipal principal) {
+        if (principal.isAdmin()) {
+            return;
+        }
+        if (post.getAuthor() == null || !principal.userId().equals(post.getAuthor().getId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only the author can change this post");
         }
     }
