@@ -4,9 +4,11 @@ import com.studywebsite.dto.RoadmapEdgeResponseDto;
 import com.studywebsite.dto.RoadmapGraphResponseDto;
 import com.studywebsite.dto.RoadmapNodeResponseDto;
 import com.studywebsite.dto.RoadmapResponseDto;
+import com.studywebsite.model.ModerationStatus;
 import com.studywebsite.model.Roadmap;
 import com.studywebsite.model.RoadmapEdge;
 import com.studywebsite.model.RoadmapNode;
+import com.studywebsite.model.ZitounaTag;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -49,7 +51,19 @@ public class RoadmapMapper {
                 .updatedAt(roadmap.getUpdatedAt())
                 .nodes(nodes.stream().map(this::toNodeDto).toList())
                 .edges(edges.stream().map(this::toEdgeDto).toList())
+                .tags(tagNames(roadmap))
+                .moderationStatus(roadmap.getModerationStatus() == null
+                        ? ModerationStatus.APPROVED
+                        : roadmap.getModerationStatus())
+                .moderationNote(roadmap.getModerationNote())
                 .build();
+    }
+
+    private List<String> tagNames(Roadmap roadmap) {
+        return roadmap.getTags() == null ? List.of() : roadmap.getTags().stream()
+                .map(ZitounaTag::getName)
+                .sorted()
+                .toList();
     }
 
     public RoadmapGraphResponseDto toGraphDto(

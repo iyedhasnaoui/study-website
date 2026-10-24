@@ -1,5 +1,6 @@
 package com.studywebsite.dto;
 
+import com.studywebsite.model.ModerationStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -27,4 +28,10 @@ public class RoadmapResponseDto {
 
     @Builder.Default
     private List<RoadmapEdgeResponseDto> edges = new ArrayList<>();
+
+    @Builder.Default
+    private List<String> tags = new ArrayList<>();
+
+    private ModerationStatus moderationStatus;
+    private String moderationNote;
 }

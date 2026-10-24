@@ -4,6 +4,7 @@ import com.studywebsite.security.BearerTokenAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -41,6 +42,11 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/register", "/api/auth/login", "/error").permitAll()
                         .requestMatchers("/api/auth/session", "/api/users/me").authenticated()
+                        .requestMatchers("/api/admin/**").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/learning-materials", "/api/tags/proposals").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/forum/**", "/api/roadmaps/**").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/forum/**", "/api/roadmaps/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/forum/**", "/api/roadmaps/**").authenticated()
                         .requestMatchers("/api/**").permitAll()
                         .anyRequest().permitAll()
                 )

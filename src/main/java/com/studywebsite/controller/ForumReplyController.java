@@ -6,13 +6,17 @@ import com.studywebsite.dto.ForumReplyResponseDto;
 import com.studywebsite.dto.ForumReplyUpdateDto;
 import com.studywebsite.model.ForumReply;
 import com.studywebsite.model.User;
+import com.studywebsite.security.AuthenticatedUserPrincipal;
 import com.studywebsite.service.ForumReplyService;
 import com.studywebsite.service.media.ForumAttachmentService;
 import com.studywebsite.service.media.InvalidForumContributionException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -31,22 +35,22 @@ public class ForumReplyController {
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ForumReplyResponseDto> createReply(
             @PathVariable Long postId,
-            @RequestHeader(value = "X-User-Id", defaultValue = "1") Long userId,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
             @Valid @RequestBody ForumReplyCreateDto dto) {
 
         requireTextOrFiles(dto.getContent(), List.of());
-        return createReply(postId, userId, dto, List.of());
+        return createReply(postId, principal.userId(), dto, List.of());
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ForumReplyResponseDto> createReplyWithMedia(
             @PathVariable Long postId,
-            @RequestHeader(value = "X-User-Id", defaultValue = "1") Long userId,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
             @Valid @RequestPart("payload") ForumReplyCreateDto dto,
             @RequestPart(value = "files", required = false) List<MultipartFile> files) {
         List<MultipartFile> safeFiles = files == null ? List.of() : files;
         requireTextOrFiles(dto.getContent(), safeFiles);
-        return createReply(postId, userId, dto, safeFiles);
+        return createReply(postId, principal.userId(), dto, safeFiles);
     }
 
     @GetMapping
@@ -72,7 +76,7 @@ public class ForumReplyController {
     public ResponseEntity<ForumReplyResponseDto> updateReply(
             @PathVariable Long postId,
             @PathVariable Long replyId,
-            @RequestHeader(value = "X-User-Id", defaultValue = "1") Long userId,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
             @Valid @RequestBody ForumReplyUpdateDto dto) {
 
         ForumReply existing = forumReplyService.getById(replyId);
@@ -81,6 +85,7 @@ public class ForumReplyController {
         if (!existing.getPost().getId().equals(postId)) {
             return ResponseEntity.notFound().build();
         }
+        requireOwner(existing, principal.userId());
 
         // Optionally, you might want to check that the updating user is the author; omitted for simplicity
         if (dto.getContent() != null) {
@@ -97,6 +102,7 @@ public class ForumReplyController {
 
     @DeleteMapping("/{replyId}")
     public ResponseEntity<Void> deleteReply(
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
             @PathVariable Long postId,
             @PathVariable Long replyId) {
         ForumReply reply = forumReplyService.getById(replyId);
@@ -105,6 +111,7 @@ public class ForumReplyController {
         if (!reply.getPost().getId().equals(postId)) {
             return ResponseEntity.notFound().build();
         }
+        requireOwner(reply, principal.userId());
         
         forumAttachmentService.deleteForReply(replyId);
         forumReplyService.delete(replyId);
@@ -163,6 +170,12 @@ public class ForumReplyController {
     private void requireTextOrFiles(String content, List<MultipartFile> files) {
         if ((content == null || content.isBlank()) && files.isEmpty()) {
             throw new InvalidForumContributionException("Write a reply or attach a PDF, audio, or video file");
+        }
+    }
+
+    private void requireOwner(ForumReply reply, Long userId) {
+        if (reply.getAuthor() == null || !userId.equals(reply.getAuthor().getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only the author can change this comment");
         }
     }
 }

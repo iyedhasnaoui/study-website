@@ -8,6 +8,9 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+import com.studywebsite.model.ModerationStatus;
+import com.studywebsite.model.Roadmap;
+import com.studywebsite.repository.RoadmapRepository;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -45,6 +48,9 @@ class RoadmapGraphIntegrationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private RoadmapRepository roadmapRepository;
+
     @Test
     void newRoadmapStartsWithASingleMainNode() throws Exception {
         String token = signIn("author.one");
@@ -59,7 +65,7 @@ class RoadmapGraphIntegrationTest {
     void graphSurvivesAFullEditAndReloadCycle() throws Exception {
         String token = signIn("author.two");
         long roadmapId = createRoadmap(token, "Exchange prep").get("id").asLong();
-        long rootId = rootIdOf(roadmapId);
+        long rootId = rootIdOf(roadmapId, token);
 
         Graph graph = new Graph()
                 .root(rootId, "Exchange prep", true, 120, 40)
@@ -77,7 +83,7 @@ class RoadmapGraphIntegrationTest {
         long mergeId = nodeByTitle(saved, "Submit application").get("id").asLong();
         assertThat(incomingEdgeCount(saved, mergeId)).isEqualTo(2);
 
-        JsonNode reloaded = readGraph(roadmapId);
+        JsonNode reloaded = readGraph(roadmapId, token);
         JsonNode root = nodeById(reloaded, rootId);
         assertThat(root.get("positionX").asDouble()).isEqualTo(120.0);
         assertThat(root.get("gate").asBoolean()).isTrue();
@@ -97,14 +103,14 @@ class RoadmapGraphIntegrationTest {
         JsonNode afterEdit = saveGraph(token, roadmapId, trimmed.json());
         assertThat(afterEdit.get("nodes")).hasSize(3);
         assertThat(nodeById(afterEdit, partnerId).get("title").asText()).isEqualTo("Shortlist universities");
-        assertThat(readGraph(roadmapId).get("nodes")).hasSize(3);
+        assertThat(readGraph(roadmapId, token).get("nodes")).hasSize(3);
     }
 
     @Test
     void loopsAreRejected() throws Exception {
         String token = signIn("author.loop");
         long roadmapId = createRoadmap(token, "Loopy").get("id").asLong();
-        long rootId = rootIdOf(roadmapId);
+        long rootId = rootIdOf(roadmapId, token);
 
         Graph cyclic = new Graph()
                 .root(rootId, "Loopy", false, 0, 0)
@@ -122,7 +128,7 @@ class RoadmapGraphIntegrationTest {
     void unreachableNodesAreRejected() throws Exception {
         String token = signIn("author.island");
         long roadmapId = createRoadmap(token, "Islands").get("id").asLong();
-        long rootId = rootIdOf(roadmapId);
+        long rootId = rootIdOf(roadmapId, token);
 
         Graph orphaned = new Graph()
                 .root(rootId, "Islands", false, 0, 0)
@@ -140,7 +146,7 @@ class RoadmapGraphIntegrationTest {
     void branchingRequiresAGate() throws Exception {
         String token = signIn("author.gate");
         long roadmapId = createRoadmap(token, "Forks").get("id").asLong();
-        long rootId = rootIdOf(roadmapId);
+        long rootId = rootIdOf(roadmapId, token);
 
         Graph ungated = new Graph()
                 .root(rootId, "Forks", false, 0, 0)
@@ -167,7 +173,7 @@ class RoadmapGraphIntegrationTest {
     void graphSizeIsBounded() throws Exception {
         String token = signIn("author.size");
         long roadmapId = createRoadmap(token, "Sizes").get("id").asLong();
-        long rootId = rootIdOf(roadmapId);
+        long rootId = rootIdOf(roadmapId, token);
 
         Graph tooSmall = new Graph()
                 .root(rootId, "Sizes", false, 0, 0)
@@ -198,7 +204,7 @@ class RoadmapGraphIntegrationTest {
     void aBranchCanBecomeItsOwnRoadmap() throws Exception {
         String token = signIn("author.split");
         long roadmapId = createRoadmap(token, "Big plan").get("id").asLong();
-        long rootId = rootIdOf(roadmapId);
+        long rootId = rootIdOf(roadmapId, token);
 
         // root -> a -> c -> d   and   root -> b -> e
         Graph graph = new Graph()
@@ -228,7 +234,7 @@ class RoadmapGraphIntegrationTest {
         assertThat(nodeByTitle(extracted, "Deep dive").get("positionX").asDouble()).isEqualTo(0.0);
 
         // The original keeps the step as a link and loses only the moved branch.
-        JsonNode original = readGraph(roadmapId);
+        JsonNode original = readGraph(roadmapId, token);
         assertThat(titlesOf(original)).containsExactlyInAnyOrder(
                 "Big plan", "Deep dive", "Side track", "Side track part 2");
         assertThat(nodeByTitle(original, "Deep dive").get("linkedRoadmapId").asLong())
@@ -239,7 +245,7 @@ class RoadmapGraphIntegrationTest {
     void stepsWithoutABranchOfTheirOwnCannotBeExtracted() throws Exception {
         String token = signIn("author.leaf");
         long roadmapId = createRoadmap(token, "Flat").get("id").asLong();
-        long rootId = rootIdOf(roadmapId);
+        long rootId = rootIdOf(roadmapId, token);
 
         JsonNode saved = saveGraph(token, roadmapId, chain(rootId, "Flat", 3).json());
         long leafId = nodeByTitle(saved, "Flat step 2").get("id").asLong();
@@ -261,7 +267,7 @@ class RoadmapGraphIntegrationTest {
     void graphIsRejectedWithoutExactlyOneMainNode() throws Exception {
         String token = signIn("author.three");
         long roadmapId = createRoadmap(token, "Bad graphs").get("id").asLong();
-        long rootId = rootIdOf(roadmapId);
+        long rootId = rootIdOf(roadmapId, token);
 
         mockMvc.perform(graphSave(token, roadmapId, """
                         {"nodes": [{"ref": "a", "title": "Orphan", "nodeType": "PRIMARY",
@@ -289,7 +295,7 @@ class RoadmapGraphIntegrationTest {
         String author = signIn("author.four");
         String stranger = signIn("stranger");
         long roadmapId = createRoadmap(author, "Private path").get("id").asLong();
-        long rootId = rootIdOf(roadmapId);
+        long rootId = rootIdOf(roadmapId, author);
 
         String payload = chain(rootId, "Private path", 3).json();
 
@@ -304,16 +310,28 @@ class RoadmapGraphIntegrationTest {
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + stranger))
                 .andExpect(status().isForbidden());
 
+        // While it waits for moderation only the author can see it.
+        mockMvc.perform(get("/api/roadmaps/{id}/graph", roadmapId))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/roadmaps/{id}/graph", roadmapId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + author))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nodes[0].title").value("Private path"));
+
+        approve(roadmapId);
+
+        // Once approved anyone may read it, but still not change it.
         mockMvc.perform(get("/api/roadmaps/{id}/graph", roadmapId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nodes[0].title").value("Private path"));
+        mockMvc.perform(graphSave(stranger, roadmapId, payload)).andExpect(status().isForbidden());
     }
 
     @Test
     void deletingARoadmapRemovesItsGraph() throws Exception {
         String token = signIn("author.five");
         long roadmapId = createRoadmap(token, "Throwaway").get("id").asLong();
-        long rootId = rootIdOf(roadmapId);
+        long rootId = rootIdOf(roadmapId, token);
 
         saveGraph(token, roadmapId, chain(rootId, "Throwaway", 4).json());
 
@@ -420,12 +438,21 @@ class RoadmapGraphIntegrationTest {
         return objectMapper.readTree(body);
     }
 
-    private long rootIdOf(long roadmapId) throws Exception {
-        return readGraph(roadmapId).get("nodes").get(0).get("id").asLong();
+    /** Stands in for a moderator approving the roadmap. */
+    private void approve(long roadmapId) {
+        Roadmap roadmap = roadmapRepository.findById(roadmapId).orElseThrow();
+        roadmap.setModerationStatus(ModerationStatus.APPROVED);
+        roadmapRepository.saveAndFlush(roadmap);
     }
 
-    private JsonNode readGraph(long roadmapId) throws Exception {
-        String body = mockMvc.perform(get("/api/roadmaps/{id}/graph", roadmapId))
+    private long rootIdOf(long roadmapId, String token) throws Exception {
+        return readGraph(roadmapId, token).get("nodes").get(0).get("id").asLong();
+    }
+
+    /** A roadmap stays PENDING until moderated, so reads are made as its author. */
+    private JsonNode readGraph(long roadmapId, String token) throws Exception {
+        String body = mockMvc.perform(get("/api/roadmaps/{id}/graph", roadmapId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
         return objectMapper.readTree(body);

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 
 interface HomePageProps {
-  onOpenForum: () => void
-  onOpenRoadmaps: () => void
-  onJoin: () => void
+  onOpenZitouna: () => void
+  onOpenAbout: () => void
+  onOpenProfile: () => void
 }
 
 const focusCards = [
@@ -15,31 +15,31 @@ const focusCards = [
 const features = [
   {
     icon: '↗',
-    label: 'Learning roadmaps',
-    title: 'See the path, not just the destination.',
-    copy: 'Community-built learning sequences transform ambitious goals into clear, practical next steps.',
-    action: 'Explore roadmaps',
-    kind: 'roadmaps',
+    label: 'Zitouna',
+    title: 'One place for the knowledge circle.',
+    copy: 'Search forum posts, roadmaps, learning materials, and FAQs through one shared system of tags.',
+    action: 'Explore Zitouna',
+    kind: 'zitouna',
   },
   {
     icon: '◎',
-    label: 'Academic forum',
-    title: 'Questions become shared momentum.',
-    copy: 'Ask openly, reply thoughtfully, and keep useful context attached to every academic discussion.',
-    action: 'Enter the forum',
-    kind: 'forum',
+    label: 'About us',
+    title: 'Understand the idea behind the circle.',
+    copy: 'Meet the mission, principles, and community values that guide Ifriqiya Academic Circle.',
+    action: 'Discover our mission',
+    kind: 'about',
   },
   {
     icon: '✦',
-    label: 'Trusted resources',
-    title: 'Knowledge gains a reputation.',
-    copy: 'Ratings, verification, and contribution history help the strongest material rise to the surface.',
-    action: 'Join the contributors',
-    kind: 'join',
+    label: 'Profile',
+    title: 'Your academic identity travels with you.',
+    copy: 'Sign in to contribute, follow your submissions, and build a useful record of shared experience.',
+    action: 'Open your profile',
+    kind: 'profile',
   },
 ]
 
-export function HomePage({ onOpenForum, onOpenRoadmaps, onJoin }: HomePageProps) {
+export function HomePage({ onOpenZitouna, onOpenAbout, onOpenProfile }: HomePageProps) {
   const [activeFocus, setActiveFocus] = useState(0)
 
   useEffect(() => {
@@ -50,9 +50,9 @@ export function HomePage({ onOpenForum, onOpenRoadmaps, onJoin }: HomePageProps)
   }, [])
 
   const runFeatureAction = (kind: string) => {
-    if (kind === 'roadmaps') onOpenRoadmaps()
-    else if (kind === 'forum') onOpenForum()
-    else onJoin()
+    if (kind === 'zitouna') onOpenZitouna()
+    else if (kind === 'about') onOpenAbout()
+    else onOpenProfile()
   }
 
   return (
@@ -72,10 +72,10 @@ export function HomePage({ onOpenForum, onOpenRoadmaps, onJoin }: HomePageProps)
             and individual progress into shared academic strength.
           </p>
           <div className="hero__actions">
-            <button className="button button--gold" type="button" onClick={onJoin}>
+            <button className="button button--gold" type="button" onClick={onOpenProfile}>
               Join the circle <span aria-hidden="true">↗</span>
             </button>
-            <button className="button button--ghost" type="button" onClick={onOpenRoadmaps}>
+            <button className="button button--ghost" type="button" onClick={onOpenZitouna}>
               Explore knowledge
             </button>
           </div>
@@ -185,7 +185,7 @@ export function HomePage({ onOpenForum, onOpenRoadmaps, onJoin }: HomePageProps)
               A precise reply, a well-ordered roadmap, or one carefully reviewed resource can become the turning point
               in another student’s week.
             </p>
-            <button className="button button--light" type="button" onClick={onOpenForum}>See current discussions</button>
+            <button className="button button--light" type="button" onClick={onOpenZitouna}>See current discussions</button>
           </div>
           <div className="impact-card__stats">
             <div><strong>01</strong><span>shared question can unlock a group</span></div>
@@ -199,7 +199,7 @@ export function HomePage({ onOpenForum, onOpenRoadmaps, onJoin }: HomePageProps)
         <img src="/assets/iac-logo.jpeg" alt="" />
         <p className="eyebrow">The next insight starts here</p>
         <h2>Bring your question.<br />Leave with a direction.</h2>
-        <button className="button button--gold" type="button" onClick={onJoin}>Create your academic identity</button>
+        <button className="button button--gold" type="button" onClick={onOpenProfile}>Create your academic identity</button>
       </section>
     </main>
   )

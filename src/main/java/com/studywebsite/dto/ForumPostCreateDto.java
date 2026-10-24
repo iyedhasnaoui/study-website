@@ -2,6 +2,7 @@ package com.studywebsite.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -23,5 +24,8 @@ public class ForumPostCreateDto {
     private String content;
 
     private List<String> tags;
+
+    @Valid
+    private TagSelectionDto tagSelection;
 }
 

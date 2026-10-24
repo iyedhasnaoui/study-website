@@ -3,14 +3,17 @@ package com.studywebsite.controller;
 import com.studywebsite.dto.RoadmapCreateDto;
 import com.studywebsite.dto.RoadmapResponseDto;
 import com.studywebsite.dto.RoadmapUpdateDto;
+import com.studywebsite.model.ModerationStatus;
 import com.studywebsite.model.Roadmap;
 import com.studywebsite.model.User;
 import com.studywebsite.security.AuthenticatedUserPrincipal;
 import com.studywebsite.security.CurrentUser;
 import com.studywebsite.service.RoadmapService;
+import com.studywebsite.service.TagService;
 import com.studywebsite.service.roadmap.RoadmapGraphService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,12 +30,19 @@ public class RoadmapController {
     private final RoadmapGraphService roadmapGraphService;
     private final RoadmapMapper mapper;
 
+    @Autowired(required = false)
+    private TagService tagService;
+
     @GetMapping
     public ResponseEntity<List<RoadmapResponseDto>> getAll(
             @RequestParam(required = false) String q,
             @RequestParam(required = false) Long authorId) {
 
-        List<Roadmap> roadmaps = roadmapService.getAll();
+        Long viewerId = CurrentUser.find().map(AuthenticatedUserPrincipal::userId).orElse(null);
+
+        List<Roadmap> roadmaps = roadmapService.getAll().stream()
+                .filter(roadmap -> isVisibleTo(roadmap, viewerId))
+                .collect(Collectors.toList());
 
         if (authorId != null) {
             roadmaps = roadmaps.stream()
@@ -54,7 +64,13 @@ public class RoadmapController {
 
     @GetMapping("/{id}")
     public ResponseEntity<RoadmapResponseDto> getById(@PathVariable Long id) {
-        return ResponseEntity.ok(toDto(roadmapService.getById(id)));
+        Roadmap roadmap = roadmapService.getById(id);
+        Long viewerId = CurrentUser.find().map(AuthenticatedUserPrincipal::userId).orElse(null);
+
+        if (!isVisibleTo(roadmap, viewerId)) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(toDto(roadmap));
     }
 
     @PostMapping
@@ -68,6 +84,13 @@ public class RoadmapController {
         User author = new User();
         author.setId(principal.userId());
         roadmap.setAuthor(author);
+        roadmap.setModerationStatus(ModerationStatus.PENDING);
+
+        if (tagService != null) {
+            TagService.AppliedTags selected =
+                    tagService.resolveSelection(dto.getTagSelection(), List.of(), principal.userId());
+            roadmap.setTags(selected.tags());
+        }
 
         Roadmap saved = roadmapService.create(roadmap);
         return ResponseEntity.created(URI.create("/api/roadmaps/" + saved.getId()))
@@ -90,6 +113,10 @@ public class RoadmapController {
             existing.setDescription(dto.getDescription());
         }
 
+        // An edit to published content goes back through moderation.
+        existing.setModerationStatus(ModerationStatus.PENDING);
+        existing.setModerationNote(null);
+
         return ResponseEntity.ok(toDto(roadmapService.save(existing)));
     }
 
@@ -100,6 +127,20 @@ public class RoadmapController {
 
         roadmapService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Readers only see approved roadmaps, but an author keeps access to their own while it waits
+     * for moderation — otherwise they could not open the roadmap they just created.
+     */
+    static boolean isVisibleTo(Roadmap roadmap, Long viewerId) {
+        if (roadmap.getModerationStatus() == null
+                || roadmap.getModerationStatus() == ModerationStatus.APPROVED) {
+            return true;
+        }
+        return viewerId != null
+                && roadmap.getAuthor() != null
+                && viewerId.equals(roadmap.getAuthor().getId());
     }
 
     private RoadmapResponseDto toDto(Roadmap roadmap) {

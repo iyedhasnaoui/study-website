@@ -31,7 +31,13 @@ public class RoadmapGraphController {
 
     @GetMapping("/graph")
     public ResponseEntity<RoadmapGraphResponseDto> getGraph(@PathVariable Long roadmapId) {
-        return ResponseEntity.ok(readGraph(roadmapService.getById(roadmapId)));
+        Roadmap roadmap = roadmapService.getById(roadmapId);
+        Long viewerId = CurrentUser.find().map(AuthenticatedUserPrincipal::userId).orElse(null);
+
+        if (!RoadmapController.isVisibleTo(roadmap, viewerId)) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(readGraph(roadmap));
     }
 
     @PutMapping("/graph")
