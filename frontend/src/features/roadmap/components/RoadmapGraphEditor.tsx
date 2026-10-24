@@ -20,7 +20,13 @@ import {
   type OnBeforeDelete,
 } from '@xyflow/react'
 
-import { extractErrorMessage, saveRoadmapGraph } from '../api/roadmapApi'
+import {
+  extractErrorMessage,
+  extractRoadmapNode,
+  getRoadmapGraph,
+  saveRoadmapGraph,
+} from '../api/roadmapApi'
+import { checkGraph, exclusiveBranchSize, MAX_NODES } from '../graphRules'
 import type { RoadmapGraphResponseDto, RoadmapGraphSaveDto, RoadmapNodeType } from '../types'
 import { NODE_TYPE_LABELS, RoadmapFlowNode, type RoadmapFlowNodeData } from './RoadmapFlowNode'
 import { RoadmapFloatingEdge } from './RoadmapFloatingEdge'
@@ -35,6 +41,8 @@ const edgeTypes = { floating: RoadmapFloatingEdge }
 
 const EDGE_DEFAULTS = {
   type: 'floating',
+  sourceHandle: 'right',
+  targetHandle: 'left',
   markerEnd: { type: MarkerType.ArrowClosed, width: 18, height: 18, color: '#64748b' },
 } as const
 
@@ -52,6 +60,8 @@ function toFlowNodes(graph: RoadmapGraphResponseDto): FlowNode[] {
       description: node.description,
       content: node.content,
       nodeType: node.nodeType,
+      gate: node.gate,
+      linkedRoadmapId: node.linkedRoadmapId,
     },
   }))
 }
@@ -98,9 +108,12 @@ function GraphCanvas({
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [savedAt, setSavedAt] = useState<string | null>(null)
+  const [isExtracting, setIsExtracting] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
 
   const nextTempId = useRef(0)
   const canvasRef = useRef<HTMLDivElement>(null)
+  const connectStartNode = useRef<string | null>(null)
   const { screenToFlowPosition, fitView } = useReactFlow()
 
   const applyGraph = useCallback(
@@ -155,10 +168,23 @@ function GraphCanvas({
     (connection: Connection) => {
       if (!canEdit || connection.source === connection.target) return
 
-      const id = edgeId(connection.source, connection.target)
+      // In loose mode React Flow derives direction from which dot was grabbed, so dragging off a
+      // target handle yields a backwards edge. The gesture is what the author means: the node the
+      // drag started on is always the source.
+      const startedAt = connectStartNode.current
+      const flipped = startedAt !== null && startedAt === connection.target
+      const source = flipped ? connection.target : connection.source
+      const target = flipped ? connection.source : connection.target
+
+      const id = edgeId(source, target)
       if (edges.some((edge) => edge.id === id)) return
 
-      setEdges((current) => addEdge({ ...connection, ...EDGE_DEFAULTS, id }, current))
+      setEdges((current) =>
+        addEdge(
+          { ...EDGE_DEFAULTS, id, source, target },
+          current,
+        ),
+      )
       setIsDirty(true)
     },
     [canEdit, edges, setEdges],
@@ -183,6 +209,8 @@ function GraphCanvas({
           description: null,
           content: null,
           nodeType: type,
+          gate: false,
+          linkedRoadmapId: null,
         },
       }
 
@@ -242,6 +270,7 @@ function GraphCanvas({
         nodeType: node.data.nodeType,
         positionX: Math.round(node.position.x),
         positionY: Math.round(node.position.y),
+        gate: node.data.gate,
       })),
       edges: edges.map((edge) => ({ sourceRef: edge.source, targetRef: edge.target })),
     }
@@ -255,6 +284,38 @@ function GraphCanvas({
       setIsSaving(false)
     }
   }, [applyGraph, edges, nodes, roadmapId])
+
+  const { errors, advisories } = useMemo(() => checkGraph(nodes, edges), [nodes, edges])
+
+  const outgoingCount = useMemo(
+    () => (selectedId ? edges.filter((edge) => edge.source === selectedId).length : 0),
+    [edges, selectedId],
+  )
+
+  const branchSize = useMemo(
+    () => (selectedNode && selectedNode.data.nodeType !== 'ROOT'
+      ? exclusiveBranchSize(nodes, edges, selectedNode.id)
+      : 0),
+    [edges, nodes, selectedNode],
+  )
+
+  const handleExtract = useCallback(async () => {
+    if (!selectedNode?.data.dbId) return
+
+    setIsExtracting(true)
+    setError(null)
+
+    try {
+      const extracted = await extractRoadmapNode(roadmapId, selectedNode.data.dbId)
+      applyGraph(await getRoadmapGraph(roadmapId))
+      setSelectedId(null)
+      setNotice(`"${extracted.title}" is now its own roadmap.`)
+    } catch (splitError) {
+      setError(extractErrorMessage(splitError, 'Unable to split this branch off.'))
+    } finally {
+      setIsExtracting(false)
+    }
+  }, [applyGraph, roadmapId, selectedNode])
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -270,6 +331,12 @@ function GraphCanvas({
           onNodesChange={handleNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={handleConnect}
+          onConnectStart={(_, { nodeId }) => {
+            connectStartNode.current = nodeId
+          }}
+          onConnectEnd={() => {
+            connectStartNode.current = null
+          }}
           onBeforeDelete={handleBeforeDelete}
           onNodeClick={(_, node) => setSelectedId(node.id)}
           onPaneClick={() => setSelectedId(null)}
@@ -306,10 +373,22 @@ function GraphCanvas({
 
               <span className="mx-1 h-5 w-px bg-slate-200 dark:bg-zinc-700" />
 
+              <span
+                className={[
+                  'rounded-full px-2 py-1 text-[11px] font-semibold',
+                  nodes.length > MAX_NODES
+                    ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300'
+                    : 'text-slate-500 dark:text-zinc-400',
+                ].join(' ')}
+              >
+                {nodes.length}/{MAX_NODES} nodes
+              </span>
+
               <button
                 type="button"
                 onClick={handleSave}
-                disabled={isSaving || !isDirty}
+                disabled={isSaving || !isDirty || errors.length > 0}
+                title={errors.length > 0 ? 'Fix the listed problems before saving' : undefined}
                 className="rounded-full bg-amber-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isSaving ? 'Saving…' : isDirty ? 'Save graph' : 'Saved'}
@@ -335,6 +414,36 @@ function GraphCanvas({
           </div>
         ) : null}
 
+        {notice ? (
+          <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800 dark:border-sky-900/60 dark:bg-sky-950/40 dark:text-sky-200">
+            {notice}
+          </div>
+        ) : null}
+
+        {canEdit && errors.length > 0 ? (
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 dark:border-rose-900/60 dark:bg-rose-950/40">
+            <p className="text-xs font-bold uppercase tracking-wide text-rose-700 dark:text-rose-300">
+              Fix before saving
+            </p>
+            <ul className="mt-2 list-disc space-y-1 pl-4 text-sm text-rose-700 dark:text-rose-200">
+              {errors.map((problem) => (
+                <li key={problem}>{problem}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        {canEdit && advisories.length > 0 ? (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+            {advisories.map((advice) => (
+              <p key={advice}>{advice}</p>
+            ))}
+            <p className="mt-1 text-xs opacity-80">
+              Select a step with a branch below it and use “Turn into its own roadmap”.
+            </p>
+          </div>
+        ) : null}
+
         {canEdit ? (
           <div className="rounded-xl border border-gray-200 bg-white/95 px-4 py-3 text-xs text-slate-500 shadow-sm dark:border-zinc-800 dark:bg-zinc-950/80 dark:text-zinc-400">
             {isDirty
@@ -349,8 +458,13 @@ function GraphCanvas({
           <RoadmapNodeInspector
             node={selectedNode}
             canEdit={canEdit}
+            outgoingCount={outgoingCount}
+            branchSize={branchSize}
+            canExtract={!isDirty && branchSize > 0 && selectedNode.data.nodeType !== 'ROOT'}
+            isExtracting={isExtracting}
             onChange={patchSelectedNode}
             onDelete={() => removeNode(selectedNode.id)}
+            onExtract={handleExtract}
             onClose={() => setSelectedId(null)}
           />
         ) : (

@@ -53,6 +53,10 @@ public class RoadmapGraphSaveDto {
 
         @NotNull
         private Double positionY;
+
+        private Boolean gate;
+
+        private Long linkedRoadmapId;
     }
 
     @Data

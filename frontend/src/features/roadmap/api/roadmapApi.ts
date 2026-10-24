@@ -77,6 +77,17 @@ export async function saveRoadmapGraph(
   return response.data
 }
 
+export async function extractRoadmapNode(
+  roadmapId: number,
+  nodeId: number,
+): Promise<RoadmapGraphResponseDto> {
+  requireAuthenticatedUser()
+  const response = await roadmapApiClient.post<RoadmapGraphResponseDto>(
+    `/api/roadmaps/${roadmapId}/nodes/${nodeId}/extract`,
+  )
+  return response.data
+}
+
 export async function getRoadmapNodes(roadmapId: number): Promise<RoadmapNodeResponseDto[]> {
   const response = await roadmapApiClient.get<RoadmapNodeResponseDto[]>(
     `/api/roadmaps/${roadmapId}/nodes`,

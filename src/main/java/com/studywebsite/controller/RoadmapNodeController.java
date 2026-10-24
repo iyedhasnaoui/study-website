@@ -56,6 +56,7 @@ public class RoadmapNodeController {
         node.setNodeType(dto.getNodeType() == null ? RoadmapNodeType.PRIMARY : dto.getNodeType());
         node.setPositionX(dto.getPositionX() == null ? 0.0 : dto.getPositionX());
         node.setPositionY(dto.getPositionY() == null ? 0.0 : dto.getPositionY());
+        node.setGate(Boolean.TRUE.equals(dto.getGate()));
 
         RoadmapNode saved = roadmapGraphService.createNode(roadmap, node);
         return ResponseEntity.created(URI.create("/api/roadmaps/" + roadmapId + "/nodes/" + saved.getId()))
@@ -88,6 +89,9 @@ public class RoadmapNodeController {
         }
         if (dto.getPositionY() != null) {
             existing.setPositionY(dto.getPositionY());
+        }
+        if (dto.getGate() != null) {
+            existing.setGate(dto.getGate());
         }
 
         return ResponseEntity.ok(mapper.toNodeDto(roadmapGraphService.updateNode(existing)));

@@ -9,8 +9,13 @@ const EDITABLE_TYPES: RoadmapNodeType[] = ['PRIMARY', 'SECONDARY', 'OPTIONAL', '
 interface RoadmapNodeInspectorProps {
   node: Node<RoadmapFlowNodeData>
   canEdit: boolean
+  outgoingCount: number
+  branchSize: number
+  canExtract: boolean
+  isExtracting: boolean
   onChange: (patch: Partial<RoadmapFlowNodeData>) => void
   onDelete: () => void
+  onExtract: () => void
   onClose: () => void
 }
 
@@ -20,11 +25,17 @@ const fieldClass =
 export function RoadmapNodeInspector({
   node,
   canEdit,
+  outgoingCount,
+  branchSize,
+  canExtract,
+  isExtracting,
   onChange,
   onDelete,
+  onExtract,
   onClose,
 }: RoadmapNodeInspectorProps) {
   const isRoot = node.data.nodeType === 'ROOT'
+  const gateRequired = outgoingCount > 1
 
   return (
     <aside className="flex h-full w-full flex-col gap-4 overflow-y-auto rounded-2xl border border-gray-200 bg-white/95 p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-950/80">
@@ -99,6 +110,62 @@ export function RoadmapNodeInspector({
             />
           </label>
 
+          <label
+            className={[
+              'flex items-start gap-2 rounded-xl border p-3',
+              gateRequired && !node.data.gate
+                ? 'border-amber-400 bg-amber-50 dark:border-amber-600/60 dark:bg-amber-950/30'
+                : 'border-slate-200 dark:border-zinc-800',
+            ].join(' ')}
+          >
+            <input
+              type="checkbox"
+              checked={node.data.gate}
+              onChange={(event) => onChange({ gate: event.target.checked })}
+              className="mt-0.5 h-4 w-4 accent-sky-600"
+            />
+            <span className="text-xs text-slate-600 dark:text-zinc-300">
+              <strong className="block text-slate-900 dark:text-zinc-100">Gate</strong>
+              A step may only lead to several next steps when it is marked as a gate.
+              {gateRequired ? (
+                <em className="mt-1 block not-italic font-semibold">
+                  This step has {outgoingCount} outgoing connections, so a gate is required.
+                </em>
+              ) : null}
+            </span>
+          </label>
+
+          {node.data.linkedRoadmapId ? (
+            <a
+              href={`#roadmaps/${node.data.linkedRoadmapId}`}
+              className="block rounded-full border border-sky-200 px-4 py-2 text-center text-sm font-semibold text-sky-700 transition hover:bg-sky-50 dark:border-sky-900/70 dark:text-sky-300 dark:hover:bg-sky-950/40"
+            >
+              Open its own roadmap
+            </a>
+          ) : (
+            <button
+              type="button"
+              onClick={onExtract}
+              disabled={!canExtract || isExtracting}
+              title={
+                isRoot
+                  ? 'The main node cannot be split off'
+                  : branchSize === 0
+                    ? 'This step has no branch of its own to split off'
+                    : !canExtract
+                      ? 'Save your changes before splitting this branch off'
+                      : undefined
+              }
+              className="w-full rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-sky-300 hover:text-sky-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:border-sky-500/50 dark:hover:text-sky-300"
+            >
+              {isExtracting
+                ? 'Splitting off...'
+                : branchSize > 0
+                  ? `Turn into its own roadmap (${branchSize} steps)`
+                  : 'Turn into its own roadmap'}
+            </button>
+          )}
+
           <button
             type="button"
             onClick={onDelete}
@@ -116,6 +183,14 @@ export function RoadmapNodeInspector({
           </h3>
           {node.data.description ? (
             <p className="text-sm text-slate-500 dark:text-zinc-400">{node.data.description}</p>
+          ) : null}
+          {node.data.linkedRoadmapId ? (
+            <a
+              href={`#roadmaps/${node.data.linkedRoadmapId}`}
+              className="inline-block rounded-full border border-sky-200 px-4 py-1.5 text-sm font-semibold text-sky-700 transition hover:bg-sky-50 dark:border-sky-900/70 dark:text-sky-300 dark:hover:bg-sky-950/40"
+            >
+              Open its own roadmap
+            </a>
           ) : null}
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/40">
             {node.data.content?.trim() ? (

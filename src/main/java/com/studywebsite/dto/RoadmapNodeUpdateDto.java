@@ -23,4 +23,6 @@ public class RoadmapNodeUpdateDto {
     private Double positionX;
 
     private Double positionY;
+
+    private Boolean gate;
 }

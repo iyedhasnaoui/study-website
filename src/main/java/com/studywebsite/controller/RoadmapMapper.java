@@ -24,6 +24,8 @@ public class RoadmapMapper {
                 .nodeType(node.getNodeType())
                 .positionX(node.getPositionX())
                 .positionY(node.getPositionY())
+                .gate(node.getGate())
+                .linkedRoadmapId(node.getLinkedRoadmapId())
                 .build();
     }
 
@@ -50,7 +52,8 @@ public class RoadmapMapper {
                 .build();
     }
 
-    public RoadmapGraphResponseDto toGraphDto(Roadmap roadmap, List<RoadmapNode> nodes, List<RoadmapEdge> edges) {
+    public RoadmapGraphResponseDto toGraphDto(
+            Roadmap roadmap, List<RoadmapNode> nodes, List<RoadmapEdge> edges, List<String> advisories) {
         return RoadmapGraphResponseDto.builder()
                 .roadmapId(roadmap.getId())
                 .title(roadmap.getTitle())
@@ -61,6 +64,7 @@ public class RoadmapMapper {
                 .updatedAt(roadmap.getUpdatedAt())
                 .nodes(nodes.stream().map(this::toNodeDto).toList())
                 .edges(edges.stream().map(this::toEdgeDto).toList())
+                .advisories(advisories)
                 .build();
     }
 }

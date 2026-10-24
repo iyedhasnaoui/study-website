@@ -44,6 +44,7 @@ public class RoadmapService {
             throw new EntityNotFoundException("Roadmap entity not found");
         }
         roadmapGraphService.deleteGraph(id);
+        roadmapGraphService.clearLinksTo(id);
         roadmapRepository.deleteById(id);
     }
 

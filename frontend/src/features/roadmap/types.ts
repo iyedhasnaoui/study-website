@@ -9,6 +9,8 @@ export interface RoadmapNodeResponseDto {
   nodeType: RoadmapNodeType
   positionX: number
   positionY: number
+  gate: boolean
+  linkedRoadmapId: number | null
 }
 
 export interface RoadmapEdgeResponseDto {
@@ -40,6 +42,7 @@ export interface RoadmapGraphResponseDto {
   updatedAt: string | null
   nodes: RoadmapNodeResponseDto[]
   edges: RoadmapEdgeResponseDto[]
+  advisories: string[]
 }
 
 export interface RoadmapGraphSaveDto {
@@ -52,6 +55,7 @@ export interface RoadmapGraphSaveDto {
     nodeType: RoadmapNodeType
     positionX: number
     positionY: number
+    gate: boolean
   }[]
   edges: {
     id?: number | null
@@ -77,6 +81,7 @@ export interface RoadmapNodeCreateDto {
   nodeType?: RoadmapNodeType
   positionX?: number
   positionY?: number
+  gate?: boolean
 }
 
 export interface RoadmapNodeUpdateDto {
@@ -86,4 +91,5 @@ export interface RoadmapNodeUpdateDto {
   nodeType?: RoadmapNodeType
   positionX?: number
   positionY?: number
+  gate?: boolean
 }

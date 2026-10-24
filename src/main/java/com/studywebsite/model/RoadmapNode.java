@@ -47,6 +47,15 @@ public class RoadmapNode {
     @Builder.Default
     private Double positionY = 0.0;
 
+    /** Marks a step as a deliberate fork; required before it may have more than one outgoing edge. */
+    @Column(name = "gate")
+    @Builder.Default
+    private Boolean gate = Boolean.FALSE;
+
+    /** Set when this step was split out into a roadmap of its own, so readers can follow the link. */
+    @Column(name = "linked_roadmap_id")
+    private Long linkedRoadmapId;
+
     // Nodes predating the graph model have no type or coordinates; give them usable defaults on load.
     @PrePersist
     @PreUpdate
@@ -55,5 +64,6 @@ public class RoadmapNode {
         if (nodeType == null) nodeType = RoadmapNodeType.PRIMARY;
         if (positionX == null) positionX = 0.0;
         if (positionY == null) positionY = 0.0;
+        if (gate == null) gate = Boolean.FALSE;
     }
 }

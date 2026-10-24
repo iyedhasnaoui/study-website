@@ -19,4 +19,6 @@ public class RoadmapNodeResponseDto {
     private RoadmapNodeType nodeType;
     private Double positionX;
     private Double positionY;
+    private Boolean gate;
+    private Long linkedRoadmapId;
 }

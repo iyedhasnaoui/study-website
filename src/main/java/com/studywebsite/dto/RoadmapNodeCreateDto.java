@@ -25,4 +25,6 @@ public class RoadmapNodeCreateDto {
     private Double positionX;
 
     private Double positionY;
+
+    private Boolean gate;
 }
