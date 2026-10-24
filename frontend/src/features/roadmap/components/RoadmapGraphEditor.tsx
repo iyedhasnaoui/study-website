@@ -26,7 +26,7 @@ import {
   getRoadmapGraph,
   saveRoadmapGraph,
 } from '../api/roadmapApi'
-import { checkGraph, exclusiveBranchSize, MAX_NODES } from '../graphRules'
+import { checkGraph, exclusiveBranchSize, MAX_NODES, MIN_NODES } from '../graphRules'
 import type { RoadmapGraphResponseDto, RoadmapGraphSaveDto, RoadmapNodeType } from '../types'
 import { NODE_TYPE_LABELS, RoadmapFlowNode, type RoadmapFlowNodeData } from './RoadmapFlowNode'
 import { RoadmapFloatingEdge } from './RoadmapFloatingEdge'
@@ -460,7 +460,14 @@ function GraphCanvas({
             canEdit={canEdit}
             outgoingCount={outgoingCount}
             branchSize={branchSize}
-            canExtract={!isDirty && branchSize > 0 && selectedNode.data.nodeType !== 'ROOT'}
+            canExtract={
+              !isDirty &&
+              selectedNode.data.nodeType !== 'ROOT' &&
+              branchSize + 1 >= MIN_NODES &&
+              nodes.length - branchSize >= MIN_NODES
+            }
+            nodeCount={nodes.length}
+            isDirty={isDirty}
             isExtracting={isExtracting}
             onChange={patchSelectedNode}
             onDelete={() => removeNode(selectedNode.id)}

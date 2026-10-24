@@ -3,6 +3,7 @@ import type { Node } from '@xyflow/react'
 import { MarkdownViewer } from './MarkdownViewer'
 import { NODE_TYPE_LABELS, type RoadmapFlowNodeData } from './RoadmapFlowNode'
 import type { RoadmapNodeType } from '../types'
+import { MIN_NODES } from '../graphRules'
 
 const EDITABLE_TYPES: RoadmapNodeType[] = ['PRIMARY', 'SECONDARY', 'OPTIONAL', 'NOTE']
 
@@ -11,6 +12,8 @@ interface RoadmapNodeInspectorProps {
   canEdit: boolean
   outgoingCount: number
   branchSize: number
+  nodeCount: number
+  isDirty: boolean
   canExtract: boolean
   isExtracting: boolean
   onChange: (patch: Partial<RoadmapFlowNodeData>) => void
@@ -27,6 +30,8 @@ export function RoadmapNodeInspector({
   canEdit,
   outgoingCount,
   branchSize,
+  nodeCount,
+  isDirty,
   canExtract,
   isExtracting,
   onChange,
@@ -36,6 +41,19 @@ export function RoadmapNodeInspector({
 }: RoadmapNodeInspectorProps) {
   const isRoot = node.data.nodeType === 'ROOT'
   const gateRequired = outgoingCount > 1
+
+  // Explain up front why a split is impossible, instead of letting the save fail.
+  const splitBlockReason = isRoot
+    ? 'The main node cannot be split off'
+    : branchSize === 0
+      ? 'Only steps that lead to a branch of their own can be split off'
+      : branchSize + 1 < MIN_NODES
+        ? `This branch has ${branchSize} step${branchSize === 1 ? '' : 's'} below it, so the new roadmap would be too small (minimum ${MIN_NODES} nodes)`
+        : nodeCount - branchSize < MIN_NODES
+          ? `Splitting this off would leave fewer than ${MIN_NODES} nodes behind`
+          : isDirty
+            ? 'Save your changes before splitting this branch off'
+            : null
 
   return (
     <aside className="flex h-full w-full flex-col gap-4 overflow-y-auto rounded-2xl border border-gray-200 bg-white/95 p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-950/80">
@@ -147,24 +165,20 @@ export function RoadmapNodeInspector({
               type="button"
               onClick={onExtract}
               disabled={!canExtract || isExtracting}
-              title={
-                isRoot
-                  ? 'The main node cannot be split off'
-                  : branchSize === 0
-                    ? 'This step has no branch of its own to split off'
-                    : !canExtract
-                      ? 'Save your changes before splitting this branch off'
-                      : undefined
-              }
+              title={splitBlockReason ?? undefined}
               className="w-full rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-sky-300 hover:text-sky-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:border-sky-500/50 dark:hover:text-sky-300"
             >
               {isExtracting
                 ? 'Splitting off...'
-                : branchSize > 0
-                  ? `Turn into its own roadmap (${branchSize} steps)`
+                : canExtract
+                  ? `Turn into its own roadmap (${branchSize + 1} nodes)`
                   : 'Turn into its own roadmap'}
             </button>
           )}
+
+          {!node.data.linkedRoadmapId && splitBlockReason ? (
+            <p className="-mt-1 text-xs text-slate-500 dark:text-zinc-400">{splitBlockReason}.</p>
+          ) : null}
 
           <button
             type="button"
