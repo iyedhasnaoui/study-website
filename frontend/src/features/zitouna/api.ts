@@ -47,8 +47,8 @@ export async function getLearningMaterials(includeMine = false): Promise<Learnin
 }
 
 export async function submitLearningMaterial(
-  payload: Record<string, unknown>,
-  file: File,
+    payload: Record<string, unknown>,
+    file: File,
 ): Promise<LearningMaterial> {
   const data = new FormData()
   data.append('payload', new Blob([JSON.stringify(payload)], { type: 'application/json' }))
@@ -62,9 +62,19 @@ export async function getFaq(): Promise<FaqEntry[]> {
   return response.data
 }
 
-export async function createFaq(payload: { question: string; answer: string; published: boolean }): Promise<FaqEntry> {
+export async function createFaq(payload: { question: string; answer: string; published: boolean; tagIds?: number[] }): Promise<FaqEntry> {
   const response = await apiClient.post<FaqEntry>('/api/admin/faq', payload)
   return response.data
+}
+
+// Omit the 'tags' array from the Partial payload and replace it with an optional 'tagIds' array
+export async function updateFaq(id: number, payload: Partial<Omit<FaqEntry, 'tags'> & { tagIds: number[] }>): Promise<FaqEntry> {
+  const response = await apiClient.patch<FaqEntry>(`/api/admin/faq/${id}`, payload)
+  return response.data
+}
+
+export async function deleteFaq(id: number): Promise<void> {
+  await apiClient.delete(`/api/admin/faq/${id}`)
 }
 
 export async function createTagType(payload: TagTypePayload): Promise<TagTypeDefinition> {
@@ -78,9 +88,9 @@ export async function getModerationQueue(): Promise<ModerationQueueItem[]> {
 }
 
 export async function moderate(
-  item: ModerationQueueItem,
-  decision: 'approve' | 'reject' | 'needs-fixing',
-  note = '',
+    item: ModerationQueueItem,
+    decision: 'approve' | 'reject' | 'needs-fixing',
+    note = '',
 ): Promise<void> {
   await apiClient.post(`/api/admin/moderation/${item.area}/${item.id}/${decision}`, { note })
 }
@@ -91,9 +101,9 @@ export async function getTagProposals(): Promise<ZitounaTag[]> {
 }
 
 export async function decideTag(
-  tag: ZitounaTag,
-  decision: 'approve' | 'reject',
-  typeId?: number,
+    tag: ZitounaTag,
+    decision: 'approve' | 'reject',
+    typeId?: number,
 ): Promise<void> {
   if (decision === 'approve') {
     await apiClient.post(`/api/admin/tags/${tag.id}/approve`, { typeId, aliases: tag.aliases })

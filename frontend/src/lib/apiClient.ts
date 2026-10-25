@@ -51,5 +51,22 @@ apiClient.interceptors.request.use(async (config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
+  if (import.meta.env.DEV) {
+    const devRole = localStorage.getItem('dev_role_override')
+    if (devRole) {
+      config.headers['X-Dev-Role'] = devRole
+    }
+  }
+  return config
+})
+
+
+apiClient.interceptors.request.use((config) => {
+  if (import.meta.env.DEV) {
+    const devRole = localStorage.getItem('dev_role_override')
+    if (devRole) {
+      config.headers['X-Dev-Role'] = devRole
+    }
+  }
   return config
 })

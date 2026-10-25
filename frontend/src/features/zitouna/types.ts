@@ -71,6 +71,7 @@ export interface FaqEntry {
   question: string
   answer: string
   published: boolean
+  tags: ZitounaTag[]
   createdAt: string | null
   updatedAt: string | null
 }

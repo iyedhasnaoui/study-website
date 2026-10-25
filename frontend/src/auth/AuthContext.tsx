@@ -14,6 +14,7 @@ interface AuthContextValue {
   register: () => void
   logout: () => Promise<void>
   refresh: () => Promise<void>
+  overrideRole?: (role: AppRole) => void // Added for development testing
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -21,9 +22,8 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [me, setMe] = useState<CurrentUser | null>(null)
   const [isReady, setIsReady] = useState(false)
+  const [devRoleOverride, setDevRoleOverride] = useState<AppRole | null>(null)
 
-  // The role shown here comes from the backend, which reads it from the Keycloak token, so the
-  // interface can never claim a permission the server would refuse.
   const loadMe = useCallback(async () => {
     if (!keycloak.authenticated) {
       setMe(null)
@@ -53,20 +53,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [loadMe])
 
+  // DEV OVERRIDE INTERCEPTOR: Safe for production as it requires Vite's DEV flag
+  const effectiveMe = useMemo(() => {
+    if (!me) return null
+    if (import.meta.env.DEV && devRoleOverride) {
+      return {
+        ...me,
+        role: devRoleOverride,
+        canAdminister: devRoleOverride === 'ADMIN',
+        canContribute: true,
+      }
+    }
+    return me
+  }, [me, devRoleOverride])
+
+  const overrideRole = useCallback((role: AppRole) => {
+    if (import.meta.env.DEV) {
+      setDevRoleOverride(role)
+      localStorage.setItem('dev_role_override', role)
+    }
+  }, [])
+
   const value = useMemo<AuthContextValue>(() => ({
-    session: me ? { user: { id: me.userId, username: me.username, email: me.email, role: me.role, roles: [me.role] } } : null,
-    role: me?.role ?? null,
-    canContribute: me?.canContribute ?? false,
-    isAdmin: me?.canAdminister ?? false,
+    session: effectiveMe ? { user: { id: effectiveMe.userId, username: effectiveMe.username, email: effectiveMe.email, role: effectiveMe.role, roles: [effectiveMe.role] } } : null,
+    role: effectiveMe?.role ?? null,
+    canContribute: effectiveMe?.canContribute ?? false,
+    isAdmin: effectiveMe?.canAdminister ?? false,
     isReady,
     login: () => void keycloak.login({ redirectUri: window.location.href }),
     register: () => void keycloak.register({ redirectUri: window.location.href }),
     logout: async () => {
       setMe(null)
+      setDevRoleOverride(null)
       await keycloak.logout({ redirectUri: window.location.origin })
     },
     refresh: loadMe,
-  }), [me, isReady, loadMe])
+    overrideRole,
+  }), [effectiveMe, isReady, loadMe, overrideRole])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

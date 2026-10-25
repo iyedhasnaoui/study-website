@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-
+import { useFaqMutations } from './hooks/useFaqMutations'
 import { useAuth } from '../../auth/AuthContext'
 import { getApiErrorMessage, resolveApiUrl } from '../../lib/apiClient'
 import {
-  createFaq,
+  // createFaq,
   createTagType,
   decideTag,
   getFaq,
@@ -315,16 +315,18 @@ export function ZitounaPage({ onCreatePost, onOpenForum, onOpenRoadmaps, onRequi
           queue={queue}
           proposals={proposals}
           tagTypes={tagTypes}
+          faqs={faq}
+          availableTags={tags}
           onModerate={async (item, decision) => { await moderate(item, decision); await loadAdmin() }}
           onTagDecision={async (tag, decision) => {
             const type = tagTypes.find((candidate) => candidate.field === tag.field)
             await decideTag(tag, decision, type?.id)
             await loadAdmin()
           }}
-          onCreateFaq={async (question, answer) => {
-            await createFaq({ question, answer, published: true })
-            setNotice('FAQ entry published.')
-          }}
+          // onCreateFaq={async (question, answer) => {
+          //   await createFaq({ question, answer, published: true })
+          //   setNotice('FAQ entry published.')
+          // }}
           onCreateType={async (payload) => {
             await createTagType(payload)
             setNotice('Tag type created. Its validation rules are active.')
@@ -404,61 +406,135 @@ function MaterialsPanel({
   )
 }
 
-function AdminPanel({ loading, queue, proposals, tagTypes, onModerate, onTagDecision, onCreateFaq, onCreateType }: {
+function AdminPanel({ loading, queue, proposals, tagTypes, faqs, availableTags, onModerate, onTagDecision, onCreateType }: {
   loading: boolean
   queue: ModerationQueueItem[]
   proposals: ZitounaTag[]
   tagTypes: TagTypeDefinition[]
+  faqs: FaqEntry[]
+  availableTags: ZitounaTag[]
   onModerate: (item: ModerationQueueItem, decision: 'approve' | 'reject' | 'needs-fixing') => Promise<void>
   onTagDecision: (tag: ZitounaTag, decision: 'approve' | 'reject') => Promise<void>
-  onCreateFaq: (question: string, answer: string) => Promise<void>
   onCreateType: (payload: TagTypePayload) => Promise<void>
 }) {
-  const [faqForm, setFaqForm] = useState({ question: '', answer: '' })
   const [typeForm, setTypeForm] = useState<TagTypePayload>({ name: '', field: 'TOPIC', minimumInstitutions: 0, minimumPrograms: 0, active: true })
   const [formError, setFormError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const { createMutation, updateMutation, deleteMutation } = useFaqMutations();
+  const [editingId, setEditingId] = useState<number | null>(null);
+
   return (
-    <section className="simple-panel section-shell admin-panel">
-      <header><p className="eyebrow">Administration</p><h2>Approval queue</h2><p>Nothing is published until an admin has reviewed it. Comments remain immediate and can be removed separately.</p></header>
-      {loading ? <p className="empty-state">Loading queue…</p> : null}
-      <div className="admin-grid">
-        <div><h3>Content awaiting review <span>{queue.length}</span></h3>{queue.map((item) => (
-          <article className="review-card" key={`${item.area}-${item.id}`}><small>{areaLabels[item.area]} · {item.authorUsername || 'Unknown author'}</small><h4>{item.title}</h4><pre>{JSON.stringify(item.details, null, 2)}</pre><div><button onClick={() => void onModerate(item, 'approve')}>Accept</button><button onClick={() => void onModerate(item, 'needs-fixing')}>Needs fixing</button><button className="danger" onClick={() => void onModerate(item, 'reject')}>Reject</button></div></article>
-        ))}{!loading && queue.length === 0 ? <p className="empty-state">The content queue is clear.</p> : null}</div>
-        <div><h3>Proposed tags <span>{proposals.length}</span></h3>{proposals.map((tag) => (
-          <article className="review-card" key={tag.id}><small>{fieldLabels[tag.field]}</small><h4>{tag.name}</h4><p>Will inherit: {tagTypes.find((type) => type.field === tag.field)?.name ?? 'matching type'}</p><div><button onClick={() => void onTagDecision(tag, 'approve')}>Accept</button><button className="danger" onClick={() => void onTagDecision(tag, 'reject')}>Reject</button></div></article>
-        ))}{!loading && proposals.length === 0 ? <p className="empty-state">No tag proposals are waiting.</p> : null}</div>
-      </div>
-      <div className="admin-tools">
-        <form onSubmit={async (event) => {
-          event.preventDefault(); setSaving(true); setFormError(null)
-          try { await onCreateFaq(faqForm.question.trim(), faqForm.answer.trim()); setFaqForm({ question: '', answer: '' }) }
-          catch (reason) { setFormError(getApiErrorMessage(reason, 'Unable to publish the FAQ entry.')) }
-          finally { setSaving(false) }
-        }}>
-          <h3>Create an FAQ entry</h3>
-          <label>Question<input required maxLength={300} value={faqForm.question} onChange={(event) => setFaqForm({ ...faqForm, question: event.target.value })} /></label>
-          <label>Answer<textarea required rows={5} maxLength={10000} value={faqForm.answer} onChange={(event) => setFaqForm({ ...faqForm, answer: event.target.value })} /></label>
-          <button disabled={saving} type="submit">Publish FAQ</button>
-        </form>
-        <form onSubmit={async (event) => {
-          event.preventDefault(); setSaving(true); setFormError(null)
-          try { await onCreateType(typeForm); setTypeForm({ name: '', field: 'TOPIC', minimumInstitutions: 0, minimumPrograms: 0, active: true }) }
-          catch (reason) { setFormError(getApiErrorMessage(reason, 'Unable to create the tag type.')) }
-          finally { setSaving(false) }
-        }}>
-          <h3>Create a tag type</h3>
-          <label>Name<input required maxLength={80} value={typeForm.name} onChange={(event) => setTypeForm({ ...typeForm, name: event.target.value })} /></label>
-          <label>Field<select value={typeForm.field} onChange={(event) => setTypeForm({ ...typeForm, field: event.target.value as TagField })}>{(Object.keys(fieldLabels) as TagField[]).map((field) => <option key={field} value={field}>{fieldLabels[field]}</option>)}</select></label>
-          <label>Required institutions<input min={0} max={10} type="number" value={typeForm.minimumInstitutions} onChange={(event) => setTypeForm({ ...typeForm, minimumInstitutions: Number(event.target.value) })} /></label>
-          <label>Required programs<input min={0} max={10} type="number" value={typeForm.minimumPrograms} onChange={(event) => setTypeForm({ ...typeForm, minimumPrograms: Number(event.target.value) })} /></label>
-          <button disabled={saving} type="submit">Create tag type</button>
-        </form>
-      </div>
-      {formError ? <p className="form-error">{formError}</p> : null}
-    </section>
+      <section className="simple-panel section-shell admin-panel">
+        <header><p className="eyebrow">Administration</p><h2>Approval queue</h2><p>Nothing is published until an admin has reviewed it. Comments remain immediate and can be removed separately.</p></header>
+        {loading ? <p className="empty-state">Loading queue…</p> : null}
+        <div className="admin-grid">
+          <div><h3>Content awaiting review <span>{queue.length}</span></h3>{queue.map((item) => (
+              <article className="review-card" key={`${item.area}-${item.id}`}><small>{areaLabels[item.area]} · {item.authorUsername || 'Unknown author'}</small><h4>{item.title}</h4><pre>{JSON.stringify(item.details, null, 2)}</pre><div><button onClick={() => void onModerate(item, 'approve')}>Accept</button><button onClick={() => void onModerate(item, 'needs-fixing')}>Needs fixing</button><button className="danger" onClick={() => void onModerate(item, 'reject')}>Reject</button></div></article>
+          ))}{!loading && queue.length === 0 ? <p className="empty-state">The content queue is clear.</p> : null}</div>
+          <div><h3>Proposed tags <span>{proposals.length}</span></h3>{proposals.map((tag) => (
+              <article className="review-card" key={tag.id}><small>{fieldLabels[tag.field]}</small><h4>{tag.name}</h4><p>Will inherit: {tagTypes.find((type) => type.field === tag.field)?.name ?? 'matching type'}</p><div><button onClick={() => void onTagDecision(tag, 'approve')}>Accept</button><button className="danger" onClick={() => void onTagDecision(tag, 'reject')}>Reject</button></div></article>
+          ))}{!loading && proposals.length === 0 ? <p className="empty-state">No tag proposals are waiting.</p> : null}</div>
+        </div>
+        <div className="admin-tools">
+
+          {/* NEW FAQ MANAGEMENT SECTION */}
+          <div className="faq-manager" style={{ gridColumn: '1 / -1', marginTop: '2rem', borderTop: '1px solid #ccc', paddingTop: '2rem' }}>
+            <h3>Manage FAQs</h3>
+
+            {/* Create Form */}
+            <div className="review-card" style={{ marginBottom: '2rem', border: '2px solid #D9A05B' }}>
+              <div className="review-card-header"><h4>Draft New FAQ</h4></div>
+              <div className="review-card-body">
+                <FaqForm availableTags={availableTags} onSubmit={(data) => {
+                  createMutation.mutate(data, { onSuccess: () => window.location.reload() });
+                }} />
+              </div>
+            </div>
+
+            {/* List Existing FAQs */}
+            <div className="faq-list">
+              {faqs.map(faq => (
+                  <div key={faq.id} className="review-card">
+                    <div className="review-card-header">
+                      <h4>{faq.question}</h4>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button onClick={() => setEditingId(editingId === faq.id ? null : faq.id)}>
+                          {editingId === faq.id ? 'Cancel' : 'Edit'}
+                        </button>
+                        <button className="danger" onClick={() => {
+                          if (window.confirm('Delete this FAQ?')) deleteMutation.mutate(faq.id, { onSuccess: () => window.location.reload() });
+                        }}>Delete</button>
+                      </div>
+                    </div>
+                    <div className="review-card-body">
+                      <p>{faq.answer}</p>
+                      <div className="tag-row">
+                        {!faq.published && <span style={{ color: '#D9A05B' }}>[Draft]</span>}
+                        {faq.tags?.map(tag => <span key={tag.id}>#{tag.name}</span>)}
+                      </div>
+                    </div>
+                    {/* Edit Form */}
+                    {editingId === faq.id && (
+                        <FaqForm initialData={faq} availableTags={availableTags} onSubmit={(data) => {
+                          updateMutation.mutate({ id: faq.id, data: data as any }, { onSuccess: () => { setEditingId(null); window.location.reload(); }});
+                        }} />
+                    )}
+                  </div>
+              ))}
+            </div>
+          </div>
+
+          <form onSubmit={async (event) => {
+            event.preventDefault(); setSaving(true); setFormError(null)
+            try { await onCreateType(typeForm); setTypeForm({ name: '', field: 'TOPIC', minimumInstitutions: 0, minimumPrograms: 0, active: true }) }
+            catch (reason) { setFormError(getApiErrorMessage(reason, 'Unable to create the tag type.')) }
+            finally { setSaving(false) }
+          }}>
+            <h3>Create a tag type</h3>
+            <label>Name<input required maxLength={80} value={typeForm.name} onChange={(event) => setTypeForm({ ...typeForm, name: event.target.value })} /></label>
+            <label>Field<select value={typeForm.field} onChange={(event) => setTypeForm({ ...typeForm, field: event.target.value as TagField })}>{(Object.keys(fieldLabels) as TagField[]).map((field) => <option key={field} value={field}>{fieldLabels[field]}</option>)}</select></label>
+            <label>Required institutions<input min={0} max={10} type="number" value={typeForm.minimumInstitutions} onChange={(event) => setTypeForm({ ...typeForm, minimumInstitutions: Number(event.target.value) })} /></label>
+            <label>Required programs<input min={0} max={10} type="number" value={typeForm.minimumPrograms} onChange={(event) => setTypeForm({ ...typeForm, minimumPrograms: Number(event.target.value) })} /></label>
+            <button disabled={saving} type="submit">Create tag type</button>
+          </form>
+        </div>
+        {formError ? <p className="form-error">{formError}</p> : null}
+      </section>
   )
+}
+
+// Subcomponent placed at the very bottom of the file
+function FaqForm({ initialData, availableTags, onSubmit }: {
+  initialData?: FaqEntry;
+  availableTags: ZitounaTag[];
+  onSubmit: (data: { question: string; answer: string; published: boolean; tagIds: number[] }) => void;
+}) {
+  const [question, setQuestion] = useState(initialData?.question || '');
+  const [answer, setAnswer] = useState(initialData?.answer || '');
+  const [published, setPublished] = useState(initialData?.published ?? true);
+  const [selectedTagIds, setSelectedTagIds] = useState<number[]>(initialData?.tags?.map(t => t.id) || []);
+
+  const toggleTag = (tagId: number) => setSelectedTagIds(prev => prev.includes(tagId) ? prev.filter(id => id !== tagId) : [...prev, tagId]);
+
+  return (
+      <form onSubmit={(e) => { e.preventDefault(); onSubmit({ question, answer, published, tagIds: selectedTagIds }); }}>
+        <label>Question<input required value={question} onChange={e => setQuestion(e.target.value)} /></label>
+        <label>Answer<textarea required rows={4} value={answer} onChange={e => setAnswer(e.target.value)} /></label>
+        <label>Tags
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
+            {availableTags.map(tag => (
+                <label key={tag.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontWeight: 'normal' }}>
+                  <input type="checkbox" checked={selectedTagIds.includes(tag.id)} onChange={() => toggleTag(tag.id)} /> {tag.name}
+                </label>
+            ))}
+          </div>
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1rem' }}>
+          <input type="checkbox" checked={published} onChange={e => setPublished(e.target.checked)} /> Publish immediately
+        </label>
+        <button type="submit" style={{ marginTop: '1rem' }}>{initialData ? 'Save Changes' : 'Create FAQ'}</button>
+      </form>
+  );
 }
 
 function formatDate(value: string | null) {
