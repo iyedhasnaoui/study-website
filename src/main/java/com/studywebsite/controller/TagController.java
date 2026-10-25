@@ -29,23 +29,27 @@ public class TagController {
         return tagService.listTypes();
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/api/admin/tag-types")
     public ResponseEntity<ZitounaDtos.TagTypeResponse> createType(
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
             @Valid @RequestBody ZitounaDtos.TagTypeRequest request
     ) {
-        adminGuard.requireAdmin(principal.userId());
+//        adminGuard.requireAdmin(principal.userId());
+        ///TODO:  ^FOR SECURITY REASONS WE MIGHT WANT TO BRING THIS BACK !!!
         ZitounaDtos.TagTypeResponse created = tagService.createType(request);
         return ResponseEntity.created(URI.create("/api/tag-types/" + created.id())).body(created);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/api/admin/tag-types/{id}")
     public ZitounaDtos.TagTypeResponse updateType(
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
             @PathVariable Long id,
             @Valid @RequestBody ZitounaDtos.TagTypeRequest request
     ) {
-        adminGuard.requireAdmin(principal.userId());
+//        adminGuard.requireAdmin(principal.userId());
+        ///TODO:  ^FOR SECURITY REASONS WE MIGHT WANT TO BRING THIS BACK !!!
         ZitounaDtos.TagTypeResponse updated = tagService.updateType(id, request);
         zitounaService.markContentThatBreaksCurrentTagRules();
         return updated;
@@ -79,23 +83,27 @@ public class TagController {
         return tagService.listTags(TagStatus.PROPOSED, null, null);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/api/admin/tags/{id}/approve")
     public ZitounaDtos.TagResponse approve(
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
             @PathVariable Long id,
             @Valid @RequestBody ZitounaDtos.TagDecisionRequest request
     ) {
-        adminGuard.requireAdmin(principal.userId());
+//        adminGuard.requireAdmin(principal.userId());
+        ///TODO:  ^FOR SECURITY REASONS WE MIGHT WANT TO BRING THIS BACK !!!
         return tagService.approve(id, request);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/api/admin/tags/{id}/reject")
     public ZitounaDtos.TagResponse reject(
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
             @PathVariable Long id,
             @RequestBody(required = false) ZitounaDtos.ModerationDecisionRequest request
     ) {
-        adminGuard.requireAdmin(principal.userId());
+//        adminGuard.requireAdmin(principal.userId());
+        ///TODO:  ^FOR SECURITY REASONS WE MIGHT WANT TO BRING THIS BACK !!!
         return tagService.reject(id, request);
     }
 }
