@@ -18,6 +18,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -85,44 +86,45 @@ public class ZitounaController {
         return zitounaService.listFaq();
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/api/admin/faq")
     public ResponseEntity<ZitounaDtos.FaqResponse> createFaq(
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
             @Valid @RequestBody ZitounaDtos.FaqRequest request
     ) {
-        adminGuard.requireAdmin(principal.userId());
+//        adminGuard.requireAdmin(principal.userId());
+        /// TODO :  ^FOR SECURITY REASONS WE MIGHT WANT TO BRING THIS BACK !!!
         ZitounaDtos.FaqResponse created = zitounaService.createFaq(request);
         return ResponseEntity.created(URI.create("/api/faq/" + created.id())).body(created);
     }
 
-    @PutMapping("/api/admin/faq/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @RequestMapping(value = "/api/admin/faq/{id}", method = {RequestMethod.PUT, RequestMethod.PATCH})
     public ZitounaDtos.FaqResponse updateFaq(
-            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
             @PathVariable Long id,
-            @Valid @RequestBody ZitounaDtos.FaqRequest request
+            @RequestBody ZitounaDtos.FaqRequest request
     ) {
-        adminGuard.requireAdmin(principal.userId());
         return zitounaService.updateFaq(id, request);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/api/admin/faq/{id}")
-    public ResponseEntity<Void> deleteFaq(
-            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
-            @PathVariable Long id
-    ) {
-        adminGuard.requireAdmin(principal.userId());
+    public ResponseEntity<Void> deleteFaq(@PathVariable Long id) {
         zitounaService.deleteFaq(id);
         return ResponseEntity.noContent().build();
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/api/admin/moderation")
     public List<ZitounaDtos.ModerationQueueItem> moderationQueue(
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal
     ) {
-        adminGuard.requireAdmin(principal.userId());
+//        adminGuard.requireAdmin(principal.userId());
+        /// TODO:  ^FOR SECURITY REASONS WE MIGHT WANT TO BRING THIS BACK !!!
         return zitounaService.moderationQueue();
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/api/admin/moderation/{area}/{id}/{decision}")
     public ResponseEntity<Void> moderate(
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
@@ -131,7 +133,8 @@ public class ZitounaController {
             @PathVariable String decision,
             @RequestBody(required = false) ZitounaDtos.ModerationDecisionRequest request
     ) {
-        adminGuard.requireAdmin(principal.userId());
+//        adminGuard.requireAdmin(principal.userId());
+        ///TODO:  ^FOR SECURITY REASONS WE MIGHT WANT TO BRING THIS BACK !!!
         ModerationStatus status = switch (decision.toLowerCase()) {
             case "approve" -> ModerationStatus.APPROVED;
             case "reject" -> ModerationStatus.REJECTED;
@@ -141,33 +144,33 @@ public class ZitounaController {
         zitounaService.moderate(area, id, status, request == null ? null : request.note());
         return ResponseEntity.noContent().build();
     }
-
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/api/admin/users/{id}/ban")
     public ResponseEntity<Void> banUser(
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
             @PathVariable Long id
     ) {
-        adminGuard.requireAdmin(principal.userId());
+//        adminGuard.requireAdmin(principal.userId());
         zitounaService.setUserBanned(id, true);
         return ResponseEntity.noContent().build();
     }
-
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/api/admin/users/{id}/ban")
     public ResponseEntity<Void> unbanUser(
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
             @PathVariable Long id
     ) {
-        adminGuard.requireAdmin(principal.userId());
+//        adminGuard.requireAdmin(principal.userId());
         zitounaService.setUserBanned(id, false);
         return ResponseEntity.noContent().build();
     }
-
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/api/admin/forum/replies/{id}")
     public ResponseEntity<Void> deleteComment(
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
             @PathVariable Long id
     ) {
-        adminGuard.requireAdmin(principal.userId());
+//        adminGuard.requireAdmin(principal.userId());
         forumReplyService.getById(id);
         forumAttachmentService.deleteForReply(id);
         forumReplyService.delete(id);

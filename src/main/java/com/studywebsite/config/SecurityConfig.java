@@ -1,7 +1,9 @@
 package com.studywebsite.config;
 
+import com.studywebsite.security.DevRoleOverrideFilter;
 import com.studywebsite.security.KeycloakRealmRoleConverter;
 import com.studywebsite.security.LocalUserProvisioningFilter;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -11,6 +13,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -28,7 +31,8 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
             KeycloakRealmRoleConverter realmRoleConverter,
-            LocalUserProvisioningFilter localUserProvisioningFilter
+            LocalUserProvisioningFilter localUserProvisioningFilter,
+            ObjectProvider<DevRoleOverrideFilter> devRoleOverrideFilterProvider
     ) throws Exception {
         http
                 .cors(Customizer.withDefaults())
@@ -59,6 +63,10 @@ public class SecurityConfig {
                 // Runs before authorization so that the local user id and role are already
                 // attached when access rules and @PreAuthorize are evaluated.
                 .addFilterBefore(localUserProvisioningFilter, AuthorizationFilter.class);
+        DevRoleOverrideFilter devRoleOverrideFilter = devRoleOverrideFilterProvider.getIfAvailable();
+        if (devRoleOverrideFilter != null) {
+            http.addFilterAfter(devRoleOverrideFilter, BearerTokenAuthenticationFilter.class);
+        }
 
         return http.build();
     }

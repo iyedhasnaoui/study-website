@@ -15,6 +15,7 @@ public interface ZitounaTagRepository extends JpaRepository<ZitounaTag, Long> {
     Optional<ZitounaTag> findByNormalizedNameAndParent_Id(String normalizedName, Long parentId);
     List<ZitounaTag> findByStatusOrderByNameAsc(TagStatus status);
 
+
     @Query("SELECT zt FROM ZitounaTag zt JOIN zt.type tt " +
             "WHERE (:status IS NULL OR zt.status = :status) " +
             "  AND (:field IS NULL OR tt.field = :field) " +

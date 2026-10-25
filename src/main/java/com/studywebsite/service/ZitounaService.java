@@ -5,9 +5,11 @@ import com.studywebsite.model.*;
 import com.studywebsite.repository.*;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -21,6 +23,7 @@ public class ZitounaService {
     private final RoadmapRepository roadmapRepository;
     private final ResourceRepository resourceRepository;
     private final FaqEntryRepository faqEntryRepository;
+    private final ZitounaTagRepository zitounaTagRepository;
     private final UserRepository userRepository;
     private final TagService tagService;
     private final LearningMaterialStorageService materialStorageService;
@@ -134,25 +137,47 @@ public class ZitounaService {
 
     @Transactional
     public ZitounaDtos.FaqResponse createFaq(ZitounaDtos.FaqRequest request) {
-        return faqResponse(faqEntryRepository.save(FaqEntry.builder()
-                .question(request.question().trim())
-                .answer(request.answer().trim())
-                .published(request.published() == null || request.published())
-                .build()));
+        Set<ZitounaTag> resolvedTags = new HashSet<>();
+        if (request.tagIds() != null && !request.tagIds().isEmpty()) {
+            // Fix: Call findAllById on the injected instance, not statically
+            resolvedTags.addAll(zitounaTagRepository.findAllById(request.tagIds()));
+        }
+
+        FaqEntry faq = FaqEntry.builder()
+                .question(request.question())
+                .answer(request.answer())
+                .published(request.published() != null ? request.published() : true)
+                .tags(resolvedTags)
+                .build();
+
+        FaqEntry saved = faqEntryRepository.save(faq);
+        return faqResponse(saved); // Fix: Use unified mapping method
     }
 
     @Transactional
     public ZitounaDtos.FaqResponse updateFaq(Long id, ZitounaDtos.FaqRequest request) {
-        FaqEntry entry = faqEntryRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("FAQ entry not found"));
-        entry.setQuestion(request.question().trim());
-        entry.setAnswer(request.answer().trim());
-        entry.setPublished(request.published() == null || request.published());
-        return faqResponse(faqEntryRepository.save(entry));
+        FaqEntry faq = faqEntryRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "FAQ entry not found"));
+
+        if (request.question() != null) faq.setQuestion(request.question());
+        if (request.answer() != null) faq.setAnswer(request.answer());
+        if (request.published() != null) faq.setPublished(request.published());
+
+        if (request.tagIds() != null) {
+            // Fix: Call findAllById on the injected instance
+            Set<ZitounaTag> resolvedTags = new HashSet<>(zitounaTagRepository.findAllById(request.tagIds()));
+            faq.setTags(resolvedTags); // Replaces the old Set entirely
+        }
+
+        FaqEntry updatedFaq = faqEntryRepository.save(faq);
+        return faqResponse(updatedFaq); // Fix: Use unified mapping method
     }
 
     @Transactional
     public void deleteFaq(Long id) {
-        if (!faqEntryRepository.existsById(id)) throw new EntityNotFoundException("FAQ entry not found");
+        if (!faqEntryRepository.existsById(id)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "FAQ entry not found");
+        }
         faqEntryRepository.deleteById(id);
     }
 
@@ -257,13 +282,20 @@ public class ZitounaService {
     }
 
     private ZitounaDtos.FaqResponse faqResponse(FaqEntry entry) {
-        return new ZitounaDtos.FaqResponse(entry.getId(), entry.getQuestion(), entry.getAnswer(), entry.getPublished(),
-                entry.getCreatedAt(), entry.getUpdatedAt());
+        return new ZitounaDtos.FaqResponse(
+                entry.getId(),
+                entry.getQuestion(),
+                entry.getAnswer(),
+                entry.getPublished(),
+                tags(entry.getTags()), // Fix: Converts Set<ZitounaTag> to List<TagResponse> using your existing tags() method
+                entry.getCreatedAt(),
+                entry.getUpdatedAt()
+        );
     }
 
     private ZitounaDtos.ModerationQueueItem queueItem(String area, Long id, String title, User author,
-                                                       ModerationStatus status, LocalDateTime submittedAt,
-                                                       Map<String, Object> details) {
+                                                      ModerationStatus status, LocalDateTime submittedAt,
+                                                      Map<String, Object> details) {
         return new ZitounaDtos.ModerationQueueItem(area, id, title, userId(author), username(author),
                 effectiveStatus(status), submittedAt, details);
     }
@@ -301,7 +333,8 @@ public class ZitounaService {
     }
 
     private void requireActive(User user) {
-        if (Boolean.TRUE.equals(user.getBanned())) throw new IllegalArgumentException("This account is not allowed to contribute");
+        if (Boolean.TRUE.equals(user.getBanned()))
+            throw new IllegalArgumentException("This account is not allowed to contribute");
     }
 
     private Long userId(User user) {

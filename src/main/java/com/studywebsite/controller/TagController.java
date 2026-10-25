@@ -10,6 +10,7 @@ import com.studywebsite.security.AuthenticatedUserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -68,11 +69,13 @@ public class TagController {
         return ResponseEntity.created(URI.create("/api/tags/" + tag.id())).body(tag);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/api/admin/tags/proposals")
     public List<ZitounaDtos.TagResponse> proposals(
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal
     ) {
-        adminGuard.requireAdmin(principal.userId());
+//        adminGuard.requireAdmin(principal.userId()); // this one checks database instead of the security context
+        ///TODO:  ^FOR SECURITY REASONS WE MIGHT WANT TO BRING THIS BACK !!!
         return tagService.listTags(TagStatus.PROPOSED, null, null);
     }
 

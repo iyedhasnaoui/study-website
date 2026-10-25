@@ -12,6 +12,7 @@ import jakarta.validation.constraints.Size;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public final class ZitounaDtos {
     private ZitounaDtos() {
@@ -114,7 +115,8 @@ public final class ZitounaDtos {
     public record FaqRequest(
             @NotBlank @Size(max = 300) String question,
             @NotBlank @Size(max = 10000) String answer,
-            Boolean published
+            Boolean published,
+            Set<Long> tagIds
     ) {
     }
 
@@ -123,6 +125,7 @@ public final class ZitounaDtos {
             String question,
             String answer,
             Boolean published,
+            List<TagResponse> tags,
             LocalDateTime createdAt,
             LocalDateTime updatedAt
     ) {
