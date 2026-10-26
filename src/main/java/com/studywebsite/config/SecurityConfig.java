@@ -82,7 +82,8 @@ public class SecurityConfig {
                 "X-Requested-With",
                 "Accept",
                 "Origin",
-                "X-Dev-Role"
+                "X-Dev-Role",
+                "x-user-id"
         ));
         config.setExposedHeaders(List.of("*"));
         config.setAllowCredentials(true);
