@@ -57,8 +57,13 @@ export async function submitLearningMaterial(
   return response.data
 }
 
-export async function getFaq(): Promise<FaqEntry[]> {
-  const response = await apiClient.get<FaqEntry[]>('/api/faq')
+export async function getFaq(filters?: { query?: string; tagIds?: number[] }): Promise<FaqEntry[]> {
+  const response = await apiClient.get<FaqEntry[]>('/api/faq', {
+    params: {
+      q: filters?.query || undefined,
+      tagIds: filters?.tagIds?.length ? filters.tagIds.join(',') : undefined,
+    },
+  })
   return response.data
 }
 

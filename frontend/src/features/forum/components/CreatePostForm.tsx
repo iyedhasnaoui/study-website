@@ -1,221 +1,225 @@
-import { useState, type ChangeEvent, type FormEvent } from 'react'
+import {useState, type ChangeEvent, type FormEvent} from 'react'
+import {TagAutocomplete, type TagItem} from '../../../components/TagAutocomplete'
 
 import {
-  FORUM_POST_CONTENT_MAX_LENGTH,
-  FORUM_POST_TITLE_MAX_LENGTH,
-  FORUM_POST_TITLE_MIN_LENGTH,
-  type ForumPostCreateDto,
-  type ForumPostFormErrors,
-  type TagSelectionDto,
+    FORUM_POST_CONTENT_MAX_LENGTH,
+    FORUM_POST_TITLE_MAX_LENGTH,
+    FORUM_POST_TITLE_MIN_LENGTH,
+    type ForumPostCreateDto,
+    type ForumPostFormErrors,
+    type TagSelectionDto,
 } from '../types'
-import { MediaComposer } from './MediaComposer'
-import { getApiErrorMessage } from '../../../lib/apiClient'
+import {MediaComposer} from './MediaComposer'
+import {getApiErrorMessage} from '../../../lib/apiClient'
 
 interface CreatePostFormProps {
-  onCreate: (payload: ForumPostCreateDto, files: File[]) => Promise<void>
-  tagSelectorUI?: React.ReactNode
+    onCreate: (payload: ForumPostCreateDto, files: File[]) => Promise<void>
+    // tagSelectorUI?: React.ReactNode
+    // selectedTags?: string[]
 }
 
 interface ZitounaPostPrefill {
-  tags?: Array<{ id: number; name: string }>
-  tagSelection?: TagSelectionDto
+    tags?: Array<{ id: number; name: string }>
+    tagSelection?: TagSelectionDto
 }
 
 const readPostPrefill = (): ZitounaPostPrefill | null => {
-  try {
-    const value = window.sessionStorage.getItem('iac.zitouna.post-prefill')
-    return value ? JSON.parse(value) as ZitounaPostPrefill : null
-  } catch {
-    window.sessionStorage.removeItem('iac.zitouna.post-prefill')
-    return null
-  }
+    try {
+        const value = window.sessionStorage.getItem('iac.zitouna.post-prefill')
+        return value ? JSON.parse(value) as ZitounaPostPrefill : null
+    } catch {
+        window.sessionStorage.removeItem('iac.zitouna.post-prefill')
+        return null
+    }
 }
 
 const createInitialFormState = () => {
-  const prefill = readPostPrefill()
-  return {
-  title: '',
-  content: '',
-    tagsText: prefill?.tags?.map((tag) => tag.name).join(', ') ?? '',
-    tagSelection: prefill?.tagSelection,
-  }
+    const prefill = readPostPrefill()
+    return {
+        title: '',
+        content: '',
+        tagsText: prefill?.tags?.map((tag) => tag.name).join(', ') ?? '',
+        tagSelection: prefill?.tagSelection,
+    }
 }
 
 type FormState = ReturnType<typeof createInitialFormState>
 type TextField = 'title' | 'content' | 'tagsText'
 
 const validateForm = (state: FormState, files: File[]): ForumPostFormErrors => {
-  const errors: ForumPostFormErrors = {}
-  const title = state.title.trim()
-  const content = state.content.trim()
+    const errors: ForumPostFormErrors = {}
+    const title = state.title.trim()
+    const content = state.content.trim()
 
-  if (title.length < FORUM_POST_TITLE_MIN_LENGTH) {
-    errors.title = `Title must be at least ${FORUM_POST_TITLE_MIN_LENGTH} characters long.`
-  } else if (title.length > FORUM_POST_TITLE_MAX_LENGTH) {
-    errors.title = `Title must be at most ${FORUM_POST_TITLE_MAX_LENGTH} characters long.`
-  }
+    if (title.length < FORUM_POST_TITLE_MIN_LENGTH) {
+        errors.title = `Title must be at least ${FORUM_POST_TITLE_MIN_LENGTH} characters long.`
+    } else if (title.length > FORUM_POST_TITLE_MAX_LENGTH) {
+        errors.title = `Title must be at most ${FORUM_POST_TITLE_MAX_LENGTH} characters long.`
+    }
 
-  if (!content && files.length === 0) {
-    errors.content = 'Write something or add a PDF, audio, video, or voice recording.'
-  } else if (content.length > FORUM_POST_CONTENT_MAX_LENGTH) {
-    errors.content = `Content must be at most ${FORUM_POST_CONTENT_MAX_LENGTH} characters long.`
-  }
+    if (!content && files.length === 0) {
+        errors.content = 'Write something or add a PDF, audio, video, or voice recording.'
+    } else if (content.length > FORUM_POST_CONTENT_MAX_LENGTH) {
+        errors.content = `Content must be at most ${FORUM_POST_CONTENT_MAX_LENGTH} characters long.`
+    }
 
-  return errors
+    return errors
 }
 
 const parseTags = (value: string): string[] =>
-  Array.from(
-    new Set(
-      value
-        .split(',')
-        .map((tag) => tag.trim())
-        .filter((tag) => tag.length > 0),
-    ),
-  )
+    Array.from(
+        new Set(
+            value
+                .split(',')
+                .map((tag) => tag.trim())
+                .filter((tag) => tag.length > 0),
+        ),
+    )
 
-export function CreatePostForm({ onCreate, tagSelectorUI }: CreatePostFormProps) {
-  const [formState, setFormState] = useState(createInitialFormState)
-  const [fieldErrors, setFieldErrors] = useState<ForumPostFormErrors>({})
-  const [submitError, setSubmitError] = useState<string | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [files, setFiles] = useState<File[]>([])
+export function CreatePostForm({onCreate}: CreatePostFormProps) {
+    const [formState, setFormState] = useState(createInitialFormState)
+    const [fieldErrors, setFieldErrors] = useState<ForumPostFormErrors>({})
+    const [submitError, setSubmitError] = useState<string | null>(null)
+    const [isSubmitting, setIsSubmitting] = useState(false)
+    const [files, setFiles] = useState<File[]>([])
 
-  const handleChange = (field: TextField) => (
-    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-  ) => {
-    setFormState((current) => ({
-      ...current,
-      [field]: event.target.value,
-    }))
-  }
+    const [selectedTags, setSelectedTags] = useState<TagItem[]>([])
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
 
-    const nextErrors = validateForm(formState, files)
-    setFieldErrors(nextErrors)
-
-    if (Object.keys(nextErrors).length > 0) {
-      return
+    const handleChange = (field: TextField) => (
+        event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+    ) => {
+        setFormState((current) => ({
+            ...current,
+            [field]: event.target.value,
+        }))
     }
 
-    setIsSubmitting(true)
-    setSubmitError(null)
+    const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault()
 
-    try {
-      const tags = parseTags(formState.tagsText)
+        const nextErrors = validateForm(formState, files)
+        setFieldErrors(nextErrors)
 
-      await onCreate({
-        title: formState.title.trim(),
-        content: formState.content.trim(),
-        tags: tags.length > 0 ? tags : undefined,
-        tagSelection: formState.tagSelection,
-      }, files)
+        if (Object.keys(nextErrors).length > 0) {
+            return
+        }
 
-      window.sessionStorage.removeItem('iac.zitouna.post-prefill')
-      setFormState(createInitialFormState())
-      setFiles([])
-      setFieldErrors({})
-    } catch (error) {
-      setSubmitError(getApiErrorMessage(error, 'Unable to create the post.'))
-    } finally {
-      setIsSubmitting(false)
+        setIsSubmitting(true)
+        setSubmitError(null)
+
+        try {
+            const tagNames = selectedTags.map((t) => t.name)
+            const tagIds = selectedTags.map((t) => t.id)
+
+            const tags = tagNames.length > 0 ? tagNames : parseTags(formState.tagsText)
+
+            await onCreate({
+                title: formState.title.trim(),
+                content: formState.content.trim(),
+                tags: tags.length > 0 ? tags : undefined,
+                tagSelection: {
+                    ...(formState.tagSelection ?? {}),
+                    topicIds: tagIds,
+                },
+            }, files)
+
+            window.sessionStorage.removeItem('iac.zitouna.post-prefill')
+            setFormState(createInitialFormState())
+            setFiles([])
+            setFieldErrors({})
+        } catch (error) {
+            setSubmitError(getApiErrorMessage(error, 'Unable to create the post.'))
+        } finally {
+            setIsSubmitting(false)
+        }
     }
-  }
 
-  return (
-    <section
-      className="rounded-2xl border border-gray-200 bg-white/95 p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950/80"
-      aria-labelledby="create-post-heading"
-    >
-      <div className="mb-5 space-y-1">
-        <h2 id="create-post-heading" className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-zinc-100">
-          Create post
-        </h2>
-        <p className="text-sm text-slate-500 dark:text-zinc-400">
-          Share a topic, ask a question, or start a conversation.
-        </p>
-      </div>
+    return (
+        <section
+            className="rounded-2xl border border-gray-200 bg-white/95 p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950/80"
+            aria-labelledby="create-post-heading"
+        >
+            <div className="mb-5 space-y-1">
+                <h2 id="create-post-heading"
+                    className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-zinc-100">
+                    Create post
+                </h2>
+                <p className="text-sm text-slate-500 dark:text-zinc-400">
+                    Share a topic, ask a question, or start a conversation.
+                </p>
+            </div>
 
-      <form className="space-y-4" onSubmit={handleSubmit} noValidate>
-        {formState.tagSelection ? (
-          <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
-            Your active Zitouna filters have been added to this post.
-          </p>
-        ) : null}
-        <label className="block space-y-2">
-          <span className="text-sm font-medium text-slate-700 dark:text-zinc-200">Title</span>
-          <input
-            type="text"
-            value={formState.title}
-            onChange={handleChange('title')}
-            minLength={FORUM_POST_TITLE_MIN_LENGTH}
-            maxLength={FORUM_POST_TITLE_MAX_LENGTH}
-            aria-invalid={Boolean(fieldErrors.title)}
-            aria-describedby={fieldErrors.title ? 'forum-post-title-error' : undefined}
-            placeholder="Title"
-            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-amber-400 dark:focus:ring-amber-500/20"
-          />
-          {fieldErrors.title ? (
-            <p className="text-sm text-rose-600 dark:text-rose-300" id="forum-post-title-error">
-              {fieldErrors.title}
-            </p>
-          ) : null}
-        </label>
+            <form className="space-y-4" onSubmit={handleSubmit} noValidate>
+                {formState.tagSelection ? (
+                    <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+                        Your active Zitouna filters have been added to this post.
+                    </p>
+                ) : null}
+                <label className="block space-y-2">
+                    <span className="text-sm font-medium text-slate-700 dark:text-zinc-200">Title</span>
+                    <input
+                        type="text"
+                        value={formState.title}
+                        onChange={handleChange('title')}
+                        minLength={FORUM_POST_TITLE_MIN_LENGTH}
+                        maxLength={FORUM_POST_TITLE_MAX_LENGTH}
+                        aria-invalid={Boolean(fieldErrors.title)}
+                        aria-describedby={fieldErrors.title ? 'forum-post-title-error' : undefined}
+                        placeholder="Title"
+                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-amber-400 dark:focus:ring-amber-500/20"
+                    />
+                    {fieldErrors.title ? (
+                        <p className="text-sm text-rose-600 dark:text-rose-300" id="forum-post-title-error">
+                            {fieldErrors.title}
+                        </p>
+                    ) : null}
+                </label>
 
-        <label className="block space-y-2">
-          <span className="text-sm font-medium text-slate-700 dark:text-zinc-200">Story or context <small>(optional with media)</small></span>
-          <textarea
-            value={formState.content}
-            onChange={handleChange('content')}
-            maxLength={FORUM_POST_CONTENT_MAX_LENGTH}
-            rows={9}
-            aria-invalid={Boolean(fieldErrors.content)}
-            aria-describedby={fieldErrors.content ? 'forum-post-content-error' : undefined}
-            placeholder="Write your post, or leave this empty and record your experience below"
-            className="min-h-44 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-amber-400 dark:focus:ring-amber-500/20"
-          />
-          {fieldErrors.content ? (
-            <p className="text-sm text-rose-600 dark:text-rose-300" id="forum-post-content-error">
-              {fieldErrors.content}
-            </p>
-          ) : null}
-        </label>
+                <label className="block space-y-2">
+                    <span className="text-sm font-medium text-slate-700 dark:text-zinc-200">Story or context <small>(optional with media)</small></span>
+                    <textarea
+                        value={formState.content}
+                        onChange={handleChange('content')}
+                        maxLength={FORUM_POST_CONTENT_MAX_LENGTH}
+                        rows={9}
+                        aria-invalid={Boolean(fieldErrors.content)}
+                        aria-describedby={fieldErrors.content ? 'forum-post-content-error' : undefined}
+                        placeholder="Write your post, or leave this empty and record your experience below"
+                        className="min-h-44 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-amber-400 dark:focus:ring-amber-500/20"
+                    />
+                    {fieldErrors.content ? (
+                        <p className="text-sm text-rose-600 dark:text-rose-300" id="forum-post-content-error">
+                            {fieldErrors.content}
+                        </p>
+                    ) : null}
+                </label>
 
-        <MediaComposer files={files} onFilesChange={setFiles} disabled={isSubmitting} />
+                <MediaComposer files={files} onFilesChange={setFiles} disabled={isSubmitting}/>
 
-        {tagSelectorUI ?? (
-            <label className="block space-y-2">
-              <span className="text-sm font-medium text-slate-700 dark:text-zinc-200">Tags</span>
-              <input
-                  type="text"
-                  value={formState.tagsText}
-                  onChange={handleChange('tagsText')}
-                  placeholder="Tags"
-                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-amber-400 dark:focus:ring-amber-500/20"
-              />
-            </label>
-        )}
+                <TagAutocomplete
+                    selectedTags={selectedTags}
+                    onChange={setSelectedTags}
+                />
 
-        {submitError ? (
-          <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-200">
-            {submitError}
-          </p>
-        ) : null}
+                {submitError ? (
+                    <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-200">
+                        {submitError}
+                    </p>
+                ) : null}
 
-        <div className="flex justify-end pt-2">
-          <button
-            type="submit"
-            className="inline-flex items-center justify-center rounded-full bg-amber-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? 'Posting…' : 'Post'}
-          </button>
-        </div>
-      </form>
-    </section>
-  )
+                <div className="flex justify-end pt-2">
+                    <button
+                        type="submit"
+                        className="inline-flex items-center justify-center rounded-full bg-amber-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={isSubmitting}
+                    >
+                        {isSubmitting ? 'Posting…' : 'Post'}
+                    </button>
+                </div>
+            </form>
+        </section>
+    )
 }
 
 

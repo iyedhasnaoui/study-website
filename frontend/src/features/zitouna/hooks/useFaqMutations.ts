@@ -6,13 +6,22 @@ import type { FaqEntry } from '../types';
 export const useFaqMutations = () => {
     const queryClient = useQueryClient();
 
+    const invalidateAllFaqRelatedQueries = () => {
+        void queryClient.invalidateQueries({ queryKey: ['faqs'] });
+        void queryClient.invalidateQueries({ queryKey: ['faq'] });
+        void queryClient.invalidateQueries({ queryKey: ['zitounaFeed'] });
+    };
+
     const createMutation = useMutation({
         // FIX: Explicitly define the payload types expected by the backend
         mutationFn: (data: { question: string; answer: string; published: boolean; tagIds?: number[] }) => createFaq(data),
         onSuccess: () => {
-            void queryClient.invalidateQueries({ queryKey: ['faqs'] });
+            invalidateAllFaqRelatedQueries();
+            // void queryClient.invalidateQueries({ queryKey: ['faqs'] });
         },
     });
+
+
 
     const updateMutation = useMutation({
         // Changed id type from string to number
@@ -33,7 +42,8 @@ export const useFaqMutations = () => {
             }
         },
         onSettled: () => {
-            void queryClient.invalidateQueries({ queryKey: ['faqs'] });
+            // void queryClient.invalidateQueries({ queryKey: ['faqs'] });
+            invalidateAllFaqRelatedQueries();
         },
     });
 
@@ -56,7 +66,8 @@ export const useFaqMutations = () => {
             }
         },
         onSettled: () => {
-            void queryClient.invalidateQueries({ queryKey: ['faqs'] });
+            // void queryClient.invalidateQueries({ queryKey: ['faqs'] });
+            invalidateAllFaqRelatedQueries();
         }
     });
 

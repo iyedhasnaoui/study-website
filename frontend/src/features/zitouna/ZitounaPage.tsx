@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { TagAutocomplete, type TagItem } from '../../components/TagAutocomplete'
 import { useFaqMutations } from './hooks/useFaqMutations'
 import { useAuth } from '../../auth/AuthContext'
 import { getApiErrorMessage, resolveApiUrl } from '../../lib/apiClient'
@@ -106,10 +107,12 @@ export function ZitounaPage({ onCreatePost, onOpenForum, onOpenRoadmaps, onRequi
   useEffect(() => {
     if (tab !== 'faq') return
     setLoading(true)
-    getFaq().then(setFaq)
-      .catch((reason) => setError(getApiErrorMessage(reason, 'Unable to load the FAQ.')))
-      .finally(() => setLoading(false))
-  }, [tab])
+    setError(null)
+    getFaq({ query, tagIds: selectedTags })
+        .then(setFaq)
+        .catch((reason) => setError(getApiErrorMessage(reason, 'Unable to load the FAQ.')))
+        .finally(() => setLoading(false))
+  }, [tab, query, selectedTags])
 
   const loadAdmin = async () => {
     if (!isAdmin) return
@@ -504,7 +507,7 @@ function AdminPanel({ loading, queue, proposals, tagTypes, faqs, availableTags, 
 }
 
 // Subcomponent placed at the very bottom of the file
-function FaqForm({ initialData, availableTags, onSubmit }: {
+function FaqForm({ initialData, onSubmit }: {
   initialData?: FaqEntry;
   availableTags: ZitounaTag[];
   onSubmit: (data: { question: string; answer: string; published: boolean; tagIds: number[] }) => void;
@@ -512,26 +515,40 @@ function FaqForm({ initialData, availableTags, onSubmit }: {
   const [question, setQuestion] = useState(initialData?.question || '');
   const [answer, setAnswer] = useState(initialData?.answer || '');
   const [published, setPublished] = useState(initialData?.published ?? true);
-  const [selectedTagIds, setSelectedTagIds] = useState<number[]>(initialData?.tags?.map(t => t.id) || []);
 
-  const toggleTag = (tagId: number) => setSelectedTagIds(prev => prev.includes(tagId) ? prev.filter(id => id !== tagId) : [...prev, tagId]);
+  // Convert initial tag IDs into TagItem objects
+  const [selectedTags, setSelectedTags] = useState<TagItem[]>(
+      initialData?.tags?.map((t) => ({ id: t.id, name: t.name })) || []
+  );
 
   return (
-      <form onSubmit={(e) => { e.preventDefault(); onSubmit({ question, answer, published, tagIds: selectedTagIds }); }}>
-        <label>Question<input required value={question} onChange={e => setQuestion(e.target.value)} /></label>
-        <label>Answer<textarea required rows={4} value={answer} onChange={e => setAnswer(e.target.value)} /></label>
-        <label>Tags
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
-            {availableTags.map(tag => (
-                <label key={tag.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontWeight: 'normal' }}>
-                  <input type="checkbox" checked={selectedTagIds.includes(tag.id)} onChange={() => toggleTag(tag.id)} /> {tag.name}
-                </label>
-            ))}
-          </div>
+      <form onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit({
+          question,
+          answer,
+          published,
+          tagIds: selectedTags.map((t) => t.id),
+        });
+      }}>
+        <label>Question
+          <input required value={question} onChange={e => setQuestion(e.target.value)} />
         </label>
+
+        <label>Answer
+          <textarea required rows={4} value={answer} onChange={e => setAnswer(e.target.value)} />
+        </label>
+
+        {/* Replaced checkbox list with TagAutocomplete */}
+        <TagAutocomplete
+            selectedTags={selectedTags}
+            onChange={setSelectedTags}
+        />
+
         <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1rem' }}>
           <input type="checkbox" checked={published} onChange={e => setPublished(e.target.checked)} /> Publish immediately
         </label>
+
         <button type="submit" style={{ marginTop: '1rem' }}>{initialData ? 'Save Changes' : 'Create FAQ'}</button>
       </form>
   );
