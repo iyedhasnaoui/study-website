@@ -13,6 +13,7 @@ import { getApiErrorMessage } from '../../../lib/apiClient'
 
 interface CreatePostFormProps {
   onCreate: (payload: ForumPostCreateDto, files: File[]) => Promise<void>
+  tagSelectorUI?: React.ReactNode
 }
 
 interface ZitounaPostPrefill {
@@ -73,7 +74,7 @@ const parseTags = (value: string): string[] =>
     ),
   )
 
-export function CreatePostForm({ onCreate }: CreatePostFormProps) {
+export function CreatePostForm({ onCreate, tagSelectorUI }: CreatePostFormProps) {
   const [formState, setFormState] = useState(createInitialFormState)
   const [fieldErrors, setFieldErrors] = useState<ForumPostFormErrors>({})
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -184,16 +185,18 @@ export function CreatePostForm({ onCreate }: CreatePostFormProps) {
 
         <MediaComposer files={files} onFilesChange={setFiles} disabled={isSubmitting} />
 
-        <label className="block space-y-2">
-          <span className="text-sm font-medium text-slate-700 dark:text-zinc-200">Tags</span>
-          <input
-            type="text"
-            value={formState.tagsText}
-            onChange={handleChange('tagsText')}
-            placeholder="Tags"
-            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-amber-400 dark:focus:ring-amber-500/20"
-          />
-        </label>
+        {tagSelectorUI ?? (
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-slate-700 dark:text-zinc-200">Tags</span>
+              <input
+                  type="text"
+                  value={formState.tagsText}
+                  onChange={handleChange('tagsText')}
+                  placeholder="Tags"
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-amber-400 dark:focus:ring-amber-500/20"
+              />
+            </label>
+        )}
 
         {submitError ? (
           <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-200">

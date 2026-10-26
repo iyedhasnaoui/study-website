@@ -150,3 +150,18 @@ export async function deleteReply(
   })
 }
 
+export async function getTags(): Promise<string[]> {
+  const response = await fetch('http://localhost:8080/api/tags', {
+    headers: {
+      Accept: 'application/json',
+    },
+  })
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch tags')
+  }
+
+  const data: Array<{ name: string }> = await response.json()
+  return data.map((tag) => tag.name)
+}
+
