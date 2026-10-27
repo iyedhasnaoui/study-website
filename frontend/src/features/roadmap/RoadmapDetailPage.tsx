@@ -12,6 +12,44 @@ interface RoadmapDetailPageProps {
   onBackToFeed: () => void
 }
 
+function ModerationNotice({
+                            status,
+                            note,
+                          }: {
+  status?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'NEEDS_FIXING' | null
+  note?: string | null
+}) {
+  if (!status || status === 'APPROVED') return null
+
+  if (status === 'PENDING') {
+    return (
+        <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200">
+          <strong className="font-semibold">Awaiting admin approval:</strong> This roadmap is currently in the moderation queue and is only visible to you.
+        </div>
+    )
+  }
+
+  if (status === 'NEEDS_FIXING') {
+    return (
+        <div className="mb-6 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-800 dark:border-sky-900/50 dark:bg-sky-950/40 dark:text-sky-200">
+          <strong className="font-semibold">Action required (Needs fixing):</strong> An administrator requested changes before this roadmap can be published.
+          {note ? <p className="mt-1 font-mono text-xs">{note}</p> : null}
+        </div>
+    )
+  }
+
+  if (status === 'REJECTED') {
+    return (
+        <div className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-200">
+          <strong className="font-semibold">Roadmap rejected:</strong> This roadmap was rejected by an administrator and is not publicly visible.
+          {note ? <p className="mt-1 font-mono text-xs">{note}</p> : null}
+        </div>
+    )
+  }
+
+  return null
+}
+
 export function RoadmapDetailPage({
   roadmapId,
   focusNodeId,
@@ -85,6 +123,7 @@ export function RoadmapDetailPage({
 
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <ModerationNotice status={graph.moderationStatus} note={graph.moderationNote} />
       <section className="mb-6 rounded-2xl border border-gray-200 bg-white/95 p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950/80">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="space-y-2">

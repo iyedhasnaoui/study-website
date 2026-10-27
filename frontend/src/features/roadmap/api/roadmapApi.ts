@@ -9,6 +9,7 @@ import type {
   RoadmapNodeUpdateDto,
   RoadmapResponseDto,
   RoadmapUpdateDto,
+  GetRoadmapsParams
 } from '../types'
 import { apiClient, requireAuthenticatedUser } from '../../../lib/apiClient'
 
@@ -25,9 +26,23 @@ const extractErrorMessage = (error: unknown, fallback: string): string => {
   return error instanceof Error ? error.message : fallback
 }
 
-export async function getRoadmaps(query?: string): Promise<RoadmapResponseDto[]> {
+export async function getRoadmaps(
+    params?: string | GetRoadmapsParams,
+): Promise<RoadmapResponseDto[]> {
+  // Support both legacy string query and new params object
+  const query = typeof params === 'string' ? params : params?.query
+  const tags = typeof params === 'object' ? params?.tags : undefined
+
+  // Extract tag IDs depending on whether TagItem objects or raw IDs were passed
+  const tagIds = tags
+      ?.map((tag) => (typeof tag === 'number' ? tag : tag.id))
+      .filter((id): id is number => typeof id === 'number')
+
   const response = await roadmapApiClient.get<RoadmapResponseDto[]>('/api/roadmaps', {
-    params: query && query.trim().length > 0 ? { q: query.trim() } : undefined,
+    params: {
+      q: query && query.trim().length > 0 ? query.trim() : undefined,
+      tagIds: tagIds && tagIds.length > 0 ? tagIds.join(',') : undefined,
+    },
   })
 
   return response.data

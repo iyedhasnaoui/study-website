@@ -15,7 +15,7 @@ const getErrorMessage = (error: unknown): string =>
     error instanceof Error ? error.message : 'Unable to load roadmaps.'
 
 export function RoadmapFeed({ reloadKey = 0, searchFilter, onSelectRoadmap }: RoadmapFeedProps = {}) {
-  const { session, isAdmin } = useAuth()
+  const { session } = useAuth()
   const [roadmaps, setRoadmaps] = useState<RoadmapResponseDto[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -62,6 +62,8 @@ export function RoadmapFeed({ reloadKey = 0, searchFilter, onSelectRoadmap }: Ro
   }
 
   const handleDelete = async (roadmapId: number) => {
+    if (!window.confirm('Are you sure you want to delete this roadmap?')) return
+
     setDeletingRoadmapId(roadmapId)
     setDeleteError(null)
 
@@ -116,6 +118,8 @@ export function RoadmapFeed({ reloadKey = 0, searchFilter, onSelectRoadmap }: Ro
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-2" aria-live="polite">
           {roadmaps.map((roadmap) => {
             const nodeCount = roadmap.nodes.length
+            const isOwner = Boolean(session && session.user.id === roadmap.authorId)
+            const status = roadmap.moderationStatus
 
             return (
                 <article
@@ -137,6 +141,25 @@ export function RoadmapFeed({ reloadKey = 0, searchFilter, onSelectRoadmap }: Ro
                       </button>
                     </div>
 
+                    {/* Status Badges for Non-Approved Content */}
+                    {status && status !== 'APPROVED' ? (
+                        <div>
+                          {status === 'PENDING' ? (
+                              <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                        Awaiting admin approval
+                      </span>
+                          ) : status === 'NEEDS_FIXING' ? (
+                              <span className="inline-flex items-center rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-medium text-sky-800 dark:bg-sky-900/40 dark:text-sky-300">
+                        Needs fixing
+                      </span>
+                          ) : status === 'REJECTED' ? (
+                              <span className="inline-flex items-center rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-medium text-rose-800 dark:bg-rose-900/40 dark:text-rose-300">
+                        Rejected
+                      </span>
+                          ) : null}
+                        </div>
+                    ) : null}
+
                     <p className="text-sm leading-6 text-slate-600 dark:text-zinc-300">
                       {roadmap.description || 'No description provided.'}
                     </p>
@@ -157,7 +180,7 @@ export function RoadmapFeed({ reloadKey = 0, searchFilter, onSelectRoadmap }: Ro
                       </dt>
                       <dd className="mt-1 font-semibold text-slate-900 dark:text-zinc-100">{nodeCount}</dd>
                     </div>
-                    <div className="rounded-xl bg-slate-50 p-3 dark:bg-zinc-900/60 col-span-2">
+                    <div className="col-span-2 rounded-xl bg-slate-50 p-3 dark:bg-zinc-900/60">
                       <dt className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-zinc-400">
                         Updated
                       </dt>
@@ -168,22 +191,25 @@ export function RoadmapFeed({ reloadKey = 0, searchFilter, onSelectRoadmap }: Ro
                   </dl>
 
                   <div className="mt-5 flex items-center gap-2">
-                    {session?.user.id === roadmap.authorId ? <button
+                    <button
                         type="button"
                         onClick={() => handleOpen(roadmap.id)}
                         className="rounded-full bg-amber-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-500"
                     >
                       View roadmap
-                    </button> : null}
+                    </button>
 
-                    {isAdmin ? <button
-                        type="button"
-                        onClick={() => handleDelete(roadmap.id)}
-                        disabled={deletingRoadmapId === roadmap.id}
-                        className="rounded-full border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-900/70 dark:text-rose-300 dark:hover:bg-rose-950/40"
-                    >
-                      {deletingRoadmapId === roadmap.id ? 'Deleting…' : 'Delete'}
-                    </button> : null}
+                    {/* Delete button available ONLY to the author */}
+                    {isOwner ? (
+                        <button
+                            type="button"
+                            onClick={() => handleDelete(roadmap.id)}
+                            disabled={deletingRoadmapId === roadmap.id}
+                            className="rounded-full border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-900/70 dark:text-rose-300 dark:hover:bg-rose-950/40"
+                        >
+                          {deletingRoadmapId === roadmap.id ? 'Deleting…' : 'Delete'}
+                        </button>
+                    ) : null}
                   </div>
                 </article>
             )

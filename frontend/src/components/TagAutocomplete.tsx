@@ -22,6 +22,7 @@ export function TagAutocomplete({
     const [tagInput, setTagInput] = useState('')
     const [isDropdownOpen, setIsDropdownOpen] = useState(false)
 
+    // the logic here should probably be better somewhere in an api .ts file
     useEffect(() => {
         fetch('http://localhost:8080/api/tags')
             .then((res) => {
