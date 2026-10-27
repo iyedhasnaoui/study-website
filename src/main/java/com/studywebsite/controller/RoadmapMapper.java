@@ -67,7 +67,11 @@ public class RoadmapMapper {
     }
 
     public RoadmapGraphResponseDto toGraphDto(
-            Roadmap roadmap, List<RoadmapNode> nodes, List<RoadmapEdge> edges, List<String> advisories) {
+            Roadmap roadmap,
+            List<RoadmapNode> nodes,
+            List<RoadmapEdge> edges,
+            List<String> advisories) {
+
         return RoadmapGraphResponseDto.builder()
                 .roadmapId(roadmap.getId())
                 .title(roadmap.getTitle())
@@ -76,6 +80,8 @@ public class RoadmapMapper {
                 .authorUsername(roadmap.getAuthor() != null ? roadmap.getAuthor().getUsername() : null)
                 .createdAt(roadmap.getCreatedAt())
                 .updatedAt(roadmap.getUpdatedAt())
+                .moderationStatus(roadmap.getModerationStatus())
+                .moderationNote(roadmap.getModerationNote())
                 .nodes(nodes.stream().map(this::toNodeDto).toList())
                 .edges(edges.stream().map(this::toEdgeDto).toList())
                 .advisories(advisories)

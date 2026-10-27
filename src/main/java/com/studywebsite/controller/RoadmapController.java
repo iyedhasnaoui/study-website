@@ -37,13 +37,17 @@ public class RoadmapController {
     @GetMapping
     public ResponseEntity<List<RoadmapResponseDto>> getAll(
             @RequestParam(required = false) String q,
-            @RequestParam(required = false) Long authorId) {
+            @RequestParam(required = false) Long authorId,
+            @RequestParam(required = false) List<Long> tagIds,
+            @RequestParam(required = false) String tag) {
 
-        Long viewerId = CurrentUser.find().map(AuthenticatedUserPrincipal::userId).orElse(null);
+        AuthenticatedUserPrincipal principal = CurrentUser.find().orElse(null);
+        Long viewerId = principal != null ? principal.userId() : null;
+        boolean isAdmin = principal != null && principal.isAdmin();
 
-        List<Roadmap> roadmaps = roadmapService.getAll().stream()
-                .filter(roadmap -> isVisibleTo(roadmap, viewerId))
-                .collect(Collectors.toList());
+
+        // Fetch only visible roadmaps from DB instead of loading all into memory
+        List<Roadmap> roadmaps = roadmapService.getVisibleRoadmaps(viewerId, isAdmin);
 
         if (authorId != null) {
             roadmaps = roadmaps.stream()
@@ -56,7 +60,22 @@ public class RoadmapController {
             roadmaps = roadmaps.stream()
                     .filter(r ->
                             (r.getTitle() != null && r.getTitle().toLowerCase().contains(query)) ||
-                            (r.getDescription() != null && r.getDescription().toLowerCase().contains(query)))
+                                    (r.getDescription() != null && r.getDescription().toLowerCase().contains(query)))
+                    .collect(Collectors.toList());
+        }
+
+        if (tagIds != null && !tagIds.isEmpty()) {
+            roadmaps = roadmaps.stream()
+                    .filter(r -> r.getTags() != null && r.getTags().stream()
+                            .anyMatch(t -> tagIds.contains(t.getId())))
+                    .collect(Collectors.toList());
+        }
+
+        if (tag != null && !tag.isBlank()) {
+            String tagName = tag.trim().toLowerCase();
+            roadmaps = roadmaps.stream()
+                    .filter(r -> r.getTags() != null && r.getTags().stream()
+                            .anyMatch(t -> t.getName() != null && t.getName().toLowerCase().equals(tagName)))
                     .collect(Collectors.toList());
         }
 

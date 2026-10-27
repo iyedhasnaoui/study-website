@@ -1,5 +1,6 @@
 package com.studywebsite.dto;
 
+import com.studywebsite.model.ModerationStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -21,6 +22,8 @@ public class RoadmapGraphResponseDto {
     private String authorUsername;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private ModerationStatus moderationStatus;
+    private String moderationNote;
 
     @Builder.Default
     private List<RoadmapNodeResponseDto> nodes = new ArrayList<>();
