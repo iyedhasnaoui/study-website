@@ -141,7 +141,8 @@ public class ZitounaController {
             case "needs-fixing" -> ModerationStatus.NEEDS_FIXING;
             default -> throw new IllegalArgumentException("Unknown moderation decision");
         };
-        zitounaService.moderate(area, id, status, request == null ? null : request.note());
+        zitounaService.moderate(area, id, status, request == null ? null : request.note(),
+                request == null ? null : request.version());
         return ResponseEntity.noContent().build();
     }
     @PreAuthorize("hasRole('ADMIN')")

@@ -97,7 +97,7 @@ export async function moderate(
     decision: 'approve' | 'reject' | 'needs-fixing',
     note = '',
 ): Promise<void> {
-  await apiClient.post(`/api/admin/moderation/${item.area}/${item.id}/${decision}`, { note })
+  await apiClient.post(`/api/admin/moderation/${item.area}/${item.id}/${decision}`, { note, ...(item.area === 'FORUM' ? { version: item.details.version } : {}) })
 }
 
 export async function getTagProposals(): Promise<ZitounaTag[]> {

@@ -132,7 +132,8 @@ public final class ZitounaDtos {
     }
 
     public record ModerationDecisionRequest(
-            @Size(max = 2000) String note
+            @Size(max = 2000) String note,
+            Long version
     ) {
     }
 

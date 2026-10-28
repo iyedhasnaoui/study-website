@@ -54,6 +54,24 @@ public class ForumPost {
     @Column(name = "moderation_note", columnDefinition = "TEXT")
     private String moderationNote;
 
+    // Public title/content remain unchanged while an approved post has a proposed edit.
+    @Column(name = "pending_title")
+    private String pendingTitle;
+
+    @Column(name = "pending_content", columnDefinition = "TEXT")
+    private String pendingContent;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "revision_status", length = 24)
+    private ModerationStatus revisionStatus;
+
+    @Column(name = "revision_note", columnDefinition = "TEXT")
+    private String revisionNote;
+
+    @Version
+    @Column(name = "version", nullable = false, columnDefinition = "bigint default 0")
+    private long version;
+
     @ManyToMany
     @JoinTable(
             name = "forum_post_tags",

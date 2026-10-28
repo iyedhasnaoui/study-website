@@ -35,7 +35,8 @@ const formatDateTime = (value: string | null): string => {
 }
 
 export function PostCard({ post, onDelete, onUpdated, deleting = false }: PostCardProps) {
-  const { session } = useAuth()
+  const { session, role } = useAuth()
+  const canManage = role === 'ADMIN' || (role === 'CONTRIBUTOR' && session?.user.id === post.authorId)
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isRepliesOpen, setIsRepliesOpen] = useState(false)
@@ -43,6 +44,7 @@ export function PostCard({ post, onDelete, onUpdated, deleting = false }: PostCa
     title: post.title,
     content: post.content,
   })
+  const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -51,8 +53,9 @@ export function PostCard({ post, onDelete, onUpdated, deleting = false }: PostCa
       content: post.content,
     })
     setIsEditing(false)
+    setSubmitted(false)
     setError(null)
-  }, [post.content, post.id, post.title])
+  }, [post.content, post.id, post.title, canManage, session?.user.id])
 
   const authorLabel = useMemo(() => {
     if (post.authorUsername) {
@@ -81,6 +84,7 @@ export function PostCard({ post, onDelete, onUpdated, deleting = false }: PostCa
   }
 
   const handleSave = async () => {
+    if (!canManage) return
     const nextTitle = draft.title?.trim() ?? ''
     const nextContent = draft.content?.trim() ?? ''
 
@@ -104,6 +108,7 @@ export function PostCard({ post, onDelete, onUpdated, deleting = false }: PostCa
       })
 
       onUpdated?.(saved)
+      setSubmitted(true)
       setIsEditing(false)
     } catch (submissionError) {
       setError(submissionError instanceof Error ? submissionError.message : 'Unable to update post.')
@@ -178,7 +183,7 @@ export function PostCard({ post, onDelete, onUpdated, deleting = false }: PostCa
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          {!isEditing && session?.user.id === post.authorId ? (
+          {!isEditing && canManage ? (
             <button
               type="button"
               onClick={handleStartEditing}
@@ -188,7 +193,7 @@ export function PostCard({ post, onDelete, onUpdated, deleting = false }: PostCa
             </button>
           ) : null}
 
-          {onDelete && session?.user.id === post.authorId ? (
+          {onDelete && canManage ? (
             <button
               type="button"
               className="rounded-full border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-900/70 dark:text-rose-300 dark:hover:bg-rose-950/40"
@@ -201,6 +206,7 @@ export function PostCard({ post, onDelete, onUpdated, deleting = false }: PostCa
         </div>
       </header>
 
+      {submitted ? <p role="status" className="mt-3 text-sm">Changes submitted for admin approval. The approved version remains public.</p> : null}
       {!isEditing ? (
         <>
           {post.content ? (

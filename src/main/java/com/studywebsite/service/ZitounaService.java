@@ -184,9 +184,11 @@ public class ZitounaService {
     @Transactional(readOnly = true)
     public List<ZitounaDtos.ModerationQueueItem> moderationQueue() {
         Stream<ZitounaDtos.ModerationQueueItem> forum = forumPostRepository.findAll().stream()
-                .filter(post -> needsReview(post.getModerationStatus()))
-                .map(post -> queueItem("FORUM", post.getId(), post.getTitle(), post.getAuthor(),
-                        post.getModerationStatus(), post.getCreatedAt(), Map.of("content", safe(post.getContent()))));
+                .filter(post -> needsReview(post.getModerationStatus()) || needsReview(post.getRevisionStatus()))
+                .map(post -> queueItem("FORUM", post.getId(),
+                        post.getRevisionStatus() == null ? post.getTitle() : post.getPendingTitle(), post.getAuthor(),
+                        post.getRevisionStatus() == null ? post.getModerationStatus() : post.getRevisionStatus(),
+                        post.getUpdatedAt(), forumReviewDetails(post)));
         Stream<ZitounaDtos.ModerationQueueItem> roadmaps = roadmapRepository.findAll().stream()
                 .filter(roadmap -> needsReview(roadmap.getModerationStatus()))
                 .map(roadmap -> queueItem("ROADMAP", roadmap.getId(), roadmap.getTitle(), roadmap.getAuthor(),
@@ -207,15 +209,32 @@ public class ZitounaService {
     }
 
     @Transactional
-    public void moderate(String area, Long id, ModerationStatus status, String note) {
+    public void moderate(String area, Long id, ModerationStatus status, String note, Long expectedVersion) {
         if (status != ModerationStatus.APPROVED && status != ModerationStatus.REJECTED && status != ModerationStatus.NEEDS_FIXING) {
             throw new IllegalArgumentException("Unsupported moderation decision");
         }
         switch (area.toUpperCase(Locale.ROOT)) {
             case "FORUM" -> {
                 ForumPost post = forumPostRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("Forum post not found"));
-                post.setModerationStatus(status);
-                post.setModerationNote(clean(note));
+                if (expectedVersion == null || expectedVersion != post.getVersion()) {
+                    throw new ResponseStatusException(HttpStatus.CONFLICT, "Post changed; reload the moderation queue before reviewing it");
+                }
+                if (post.getRevisionStatus() != null) {
+                    if (status == ModerationStatus.APPROVED) {
+                        post.setTitle(post.getPendingTitle());
+                        post.setContent(post.getPendingContent());
+                        post.setPendingTitle(null);
+                        post.setPendingContent(null);
+                        post.setRevisionStatus(null);
+                        post.setRevisionNote(null);
+                    } else {
+                        post.setRevisionStatus(status);
+                        post.setRevisionNote(clean(note));
+                    }
+                } else {
+                    post.setModerationStatus(status);
+                    post.setModerationNote(clean(note));
+                }
                 forumPostRepository.save(post);
             }
             case "ROADMAP" -> {
@@ -291,6 +310,20 @@ public class ZitounaService {
                 entry.getCreatedAt(),
                 entry.getUpdatedAt()
         );
+    }
+
+    private Map<String, Object> forumReviewDetails(ForumPost post) {
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("version", post.getVersion());
+        if (post.getRevisionStatus() != null) {
+            details.put("reviewKind", "Edited post awaiting approval");
+            details.put("content", safe(post.getPendingContent()));
+            details.put("publishedTitle", safe(post.getTitle()));
+            details.put("publishedContent", safe(post.getContent()));
+        } else {
+            details.put("content", safe(post.getContent()));
+        }
+        return details;
     }
 
     private ZitounaDtos.ModerationQueueItem queueItem(String area, Long id, String title, User author,

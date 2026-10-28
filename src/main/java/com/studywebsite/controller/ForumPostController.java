@@ -91,26 +91,37 @@ public class ForumPostController {
         ForumPost existing = forumPostService.getById(id);
         requireOwner(existing, principal);
 
-        // Optionally, you might want to check that the updating user is the author; omitted for simplicity
-        if (dto.getTitle() != null) {
-            existing.setTitle(dto.getTitle().strip());
+        String baseTitle = existing.getRevisionStatus() == null ? existing.getTitle() : existing.getPendingTitle();
+        String baseContent = existing.getRevisionStatus() == null ? existing.getContent() : existing.getPendingContent();
+        String title = dto.getTitle() == null ? baseTitle : dto.getTitle().strip();
+        String content = dto.getContent() == null ? baseContent : dto.getContent().strip();
+        if (title == null || title.length() < 5) {
+            throw new InvalidForumContributionException("Post title must contain at least 5 characters");
         }
         if (dto.getContent() != null) {
-            String content = dto.getContent().strip();
             if (content.isBlank() && (existing.getAttachments() == null || existing.getAttachments().isEmpty())) {
                 throw new InvalidForumContributionException("Write a message or attach a PDF, audio, or video file");
             }
-            existing.setContent(content);
         }
 
-        existing.setModerationStatus(com.studywebsite.model.ModerationStatus.PENDING);
-        existing.setModerationNote(null);
+        if (existing.getModerationStatus() == null
+                || existing.getModerationStatus() == com.studywebsite.model.ModerationStatus.APPROVED) {
+            existing.setPendingTitle(title);
+            existing.setPendingContent(content);
+            existing.setRevisionStatus(com.studywebsite.model.ModerationStatus.PENDING);
+            existing.setRevisionNote(null);
+        } else {
+            existing.setTitle(title);
+            existing.setContent(content);
+            existing.setModerationStatus(com.studywebsite.model.ModerationStatus.PENDING);
+            existing.setModerationNote(null);
+        }
 
         ForumPost saved = forumPostService.create(existing);
         return ResponseEntity.ok(toResponseDto(saved));
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('CONTRIBUTOR','ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal,

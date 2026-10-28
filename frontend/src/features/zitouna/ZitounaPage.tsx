@@ -1,3 +1,4 @@
+import { ModerationDetails } from './components/ModerationDetails'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { TagAutocomplete, type TagItem } from '../../components/TagAutocomplete'
 import { useFaqMutations } from './hooks/useFaqMutations'
@@ -320,7 +321,11 @@ export function ZitounaPage({ onCreatePost, onOpenForum, onOpenRoadmaps, onRequi
           tagTypes={tagTypes}
           faqs={faq}
           availableTags={tags}
-          onModerate={async (item, decision) => { await moderate(item, decision); await loadAdmin() }}
+          onModerate={async (item, decision) => {
+            setError(null)
+            try { await moderate(item, decision); await loadAdmin() }
+            catch (reason) { setError(getApiErrorMessage(reason, 'Unable to moderate this item. Reload the queue and try again.')) }
+          }}
           onTagDecision={async (tag, decision) => {
             const type = tagTypes.find((candidate) => candidate.field === tag.field)
             await decideTag(tag, decision, type?.id)
@@ -432,7 +437,7 @@ function AdminPanel({ loading, queue, proposals, tagTypes, faqs, availableTags, 
         {loading ? <p className="empty-state">Loading queue…</p> : null}
         <div className="admin-grid">
           <div><h3>Content awaiting review <span>{queue.length}</span></h3>{queue.map((item) => (
-              <article className="review-card" key={`${item.area}-${item.id}`}><small>{areaLabels[item.area]} · {item.authorUsername || 'Unknown author'}</small><h4>{item.title}</h4><pre>{JSON.stringify(item.details, null, 2)}</pre><div><button onClick={() => void onModerate(item, 'approve')}>Accept</button><button onClick={() => void onModerate(item, 'needs-fixing')}>Needs fixing</button><button className="danger" onClick={() => void onModerate(item, 'reject')}>Reject</button></div></article>
+              <article className="review-card" key={`${item.area}-${item.id}`}><small>{areaLabels[item.area]} · {item.authorUsername || 'Unknown author'}</small><h4>{item.title}</h4><ModerationDetails item={item} /><div><button onClick={() => void onModerate(item, 'approve')}>Accept</button><button onClick={() => void onModerate(item, 'needs-fixing')}>Needs fixing</button><button className="danger" onClick={() => void onModerate(item, 'reject')}>Reject</button></div></article>
           ))}{!loading && queue.length === 0 ? <p className="empty-state">The content queue is clear.</p> : null}</div>
           <div><h3>Proposed tags <span>{proposals.length}</span></h3>{proposals.map((tag) => (
               <article className="review-card" key={tag.id}><small>{fieldLabels[tag.field]}</small><h4>{tag.name}</h4><p>Will inherit: {tagTypes.find((type) => type.field === tag.field)?.name ?? 'matching type'}</p><div><button onClick={() => void onTagDecision(tag, 'approve')}>Accept</button><button className="danger" onClick={() => void onTagDecision(tag, 'reject')}>Reject</button></div></article>
