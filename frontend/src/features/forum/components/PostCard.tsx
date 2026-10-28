@@ -5,6 +5,7 @@ import { updatePost } from '../api/forumApi'
 import type { ForumPostResponseDto, ForumPostUpdateDto } from '../types'
 import { ReplyList } from './ReplyList'
 import { AttachmentGallery } from './AttachmentGallery'
+import { PostContent } from './PostContent'
 
 interface PostCardProps {
   post: ForumPostResponseDto
@@ -209,11 +210,7 @@ export function PostCard({ post, onDelete, onUpdated, deleting = false }: PostCa
       {submitted ? <p role="status" className="mt-3 text-sm">Changes submitted for admin approval. The approved version remains public.</p> : null}
       {!isEditing ? (
         <>
-          {post.content ? (
-            <p className="mt-5 whitespace-pre-wrap text-sm leading-7 text-slate-700 dark:text-zinc-300">
-              {post.content}
-            </p>
-          ) : null}
+          <PostContent key={`${post.id}:${post.content}`} content={post.content} />
 
           <AttachmentGallery attachments={post.attachments} />
 
