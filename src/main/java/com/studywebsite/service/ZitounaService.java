@@ -197,6 +197,9 @@ public class ZitounaService {
                 .filter(material -> needsReview(material.getModerationStatus()))
                 .map(material -> queueItem("LEARNING_MATERIAL", material.getId(), material.getTitle(), material.getAuthor(),
                         material.getModerationStatus(), material.getCreatedAt(), Map.of(
+                                "description", safe(material.getDescription()),
+                                "type", material.getType().name(),
+                                "tags", material.getTags().stream().map(ZitounaTag::getName).sorted().toList(),
                                 "grade", safe(material.getGradeNote()),
                                 "solutionApproach", safe(material.getSolutionApproach()),
                                 "method", safe(material.getMethodUsed()),
