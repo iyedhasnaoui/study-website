@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
@@ -15,6 +16,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Swaps the raw JWT authentication for an {@link AuthenticatedUserPrincipal}, so controllers keep
@@ -45,14 +49,22 @@ public class LocalUserProvisioningFilter extends OncePerRequestFilter {
                 return;
             }
 
-            AppRole role = AppRole.highestOf(KeycloakRealmRoleConverter.realmRoles(jwt));
+            AppRole role = AppRole.highestOf(jwtAuthentication.getAuthorities().stream()
+                    .map(GrantedAuthority::getAuthority)
+                    .filter(authority -> authority.startsWith(AppRole.ROLE_PREFIX))
+                    .map(authority -> authority.substring(AppRole.ROLE_PREFIX.length()))
+                    .toList());
+            Set<String> roles = new HashSet<>(KeycloakRealmRoleConverter.realmRoles(jwt));
+            roles.removeIf(realmRole -> Arrays.stream(AppRole.values())
+                    .anyMatch(appRole -> appRole.name().equals(realmRole)));
+            roles.add(role.name());
             AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(
                     jwt.getSubject(),
                     user.getId(),
                     user.getUsername(),
                     user.getEmail(),
                     role,
-                    KeycloakRealmRoleConverter.realmRoles(jwt)
+                    Set.copyOf(roles)
             );
 
             UsernamePasswordAuthenticationToken replacement = new UsernamePasswordAuthenticationToken(

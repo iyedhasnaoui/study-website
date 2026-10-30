@@ -16,6 +16,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 @Component
 @Profile("dev")
@@ -25,23 +26,38 @@ public class DevRoleOverrideFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-        String devRole = request.getHeader("X-Dev-Role");
-        if (devRole != null && "ADMIN".equalsIgnoreCase(devRole)) {
-            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            if (auth instanceof JwtAuthenticationToken jwtAuth) {
-                List<GrantedAuthority> authorities = new ArrayList<>(jwtAuth.getAuthorities());
-                authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
+        AppRole role = requestedRole(request.getHeader("X-Dev-Role"));
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (role != null && auth instanceof JwtAuthenticationToken jwtAuth && auth.isAuthenticated()) {
+            List<GrantedAuthority> authorities = new ArrayList<>(jwtAuth.getAuthorities());
+            authorities.removeIf(authority -> isApplicationRoleAuthority(authority.getAuthority()));
+            authorities.add(new SimpleGrantedAuthority(role.authority()));
 
-                JwtAuthenticationToken newAuth = new JwtAuthenticationToken(
-                        jwtAuth.getToken(),
-                        authorities,
-                        jwtAuth.getName()
-                );
-                newAuth.setDetails(jwtAuth.getDetails());
-                SecurityContextHolder.getContext().setAuthentication(newAuth);
-            }
+            JwtAuthenticationToken newAuth = new JwtAuthenticationToken(
+                    jwtAuth.getToken(),
+                    authorities,
+                    jwtAuth.getName()
+            );
+            newAuth.setDetails(jwtAuth.getDetails());
+            SecurityContextHolder.getContext().setAuthentication(newAuth);
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private AppRole requestedRole(String value) {
+        if (value == null) return null;
+        try {
+            return AppRole.valueOf(value.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
+    }
+
+    private boolean isApplicationRoleAuthority(String authority) {
+        for (AppRole role : AppRole.values()) {
+            if (role.authority().equals(authority)) return true;
+        }
+        return false;
     }
 }
