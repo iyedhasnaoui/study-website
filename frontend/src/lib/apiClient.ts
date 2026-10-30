@@ -1,8 +1,17 @@
 import axios from 'axios'
 
+import type { AppRole } from '../auth/types'
 import { currentToken, keycloak } from '../auth/keycloak'
 
 const DEFAULT_BASE_URL = 'http://localhost:8080'
+const DEV_ROLE_OVERRIDE_KEY = 'dev_role_override'
+const APP_ROLES = ['VIEWER', 'CONTRIBUTOR', 'ADMIN'] as const
+
+const isAppRole = (role: unknown): role is AppRole => APP_ROLES.some((appRole) => appRole === role)
+
+if (typeof window !== 'undefined') {
+  window.localStorage.removeItem(DEV_ROLE_OVERRIDE_KEY)
+}
 
 const normalizeBaseUrl = (value: string): string => value.replace(/\/+$/, '')
 
@@ -39,6 +48,48 @@ export function isForbidden(error: unknown): boolean {
   return axios.isAxiosError(error) && error.response?.status === 403
 }
 
+export function getDevRoleOverride(): AppRole | null {
+  if (typeof window === 'undefined') return null
+  if (!import.meta.env.DEV) {
+    window.sessionStorage.removeItem(DEV_ROLE_OVERRIDE_KEY)
+    return null
+  }
+
+  const stored = window.sessionStorage.getItem(DEV_ROLE_OVERRIDE_KEY)
+  if (!stored) return null
+
+  try {
+    const value: unknown = JSON.parse(stored)
+    if (typeof value !== 'object' || value === null || !('role' in value) || !('subject' in value)) {
+      window.sessionStorage.removeItem(DEV_ROLE_OVERRIDE_KEY)
+      return null
+    }
+    if (
+      !keycloak.authenticated ||
+      !keycloak.subject ||
+      value.subject !== keycloak.subject ||
+      !isAppRole(value.role)
+    ) {
+      window.sessionStorage.removeItem(DEV_ROLE_OVERRIDE_KEY)
+      return null
+    }
+    return value.role
+  } catch {
+    window.sessionStorage.removeItem(DEV_ROLE_OVERRIDE_KEY)
+    return null
+  }
+}
+
+export function setDevRoleOverride(role: AppRole | null): void {
+  if (typeof window === 'undefined') return
+  window.localStorage.removeItem(DEV_ROLE_OVERRIDE_KEY)
+  if (!import.meta.env.DEV || !role || !keycloak.authenticated || !keycloak.subject) {
+    window.sessionStorage.removeItem(DEV_ROLE_OVERRIDE_KEY)
+    return
+  }
+  window.sessionStorage.setItem(DEV_ROLE_OVERRIDE_KEY, JSON.stringify({ role, subject: keycloak.subject }))
+}
+
 export function requireAuthenticatedUser() {
   if (!keycloak.authenticated) {
     throw new Error('Please sign in to contribute to the circle.')
@@ -47,25 +98,15 @@ export function requireAuthenticatedUser() {
 }
 
 apiClient.interceptors.request.use(async (config) => {
+  delete config.headers['X-Dev-Role']
   const token = await currentToken()
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
-  }
-  if (import.meta.env.DEV) {
-    const devRole = localStorage.getItem('dev_role_override')
-    if (devRole) {
-      config.headers['X-Dev-Role'] = devRole
-    }
-  }
-  return config
-})
-
-
-apiClient.interceptors.request.use((config) => {
-  if (import.meta.env.DEV) {
-    const devRole = localStorage.getItem('dev_role_override')
-    if (devRole) {
-      config.headers['X-Dev-Role'] = devRole
+    if (import.meta.env.DEV) {
+      const devRole = getDevRoleOverride()
+      if (devRole) {
+        config.headers['X-Dev-Role'] = devRole
+      }
     }
   }
   return config

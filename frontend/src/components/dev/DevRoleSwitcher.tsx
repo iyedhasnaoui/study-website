@@ -1,20 +1,40 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../../auth/AuthContext.tsx';
 import type { AppRole } from '../../auth/types';
 
 export const DevRoleSwitcher: React.FC = () => {
+    const { role, isReady, isAuthenticated, roleError, overrideRole } = useAuth();
+    const [isSwitching, setIsSwitching] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
     // STRICT CHECK: Vite safely strips this entirely out of production builds
-    if (!import.meta.env.DEV) {
-        return null;
-    }
+    if (!import.meta.env.DEV) return null;
 
-    const { role, isReady, overrideRole, session } = useAuth();
+    if (!isReady || !isAuthenticated) return null;
 
-    // Do not render if context isn't ready, user isn't logged in, or override function is missing
-    if (!isReady || !session || !overrideRole) return null;
+    const selectRole = async (nextRole: AppRole | null) => {
+        if (isSwitching) return;
+        setIsSwitching(true);
+        setError(null);
+        try {
+            await overrideRole(nextRole);
+        } catch (switchError) {
+            setError(switchError instanceof Error ? switchError.message : 'Unable to confirm the selected role.');
+        } finally {
+            setIsSwitching(false);
+        }
+    };
 
-    const currentRole = role || 'USER';
+    const buttonStyle = (active: boolean): React.CSSProperties => ({
+        padding: '4px 8px',
+        cursor: isSwitching ? 'not-allowed' : 'pointer',
+        backgroundColor: active ? '#3b82f6' : '#333',
+        color: 'white',
+        border: 'none',
+        borderRadius: '4px',
+        opacity: isSwitching ? 0.6 : 1,
+    });
 
     return (
         <div
@@ -36,33 +56,25 @@ export const DevRoleSwitcher: React.FC = () => {
             }}
         >
             <strong style={{ margin: 0 }}>🛠️ Dev Role Switcher</strong>
-            <span style={{ color: '#aaa' }}>Current: <span style={{ color: '#fff' }}>{currentRole}</span></span>
+            <span style={{ color: '#aaa' }}>Backend-confirmed role: <span style={{ color: '#fff' }}>{role ?? 'Unavailable'}</span></span>
+            {error || roleError ? <span role="alert" style={{ color: '#fca5a5' }}>{error || roleError}</span> : null}
             <div style={{ display: 'flex', gap: '8px' }}>
+                {(['VIEWER', 'CONTRIBUTOR', 'ADMIN'] as const).map((nextRole) => (
+                    <button
+                        key={nextRole}
+                        disabled={isSwitching}
+                        onClick={() => void selectRole(nextRole)}
+                        style={buttonStyle(role === nextRole)}
+                    >
+                        {nextRole[0] + nextRole.slice(1).toLowerCase()}
+                    </button>
+                ))}
                 <button
-                    onClick={() => overrideRole('USER' as AppRole)}
-                    style={{
-                        padding: '4px 8px',
-                        cursor: 'pointer',
-                        backgroundColor: currentRole === 'USER' ? '#3b82f6' : '#333',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px'
-                    }}
+                    disabled={isSwitching}
+                    onClick={() => void selectRole(null)}
+                    style={buttonStyle(false)}
                 >
-                    User
-                </button>
-                <button
-                    onClick={() => overrideRole('ADMIN' as AppRole)}
-                    style={{
-                        padding: '4px 8px',
-                        cursor: 'pointer',
-                        backgroundColor: currentRole === 'ADMIN' ? '#ef4444' : '#333',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px'
-                    }}
-                >
-                    Admin
+                    Actual role
                 </button>
             </div>
         </div>
