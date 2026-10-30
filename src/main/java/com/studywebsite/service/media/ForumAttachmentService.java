@@ -87,6 +87,12 @@ public class ForumAttachmentService {
     public AttachmentDownload loadForDownload(Long attachmentId) {
         ForumAttachment attachment = attachmentRepository.findById(attachmentId)
                 .orElseThrow(() -> new EntityNotFoundException("Forum attachment not found"));
+        ForumPost post = attachment.getPost() != null ? attachment.getPost()
+                : attachment.getReply() == null ? null : attachment.getReply().getPost();
+        if (post == null || (post.getModerationStatus() != null
+                && post.getModerationStatus() != com.studywebsite.model.ModerationStatus.APPROVED)) {
+            throw new EntityNotFoundException("Forum attachment not found");
+        }
         return new AttachmentDownload(attachment, storageService.load(attachment.getStoredFilename()));
     }
 

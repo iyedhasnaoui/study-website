@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -38,14 +39,29 @@ public class LearningMaterialStorageService {
             throw new IllegalArgumentException("The selected material type does not match the uploaded file");
         }
 
+        if (file.getSize() > 50L * 1024L * 1024L) {
+            throw new IllegalArgumentException("Each material must be 50 MB or smaller");
+        }
+        if (detected == ResourceType.PDF) {
+            try (InputStream input = file.getInputStream()) {
+                if (!java.util.Arrays.equals(input.readNBytes(5), new byte[]{'%', 'P', 'D', 'F', '-'})) {
+                    throw new IllegalArgumentException("The selected PDF does not contain valid PDF data");
+                }
+            } catch (IOException exception) {
+                throw new IllegalStateException("The material could not be inspected", exception);
+            }
+        }
+
         try {
             Path root = Path.of(uploadDirectory).toAbsolutePath().normalize();
             Files.createDirectories(root);
-            String originalName = file.getOriginalFilename() == null ? "material" : Path.of(file.getOriginalFilename()).getFileName().toString();
+            String originalName = file.getOriginalFilename() == null ? "material" : Path.of(file.getOriginalFilename().replace('\\', '/')).getFileName().toString();
             String extension = extension(originalName);
             Path target = root.resolve(UUID.randomUUID() + extension).normalize();
             if (!target.startsWith(root)) throw new IllegalArgumentException("Invalid material filename");
-            Files.copy(file.getInputStream(), target, StandardCopyOption.REPLACE_EXISTING);
+            try (InputStream input = file.getInputStream()) {
+                Files.copy(input, target, StandardCopyOption.REPLACE_EXISTING);
+            }
             return new StoredMaterial(target.toString(), originalName, contentType, file.getSize());
         } catch (IOException exception) {
             throw new IllegalStateException("The material could not be stored", exception);
