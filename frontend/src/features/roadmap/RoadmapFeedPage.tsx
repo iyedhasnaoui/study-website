@@ -1,8 +1,17 @@
-import {useMemo, useState} from 'react'
+import {useEffect, useMemo, useState} from 'react'
 
 import {useAuth} from '../../auth/AuthContext'
+import {getTags, TAGS_UPDATED_EVENT} from '../../features/zitouna/api'
+import type {ZitounaTag} from '../../features/zitouna/types'
 import {CreateRoadmapForm} from './components/CreateRoadmapForm'
 import {RoadmapFeed} from './components/RoadmapFeed'
+
+const fieldLabels: Record<string, string> = {
+    INSTITUTION: 'Institution',
+    PROGRAM: 'Program / position',
+    TOPIC: 'Topic',
+    SUBTOPIC: 'Subtopic',
+}
 
 export interface RoadmapFeedPageProps {
     onOpenRoadmap: (roadmapId: number) => void
@@ -14,11 +23,29 @@ export function RoadmapFeedPage({onOpenRoadmap}: RoadmapFeedPageProps) {
     const [searchDraft, setSearchDraft] = useState('')
     const [activeSearch, setActiveSearch] = useState<string | undefined>(undefined)
     const [notice, setNotice] = useState<string | null>(null)
+    const [tags, setTags] = useState<ZitounaTag[]>([])
+    const [selectedTagIds, setSelectedTagIds] = useState<number[]>([])
+
+    useEffect(() => {
+        const loadTags = () => getTags().then(setTags).catch(() => {})
+
+        loadTags()
+        window.addEventListener(TAGS_UPDATED_EVENT, loadTags)
+        return () => window.removeEventListener(TAGS_UPDATED_EVENT, loadTags)
+    }, [])
+
+    const groupedTags = useMemo(() => {
+        const groups = new Map<string, ZitounaTag[]>()
+        tags.forEach((tag) => groups.set(tag.field, [...(groups.get(tag.field) ?? []), tag]))
+        return groups
+    }, [tags])
 
     const subtitle = useMemo(() => {
-        if (!activeSearch) return 'Browse study plans and learning paths'
-        return `Search: ${activeSearch}`
-    }, [activeSearch])
+        const parts: string[] = []
+        if (activeSearch) parts.push(`Search: ${activeSearch}`)
+        if (selectedTagIds.length > 0) parts.push(`${selectedTagIds.length} tag filter${selectedTagIds.length > 1 ? 's' : ''}`)
+        return parts.length > 0 ? parts.join(' · ') : 'Browse study plans and learning paths'
+    }, [activeSearch, selectedTagIds])
 
     const handleCreated = (roadmapId: number) => {
         setReloadKey((value) => value + 1)
@@ -52,7 +79,7 @@ export function RoadmapFeedPage({onOpenRoadmap}: RoadmapFeedPageProps) {
             ) : null}
 
             <div className="grid gap-8 lg:grid-cols-3">
-                <div className="lg:sticky lg:top-28">
+                <div className="space-y-6 lg:sticky lg:top-28">
                     {session && canContribute ? (
                         <CreateRoadmapForm onCreated={handleCreated}/>
                     ) : (
@@ -70,6 +97,48 @@ export function RoadmapFeedPage({onOpenRoadmap}: RoadmapFeedPageProps) {
                             </p>
                         </section>
                     )}
+
+                    {/* Tag Filters */}
+                    <section className="rounded-2xl border border-gray-200 bg-white/95 p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950/80">
+                        <div className="mb-3 flex items-center justify-between">
+                            <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-zinc-400">
+                                Tag filters
+                            </h3>
+                            {selectedTagIds.length > 0 ? (
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedTagIds([])}
+                                    className="text-xs font-semibold text-amber-600 hover:text-amber-700 dark:text-amber-400"
+                                >
+                                    Clear
+                                </button>
+                            ) : null}
+                        </div>
+                        {[...groupedTags.entries()].map(([field, values]) => (
+                            <fieldset key={field} className="mb-3">
+                                <legend className="text-xs font-medium text-slate-500 dark:text-zinc-400">
+                                    {fieldLabels[field] || field}
+                                </legend>
+                                <div className="mt-1 space-y-1">
+                                    {values.map((tag) => (
+                                        <label key={tag.id} className="flex items-center gap-2 text-sm">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedTagIds.includes(tag.id)}
+                                                onChange={() => setSelectedTagIds((current) =>
+                                                    current.includes(tag.id)
+                                                        ? current.filter((id) => id !== tag.id)
+                                                        : [...current, tag.id]
+                                                )}
+                                                className="rounded border-gray-300 text-amber-600 focus:ring-amber-500 dark:border-zinc-700 dark:bg-zinc-900"
+                                            />
+                                            <span className="text-slate-700 dark:text-zinc-300">{tag.name}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </fieldset>
+                        ))}
+                    </section>
                 </div>
 
                 <div className="space-y-6 lg:col-span-2">
@@ -121,6 +190,7 @@ export function RoadmapFeedPage({onOpenRoadmap}: RoadmapFeedPageProps) {
                     <RoadmapFeed
                         reloadKey={reloadKey}
                         searchFilter={activeSearch}
+                        tagIds={selectedTagIds.length > 0 ? selectedTagIds : undefined}
                         onSelectRoadmap={onOpenRoadmap}
                     />
                 </div>

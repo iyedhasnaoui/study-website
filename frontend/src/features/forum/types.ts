@@ -43,6 +43,8 @@ export interface ForumPostUpdateDto {
   tags?: string[] | null
 }
 
+export type ModerationStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'NEEDS_FIXING'
+
 export interface ForumPostResponseDto {
   id: number
   title: string
@@ -50,6 +52,8 @@ export interface ForumPostResponseDto {
   authorId: number | null
   authorUsername: string | null
   tags: string[]
+  moderationStatus: ModerationStatus
+  moderationNote: string | null
   attachments: ForumAttachmentResponseDto[]
   createdAt: string | null
   updatedAt: string | null

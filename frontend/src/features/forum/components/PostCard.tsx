@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 
 import { useAuth } from '../../../auth/AuthContext'
+import { getApiErrorMessage } from '../../../lib/apiClient'
 import { updatePost } from '../api/forumApi'
 import type { ForumPostResponseDto, ForumPostUpdateDto } from '../types'
 import { ReplyList } from './ReplyList'
@@ -112,7 +113,7 @@ export function PostCard({ post, onDelete, onUpdated, deleting = false }: PostCa
       setSubmitted(true)
       setIsEditing(false)
     } catch (submissionError) {
-      setError(submissionError instanceof Error ? submissionError.message : 'Unable to update post.')
+      setError(getApiErrorMessage(submissionError, 'Unable to update post.'))
     } finally {
       setIsSaving(false)
     }
@@ -177,9 +178,31 @@ export function PostCard({ post, onDelete, onUpdated, deleting = false }: PostCa
               </div>
             </div>
           ) : (
-            <h2 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-zinc-100">
-              {post.title}
-            </h2>
+            <div>
+              <h2 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-zinc-100">
+                {post.title}
+              </h2>
+              {post.moderationStatus && post.moderationStatus !== 'APPROVED' ? (
+                <div className="mt-1 flex items-center gap-2">
+                  <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                    post.moderationStatus === 'PENDING'
+                      ? 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200'
+                      : post.moderationStatus === 'NEEDS_FIXING'
+                      ? 'bg-orange-50 text-orange-700 dark:bg-orange-500/10 dark:text-orange-200'
+                      : 'bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-200'
+                  }`}>
+                    {post.moderationStatus === 'PENDING'
+                      ? 'Awaiting admin approval'
+                      : post.moderationStatus === 'NEEDS_FIXING'
+                      ? 'Needs fixing'
+                      : 'Rejected'}
+                  </span>
+                  {post.moderationNote ? (
+                    <span className="text-xs text-slate-500 dark:text-zinc-400">{post.moderationNote}</span>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
           )}
         </div>
 

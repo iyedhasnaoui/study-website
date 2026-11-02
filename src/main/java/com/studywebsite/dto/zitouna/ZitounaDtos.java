@@ -105,6 +105,7 @@ public final class ZitounaDtos {
             Long authorId,
             String authorUsername,
             ModerationStatus moderationStatus,
+            String moderationNote,
             List<TagResponse> tags,
             String contentUrl,
             LocalDateTime createdAt,

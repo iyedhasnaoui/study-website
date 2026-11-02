@@ -11,6 +11,12 @@ import type {
     ZitounaTag,
 } from './types'
 
+export const TAGS_UPDATED_EVENT = 'study-website:tags-updated'
+
+export function notifyTagsUpdated(): void {
+    window.dispatchEvent(new Event(TAGS_UPDATED_EVENT))
+}
+
 export async function getTags(field?: TagField): Promise<ZitounaTag[]> {
     const response = await apiClient.get<ZitounaTag[]>('/api/tags', {params: field ? {field} : undefined})
     return response.data
@@ -41,9 +47,23 @@ export async function getZitounaFeed(filters: {
     return response.data
 }
 
-export async function getLearningMaterials(includeMine = false): Promise<LearningMaterial[]> {
-    const response = await apiClient.get<LearningMaterial[]>('/api/learning-materials', {params: {includeMine}})
+export async function getLearningMaterials(params?: {
+    includeMine?: boolean
+    query?: string
+    tagIds?: number[]
+}): Promise<LearningMaterial[]> {
+    const response = await apiClient.get<LearningMaterial[]>('/api/learning-materials', {
+        params: {
+            includeMine: params?.includeMine ?? false,
+            q: params?.query && params.query.trim().length > 0 ? params.query.trim() : undefined,
+            tagIds: params?.tagIds && params.tagIds.length > 0 ? params.tagIds.join(',') : undefined,
+        },
+    })
     return response.data
+}
+
+export async function deleteLearningMaterial(id: number): Promise<void> {
+    await apiClient.delete(`/api/admin/learning-materials/${id}`)
 }
 
 export async function submitLearningMaterial(
@@ -56,9 +76,9 @@ export async function submitLearningMaterial(
         methodUsed?: string
         roadmapFollowed?: string
         tags?: {
-            tagIds?: number[]
             homeInstitutionId?: number | null
             partnerInstitutionId?: number | null
+            institutionIds?: number[]
             programIds?: number[]
             topicIds?: number[]
             subtopicIds?: number[]
@@ -78,13 +98,13 @@ export async function submitLearningMaterial(
         solutionApproach: payload.solutionApproach || '',
         methodUsed: payload.methodUsed || '',
         roadmapFollowed: payload.roadmapFollowed || '',
-        tagSelection: {
+        tags: {
             homeInstitutionId: payload.tags?.homeInstitutionId ?? null,
             partnerInstitutionId: payload.tags?.partnerInstitutionId ?? null,
+            institutionIds: payload.tags?.institutionIds ?? [],
             programIds: payload.tags?.programIds ?? [],
             topicIds: payload.tags?.topicIds ?? [],
             subtopicIds: payload.tags?.subtopicIds ?? [],
-            tagIds: payload.tags?.tagIds ?? [],
         },
     }
 
@@ -147,7 +167,7 @@ export async function moderate(
     decision: 'approve' | 'reject' | 'needs-fixing',
     note = '',
 ): Promise<void> {
-    await apiClient.post(`/api/admin/moderation/${item.area}/${item.id}/${decision}`, {note})
+    await apiClient.post(`/api/admin/moderation/${item.area}/${item.id}/${decision}`, {note, version: item.details?.version})
 }
 
 export async function getTagProposals(): Promise<ZitounaTag[]> {

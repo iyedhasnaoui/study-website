@@ -112,12 +112,33 @@ public class ZitounaService {
 
     @Transactional(readOnly = true)
     public List<ZitounaDtos.LearningMaterialResponse> listMaterials(boolean includePending, Long userId) {
+        return listMaterials(includePending, userId, null, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ZitounaDtos.LearningMaterialResponse> listMaterials(boolean includePending, Long userId, String query, Set<Long> tagIds) {
+        String cleanQuery = query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
+        Set<Long> requestedTags = tagIds == null ? Set.of() : tagIds;
+
         return resourceRepository.findAll().stream()
                 .filter(material -> isPublished(material.getModerationStatus())
                         || (includePending && material.getAuthor() != null && Objects.equals(material.getAuthor().getId(), userId)))
+                .filter(material -> cleanQuery.isBlank() || contains(material.getTitle(), cleanQuery) || contains(material.getDescription(), cleanQuery))
+                .filter(material -> requestedTags.isEmpty() || matchesTags(material.getTags(), requestedTags))
                 .sorted(Comparator.comparing(Resource::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
                 .map(this::materialResponse)
                 .toList();
+    }
+
+    @Transactional
+    public void deleteLearningMaterial(Long id) {
+        Resource material = resourceRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Learning material not found"));
+        // Delete the stored file from disk
+        if (material.getPath() != null) {
+            materialStorageService.delete(material.getPath());
+        }
+        resourceRepository.delete(material);
     }
 
     @Transactional(readOnly = true)
@@ -299,6 +320,7 @@ public class ZitounaService {
                 material.getOriginalFilename(), material.getContentType(), material.getSizeBytes(),
                 material.getGradeNote(), material.getSolutionApproach(), material.getMethodUsed(), material.getRoadmapFollowed(),
                 userId(material.getAuthor()), username(material.getAuthor()), effectiveStatus(material.getModerationStatus()),
+                material.getModerationNote(),
                 tags(material.getTags()), "/api/learning-materials/" + material.getId() + "/content",
                 material.getCreatedAt(), material.getUpdatedAt());
     }

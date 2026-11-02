@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
-import { TagAutocomplete, type TagItem } from '../../../components/TagAutocomplete'
+import { TagAutocomplete, type TagField, type TagItem } from '../../../components/TagAutocomplete'
+import { getApiErrorMessage } from '../../../lib/apiClient'
 import { createRoadmap } from '../api/roadmapApi'
 import type { RoadmapCreateDto } from '../types'
 
@@ -19,11 +20,20 @@ export function CreateRoadmapForm({ onCreated }: CreateRoadmapFormProps) {
     event.preventDefault()
     setError(null)
 
+    // Distribute selected tags into the correct TagSelectionDto fields by their field type
+    const ids = (field: TagField) => selectedTags.filter((t) => t.field === field).map((t) => t.id)
+    const institutions = ids('INSTITUTION')
+
     const payload: RoadmapCreateDto = {
       title: title.trim(),
       description: description.trim() || null,
       tagSelection: {
-        tagIds: selectedTags.map((tag) => tag.id),
+        homeInstitutionId: institutions[0] ?? null,
+        partnerInstitutionId: institutions[1] ?? null,
+        institutionIds: institutions.length > 0 ? institutions : undefined,
+        programIds: ids('PROGRAM').length > 0 ? ids('PROGRAM') : undefined,
+        topicIds: ids('TOPIC').length > 0 ? ids('TOPIC') : undefined,
+        subtopicIds: ids('SUBTOPIC').length > 0 ? ids('SUBTOPIC') : undefined,
       },
     }
 
@@ -41,7 +51,7 @@ export function CreateRoadmapForm({ onCreated }: CreateRoadmapFormProps) {
       setSelectedTags([])
       onCreated?.(created.id)
     } catch (submissionError) {
-      setError(submissionError instanceof Error ? submissionError.message : 'Unable to create roadmap.')
+      setError(getApiErrorMessage(submissionError, 'Unable to create roadmap.'))
     } finally {
       setIsSaving(false)
     }

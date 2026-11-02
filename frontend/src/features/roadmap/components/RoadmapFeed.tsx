@@ -8,13 +8,14 @@ import { formatDateTime } from '../utils'
 export interface RoadmapFeedProps {
   reloadKey?: number
   searchFilter?: string
+  tagIds?: number[]
   onSelectRoadmap?: (roadmapId: number) => void
 }
 
 const getErrorMessage = (error: unknown): string =>
     error instanceof Error ? error.message : 'Unable to load roadmaps.'
 
-export function RoadmapFeed({ reloadKey = 0, searchFilter, onSelectRoadmap }: RoadmapFeedProps = {}) {
+export function RoadmapFeed({ reloadKey = 0, searchFilter, tagIds, onSelectRoadmap }: RoadmapFeedProps = {}) {
   const { session } = useAuth()
   const [roadmaps, setRoadmaps] = useState<RoadmapResponseDto[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -31,7 +32,10 @@ export function RoadmapFeed({ reloadKey = 0, searchFilter, onSelectRoadmap }: Ro
       setDeleteError(null)
 
       try {
-        const response = await getRoadmaps(searchFilter)
+        const response = await getRoadmaps({
+          query: searchFilter,
+          tags: tagIds,
+        })
         if (isMounted) {
           setRoadmaps(response)
         }
@@ -51,7 +55,7 @@ export function RoadmapFeed({ reloadKey = 0, searchFilter, onSelectRoadmap }: Ro
     return () => {
       isMounted = false
     }
-  }, [reloadKey, searchFilter])
+  }, [reloadKey, searchFilter, tagIds])
 
   const handleOpen = (roadmapId: number) => {
     if (onSelectRoadmap) {

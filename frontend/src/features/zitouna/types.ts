@@ -60,6 +60,7 @@ export interface LearningMaterial {
   authorId: number | null
   authorUsername: string | null
   moderationStatus: ModerationStatus
+  moderationNote: string | null
   tags: ZitounaTag[]
   contentUrl: string
   createdAt: string | null

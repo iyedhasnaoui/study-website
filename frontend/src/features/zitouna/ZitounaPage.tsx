@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useState, type FormEvent} from 'react'
+import {useEffect, useMemo, useState, type Dispatch, type FormEvent, type SetStateAction} from 'react'
 import {TagAutocomplete, type TagItem} from '../../components/TagAutocomplete'
 import {useFaqMutations} from './hooks/useFaqMutations'
 import {useAuth} from '../../auth/AuthContext'
@@ -10,6 +10,7 @@ import {
     // createFaq,
     createTagType,
     decideTag,
+    deleteLearningMaterial,
     getFaq,
     getLearningMaterials,
     getModerationQueue,
@@ -18,8 +19,10 @@ import {
     getTagTypes,
     getZitounaFeed,
     moderate,
+    notifyTagsUpdated,
     proposeTag,
     submitLearningMaterial,
+    TAGS_UPDATED_EVENT,
 } from './api'
 import type {
     FaqEntry,
@@ -50,7 +53,7 @@ const areaLabels: Record<FeedArea, string> = {
     FAQ: 'FAQ',
 }
 
-const fieldLabels: Record<TagField, string> = {
+const fieldLabels: Record<string, string> = {
     INSTITUTION: 'Institution',
     PROGRAM: 'Program / position',
     TOPIC: 'Topic',
@@ -72,6 +75,9 @@ export function ZitounaPage({onCreatePost, onOpenForum, onOpenRoadmaps, onRequir
     const [query, setQuery] = useState('')
     const [feed, setFeed] = useState<FeedItem[]>([])
     const [materials, setMaterials] = useState<LearningMaterial[]>([])
+    const [_materialsQuery, setMaterialsQuery] = useState('')
+    const [materialsQueryDraft, setMaterialsQueryDraft] = useState('')
+    const [materialsSelectedTags, setMaterialsSelectedTags] = useState<number[]>([])
     const [faq, setFaq] = useState<FaqEntry[]>([])
     const [queue, setQueue] = useState<ModerationQueueItem[]>([])
     const [proposals, setProposals] = useState<ZitounaTag[]>([])
@@ -88,7 +94,13 @@ export function ZitounaPage({onCreatePost, onOpenForum, onOpenRoadmaps, onRequir
 
 
     useEffect(() => {
-        getTags().then(setTags).catch((reason) => setError(getApiErrorMessage(reason, 'Unable to load tags.')))
+        const loadTags = () => {
+            getTags().then(setTags).catch((reason) => setError(getApiErrorMessage(reason, 'Unable to load tags.')))
+        }
+
+        loadTags()
+        window.addEventListener(TAGS_UPDATED_EVENT, loadTags)
+        return () => window.removeEventListener(TAGS_UPDATED_EVENT, loadTags)
     }, [])
 
     useEffect(() => {
@@ -108,11 +120,16 @@ export function ZitounaPage({onCreatePost, onOpenForum, onOpenRoadmaps, onRequir
     useEffect(() => {
         if (tab !== 'materials') return
         setLoading(true)
-        Promise.resolve(getLearningMaterials(Boolean(session)))
+        setError(null)
+        getLearningMaterials({
+            includeMine: Boolean(session),
+            query: _materialsQuery,
+            tagIds: materialsSelectedTags,
+        })
             .then(setMaterials)
             .catch((reason) => setError(getApiErrorMessage(reason, 'Unable to load learning materials.')))
             .finally(() => setLoading(false))
-    }, [session, tab])
+    }, [session, tab, _materialsQuery, materialsSelectedTags])
 
     useEffect(() => {
         if (tab !== 'faq') return
@@ -146,7 +163,7 @@ export function ZitounaPage({onCreatePost, onOpenForum, onOpenRoadmaps, onRequir
     }, [tab, isAdmin])
 
     const groupedTags = useMemo(() => {
-        const groups = new Map<TagField, ZitounaTag[]>()
+        const groups = new Map<string, ZitounaTag[]>()
         tags.forEach((tag) => groups.set(tag.field, [...(groups.get(tag.field) ?? []), tag]))
         return groups
     }, [tags])
@@ -224,7 +241,7 @@ export function ZitounaPage({onCreatePost, onOpenForum, onOpenRoadmaps, onRequir
                         </div>
                         {[...groupedTags.entries()].map(([field, values]) => (
                             <fieldset key={field}>
-                                <legend>{fieldLabels[field]}</legend>
+                                <legend>{fieldLabels[field] ?? field}</legend>
                                 {values.map((tag) => (
                                     <label key={tag.id}>
                                         <input
@@ -341,11 +358,23 @@ export function ZitounaPage({onCreatePost, onOpenForum, onOpenRoadmaps, onRequir
                     materials={materials}
                     selectedTags={tagSelection}
                     signedIn={Boolean(session)}
+                    isAdmin={isAdmin}
                     loading={loading}
+                    tags={tags}
+                    materialsSelectedTags={materialsSelectedTags}
+                    setMaterialsSelectedTags={setMaterialsSelectedTags}
+                    materialsQuery={_materialsQuery}
+                    materialsQueryDraft={materialsQueryDraft}
+                    setMaterialsQueryDraft={setMaterialsQueryDraft}
+                    setMaterialsQuery={setMaterialsQuery}
                     onRequireLogin={onRequireLogin}
                     onSubmitted={(material) => {
                         setMaterials((current) => [material, ...current])
                         setNotice('Your learning material is in the admin approval queue.')
+                    }}
+                    onDelete={(id) => {
+                        setMaterials((current) => current.filter((m) => m.id !== id))
+                        setNotice('Learning material deleted.')
                     }}
                 />
             ) : null}
@@ -385,6 +414,7 @@ export function ZitounaPage({onCreatePost, onOpenForum, onOpenRoadmaps, onRequir
                     onTagDecision={async (tag, decision) => {
                         const type = tagTypes.find((candidate) => candidate.field === tag.field)
                         await decideTag(tag, decision, type?.id)
+                        if (decision === 'approve') notifyTagsUpdated()
                         await loadAdmin()
                     }}
                     // onCreateFaq={async (question, answer) => {
@@ -406,16 +436,34 @@ function MaterialsPanel({
                             materials,
                             selectedTags,
                             signedIn,
+                            isAdmin,
                             loading,
+                            tags,
+                            materialsSelectedTags,
+                            setMaterialsSelectedTags,
+                            materialsQuery: _materialsQuery,
+                            materialsQueryDraft,
+                            setMaterialsQueryDraft,
+                            setMaterialsQuery,
                             onRequireLogin,
                             onSubmitted,
+                            onDelete,
                         }: {
     materials: LearningMaterial[]
     selectedTags: Record<string, unknown>
     signedIn: boolean
+    isAdmin: boolean
     loading: boolean
+    tags: ZitounaTag[]
+    materialsSelectedTags: number[]
+    setMaterialsSelectedTags: Dispatch<SetStateAction<number[]>>
+    materialsQuery: string // unused in component body; kept for future use
+    materialsQueryDraft: string
+    setMaterialsQueryDraft: (draft: string) => void
+    setMaterialsQuery: (query: string) => void
     onRequireLogin: () => void
     onSubmitted: (material: LearningMaterial) => void
+    onDelete: (id: number) => void
 }) {
     const [open, setOpen] = useState(false)
     const [submitting, setSubmitting] = useState(false)
@@ -431,6 +479,12 @@ function MaterialsPanel({
         roadmapFollowed: '',
     })
 
+    const groupedTags = useMemo(() => {
+        const groups = new Map<string, ZitounaTag[]>()
+        tags.forEach((tag) => groups.set(tag.field, [...(groups.get(tag.field) ?? []), tag]))
+        return groups
+    }, [tags])
+
     const submit = async (event: FormEvent) => {
         event.preventDefault()
         if (!file) {
@@ -441,11 +495,24 @@ function MaterialsPanel({
         setError(null)
         const type = file.type === 'application/pdf' ? 'PDF' : file.type.startsWith('audio/') ? 'AUDIO' : 'VIDEO'
 
-        const autocompleteTagIds = formTags.map((t) => t.id)
+        // Distribute autocomplete tags into the correct TagSelectionDto fields by their field type
+        const ids = (field: string) => formTags.filter((t) => t.field === field).map((t) => t.id)
+        const institutions = ids('INSTITUTION')
 
+        const builtTagSelection: Record<string, unknown> = {}
+        if (institutions.length > 0) {
+            builtTagSelection.homeInstitutionId = institutions[0]
+            builtTagSelection.partnerInstitutionId = institutions[1] ?? null
+            builtTagSelection.institutionIds = institutions
+        }
+        if (ids('PROGRAM').length > 0) builtTagSelection.programIds = ids('PROGRAM')
+        if (ids('TOPIC').length > 0) builtTagSelection.topicIds = ids('TOPIC')
+        if (ids('SUBTOPIC').length > 0) builtTagSelection.subtopicIds = ids('SUBTOPIC')
+
+        // Merge with pre-filtered tagSelection from the Zitouna filter panel (user autocomplete takes precedence)
         const tagPayload = {
             ...(selectedTags as Record<string, unknown>),
-            tagIds: autocompleteTagIds,
+            ...builtTagSelection,
         }
 
         try {
@@ -469,49 +536,118 @@ function MaterialsPanel({
         }
     }
 
+    const handleDelete = async (materialId: number) => {
+        if (!window.confirm('Are you sure you want to delete this learning material?')) return
+        try {
+            await deleteLearningMaterial(materialId)
+            onDelete(materialId)
+        } catch (reason) {
+            setError(getApiErrorMessage(reason, 'Unable to delete the material.'))
+        }
+    }
+
     return (
-        <section className="simple-panel section-shell">
-            <header className="materials-heading">
-                <div>
-                    <p className="eyebrow">Learning materials</p>
-                    <h2>Study resources with context.</h2>
-                    <p>Browse by tags, or share a PDF, audio explanation, or video walkthrough.</p>
+        <section className="zitouna-workspace section-shell">
+            <aside className="filter-panel">
+                <div className="filter-panel__heading">
+                    <span>Filters</span>
+                    <button type="button" onClick={() => setMaterialsSelectedTags([])}>Clear</button>
                 </div>
-                <button className="button button--gold" type="button" onClick={() => (signedIn ? setOpen(!open) : onRequireLogin())}>
-                    Upload material
-                </button>
-            </header>
-
-            {open ? (
-                <form className="material-form" onSubmit={submit}>
-                    <label>Title<input required maxLength={200} value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} /></label>
-                    <label className="material-form__wide">Description<textarea rows={4} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></label>
-                    <label>Your grade in the subject<input value={form.gradeNote} onChange={(event) => setForm({ ...form, gradeNote: event.target.value })} placeholder="Optional — e.g. 1.7" /></label>
-                    <label>How you got to the solution<input value={form.solutionApproach} onChange={(event) => setForm({ ...form, solutionApproach: event.target.value })} /></label>
-                    <label>Method used<input value={form.methodUsed} onChange={(event) => setForm({ ...form, methodUsed: event.target.value })} /></label>
-                    <label>Roadmap followed<input value={form.roadmapFollowed} onChange={(event) => setForm({ ...form, roadmapFollowed: event.target.value })} /></label>
-
-                    <div className="material-form__wide">
-                        <TagAutocomplete selectedTags={formTags} onChange={setFormTags} placeholder="Add relevant tags..." />
-                    </div>
-
-                    <label className="material-form__wide file-field">File<input required type="file" accept="application/pdf,audio/*,video/*" onChange={(event) => setFile(event.target.files?.[0] ?? null)} /></label>
-                    {error ? <p className="form-error material-form__wide">{error}</p> : null}
-                    <button className="button button--gold material-form__wide" disabled={submitting} type="submit">{submitting ? 'Submitting…' : 'Send for approval'}</button>
-                </form>
-            ) : null}
-
-            {loading ? <p className="empty-state">Loading materials…</p> : null}
-            <div className="material-grid">
-                {materials.map((material) => (
-                    <article key={material.id}>
-                        <span className="material-type">{material.type}</span>
-                        <h3>{material.title}</h3>
-                        <p>{material.description || 'Shared learning material'}</p>
-                        <div className="tag-row">{material.tags.map((tag) => <span key={tag.id}>#{tag.name}</span>)}</div>
-                        {material.moderationStatus === 'PENDING' ? <small>Awaiting admin approval</small> : <a href={resolveApiUrl(material.contentUrl)} target="_blank" rel="noreferrer">Open material →</a>}
-                    </article>
+                {[...groupedTags.entries()].map(([field, values]) => (
+                    <fieldset key={field}>
+                        <legend>{fieldLabels[field] ?? field}</legend>
+                        {values.map((tag) => (
+                            <label key={tag.id}>
+                                <input
+                                    type="checkbox"
+                                    checked={materialsSelectedTags.includes(tag.id)}
+                                    onChange={() => {
+                                        setMaterialsSelectedTags((current) =>
+                                            current.includes(tag.id)
+                                                ? current.filter((id) => id !== tag.id)
+                                                : [...current, tag.id]
+                                        )
+                                    }}
+                                />
+                                <span>{tag.name}</span>
+                            </label>
+                        ))}
+                    </fieldset>
                 ))}
+            </aside>
+
+            <div className="discovery-panel">
+                <header className="materials-heading">
+                    <div>
+                        <p className="eyebrow">Learning materials</p>
+                        <h2>Study resources with context.</h2>
+                        <p>Browse by tags, or share a PDF, audio explanation, or video walkthrough.</p>
+                    </div>
+                    <button className="button button--gold" type="button" onClick={() => (signedIn ? setOpen(!open) : onRequireLogin())}>
+                        Upload material
+                    </button>
+                </header>
+
+                <form className="zitouna-search" onSubmit={(event) => {
+                    event.preventDefault()
+                    setMaterialsQuery(materialsQueryDraft.trim())
+                }}>
+                    <span aria-hidden="true">⌕</span>
+                    <input value={materialsQueryDraft} onChange={(event) => setMaterialsQueryDraft(event.target.value)}
+                           placeholder="Search by title or description…"/>
+                    <button type="submit">Search</button>
+                </form>
+
+                {open ? (
+                    <form className="material-form" onSubmit={submit}>
+                        <label>Title<input required maxLength={200} value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} /></label>
+                        <label className="material-form__wide">Description<textarea rows={4} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></label>
+                        <label>Your grade in the subject<input value={form.gradeNote} onChange={(event) => setForm({ ...form, gradeNote: event.target.value })} placeholder="Optional — e.g. 1.7" /></label>
+                        <label>How you got to the solution<input value={form.solutionApproach} onChange={(event) => setForm({ ...form, solutionApproach: event.target.value })} /></label>
+                        <label>Method used<input value={form.methodUsed} onChange={(event) => setForm({ ...form, methodUsed: event.target.value })} /></label>
+                        <label>Roadmap followed<input value={form.roadmapFollowed} onChange={(event) => setForm({ ...form, roadmapFollowed: event.target.value })} /></label>
+
+                        <div className="material-form__wide">
+                            <TagAutocomplete selectedTags={formTags} onChange={setFormTags} placeholder="Add relevant tags..." />
+                        </div>
+
+                        <label className="material-form__wide file-field">File<input required type="file" accept="application/pdf,audio/*,video/*" onChange={(event) => setFile(event.target.files?.[0] ?? null)} /></label>
+                        {error ? <p className="form-error material-form__wide">{error}</p> : null}
+                        <button className="button button--gold material-form__wide" disabled={submitting} type="submit">{submitting ? 'Submitting…' : 'Send for approval'}</button>
+                    </form>
+                ) : null}
+
+                {loading ? <p className="empty-state">Loading materials…</p> : null}
+                <div className="material-grid">
+                    {materials.map((material) => (
+                        <article key={material.id}>
+                            <span className="material-type">{material.type}</span>
+                            <h3>{material.title}</h3>
+                            <p>{material.description || 'Shared learning material'}</p>
+                            <div className="tag-row">{material.tags.map((tag) => <span key={tag.id}>#{tag.name}</span>)}</div>
+                            {material.moderationStatus === 'PENDING' ? (
+                                <small className="text-amber-600 dark:text-amber-400">Awaiting admin approval</small>
+                            ) : material.moderationStatus === 'NEEDS_FIXING' ? (
+                                <small className="text-orange-600 dark:text-orange-400">Needs fixing{material.moderationNote ? ` — ${material.moderationNote}` : ''}</small>
+                            ) : material.moderationStatus === 'REJECTED' ? (
+                                <small className="text-rose-600 dark:text-rose-400">Rejected{material.moderationNote ? ` — ${material.moderationNote}` : ''}</small>
+                            ) : (
+                                <a href={resolveApiUrl(material.contentUrl)} target="_blank" rel="noreferrer">Open material →</a>
+                            )}
+                            {isAdmin ? (
+                                <button
+                                    type="button"
+                                    className="mt-2 text-xs font-semibold text-rose-600 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300"
+                                    onClick={() => handleDelete(material.id)}
+                                >
+                                    Delete
+                                </button>
+                            ) : null}
+                        </article>
+                    ))}
+                </div>
+                {!loading && materials.length === 0 ?
+                    <p className="empty-state">No materials match these filters. Try removing a filter or be the first to contribute.</p> : null}
             </div>
         </section>
     )
@@ -686,7 +822,7 @@ function AdminPanel({
 }
 
 // Subcomponent placed at the very bottom of the file
-function FaqForm({initialData, onSubmit}: {
+function FaqForm({initialData, availableTags: _availableTags, onSubmit}: {
     initialData?: FaqEntry;
     availableTags: ZitounaTag[];
     onSubmit: (data: { question: string; answer: string; published: boolean; tagIds: number[] }) => void;

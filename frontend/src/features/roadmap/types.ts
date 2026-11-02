@@ -70,12 +70,19 @@ export interface RoadmapGraphSaveDto {
     }[]
 }
 
+export interface TagSelectionDto {
+    homeInstitutionId?: number | null
+    partnerInstitutionId?: number | null
+    institutionIds?: number[]
+    programIds?: number[]
+    topicIds?: number[]
+    subtopicIds?: number[]
+}
+
 export interface RoadmapCreateDto {
     title: string
     description?: string | null
-    tagSelection?: {
-        tagIds?: number[]
-    }
+    tagSelection?: TagSelectionDto
 }
 
 export interface RoadmapUpdateDto {

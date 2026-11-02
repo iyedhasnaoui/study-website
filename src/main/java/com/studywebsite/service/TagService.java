@@ -146,7 +146,15 @@ public class TagService {
             partner = resolveApproved(selection.getPartnerInstitutionId(), TagField.INSTITUTION, false);
             if (home != null) tags.add(home);
             if (partner != null) tags.add(partner);
-            addIds(tags, selection.getInstitutionIds(), TagField.INSTITUTION);
+
+            // Validate home and partner are distinct when both are provided
+            if (home != null && partner != null && home.getId().equals(partner.getId())) {
+                throw new IllegalArgumentException("Home and partner institutions must be distinct");
+            }
+
+            // Filter out home/partner IDs from institutionIds to avoid duplicate lookups
+            List<Long> institutionIds = filterInstitutionIds(selection.getInstitutionIds(), home, partner);
+            addIds(tags, institutionIds, TagField.INSTITUTION);
             addIds(tags, selection.getProgramIds(), TagField.PROGRAM);
             addIds(tags, selection.getTopicIds(), TagField.TOPIC);
             addIds(tags, selection.getSubtopicIds(), TagField.SUBTOPIC);
@@ -172,7 +180,7 @@ public class TagService {
         boolean needsTwoNamedInstitutions = tags.stream()
                 .filter(tag -> tag.getStatus() == TagStatus.APPROVED)
                 .anyMatch(tag -> orZero(tag.getType().getMinimumInstitutions()) >= 2);
-        if (needsTwoNamedInstitutions && (home == null || partner == null || home.getId().equals(partner.getId()))) {
+        if (needsTwoNamedInstitutions && (home == null || partner == null)) {
             throw new IllegalArgumentException("Exchange and double-degree content needs distinct home and partner institutions");
         }
         return new AppliedTags(tags, home, partner);
@@ -243,18 +251,30 @@ public class TagService {
 
     private void addIds(Set<ZitounaTag> target, List<Long> ids, TagField field) {
         for (Long id : safe(ids)) {
-            ZitounaTag tag = resolveApproved(id, field, true);
-            if (tag != null) target.add(tag);
+            target.add(resolveApproved(id, field, true));
         }
     }
 
     private ZitounaTag resolveApproved(Long id, TagField field, boolean failWhenMissing) {
         if (id == null) return null;
-        ZitounaTag tag = tagRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("Tag not found"));
-        if (tag.getStatus() != TagStatus.APPROVED) throw new IllegalArgumentException("Tag is awaiting admin approval");
+        ZitounaTag tag = tagRepository.findById(id).orElse(null);
+        if (tag == null) {
+            if (failWhenMissing) throw new EntityNotFoundException("Tag not found");
+            return null;
+        }
+        if (tag.getStatus() != TagStatus.APPROVED) {
+            if (failWhenMissing) {
+                String reason = tag.getStatus() == TagStatus.REJECTED ? "rejected" : "awaiting admin approval";
+                throw new IllegalArgumentException("Tag is " + reason);
+            }
+            return null;
+        }
         if (tag.getType().getField() != field) {
-            throw new IllegalArgumentException(tag.getName() + " is a " + tag.getType().getField().name().toLowerCase()
-                    + " tag and cannot be used as " + field.name().toLowerCase());
+            if (failWhenMissing) {
+                throw new IllegalArgumentException(tag.getName() + " is a " + tag.getType().getField().name().toLowerCase()
+                        + " tag and cannot be used as " + field.name().toLowerCase());
+            }
+            return null;
         }
         return tag;
     }
@@ -324,6 +344,13 @@ public class TagService {
 
     private <T> List<T> safe(List<T> values) {
         return values == null ? List.of() : values;
+    }
+
+    private List<Long> filterInstitutionIds(List<Long> institutionIds, ZitounaTag home, ZitounaTag partner) {
+        return safe(institutionIds).stream()
+                .filter(id -> home == null || !id.equals(home.getId()))
+                .filter(id -> partner == null || !id.equals(partner.getId()))
+                .collect(Collectors.toList());
     }
 
     public record AppliedTags(Set<ZitounaTag> tags, ZitounaTag homeInstitution, ZitounaTag partnerInstitution) {

@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react'
+import { getTags, TAGS_UPDATED_EVENT } from '../features/zitouna/api'
+
+export type TagField = 'INSTITUTION' | 'PROGRAM' | 'TOPIC' | 'SUBTOPIC'
 
 export interface TagItem {
     id: number
     name: string
+    field?: TagField
 }
 
 interface TagAutocompleteProps {
@@ -22,19 +26,22 @@ export function TagAutocomplete({
     const [tagInput, setTagInput] = useState('')
     const [isDropdownOpen, setIsDropdownOpen] = useState(false)
 
-    // the logic here should probably be better somewhere in an api .ts file
     useEffect(() => {
-        fetch('http://localhost:8080/api/tags')
-            .then((res) => {
-                if (!res.ok) {
-                    throw new Error(`HTTP error! status: ${res.status}`)
-                }
-                return res.json()
-            })
-            .then((data: TagItem[]) => {
-                setAvailableTags(data)
-            })
-            .catch((err) => console.error('Failed to load tags', err))
+        let active = true
+        const loadTags = () => {
+            getTags()
+                .then((data) => {
+                    if (active) setAvailableTags(data)
+                })
+                .catch((err) => console.error('Failed to load tags', err))
+        }
+
+        loadTags()
+        window.addEventListener(TAGS_UPDATED_EVENT, loadTags)
+        return () => {
+            active = false
+            window.removeEventListener(TAGS_UPDATED_EVENT, loadTags)
+        }
     }, [])
 
     // Filter available tags matching user input, excluding already selected tag IDs

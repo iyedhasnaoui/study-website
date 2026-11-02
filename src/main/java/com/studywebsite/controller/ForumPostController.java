@@ -61,24 +61,44 @@ public class ForumPostController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ForumPostResponseDto>> getAll(@RequestParam(required = false) String tag) {
+    public ResponseEntity<List<ForumPostResponseDto>> getAll(
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+            @RequestParam(required = false) String tag
+    ) {
         // Tag filtering isn't currently supported at the entity level; return all posts and ignore tag if provided
+        Long viewerId = principal != null ? principal.userId() : null;
         List<ForumPost> posts = forumPostService.getAll().stream()
-                .filter(post -> post.getModerationStatus() == null
-                        || post.getModerationStatus() == com.studywebsite.model.ModerationStatus.APPROVED)
+                .filter(post -> isVisibleTo(post, viewerId))
                 .toList();
         List<ForumPostResponseDto> dtos = posts.stream().map(this::toResponseDto).collect(Collectors.toList());
         return ResponseEntity.ok(dtos);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ForumPostResponseDto> getById(@PathVariable Long id) {
+    public ResponseEntity<ForumPostResponseDto> getById(
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+            @PathVariable Long id
+    ) {
         ForumPost post = forumPostService.getById(id);
-        if (post.getModerationStatus() != null
-                && post.getModerationStatus() != com.studywebsite.model.ModerationStatus.APPROVED) {
+        Long viewerId = principal != null ? principal.userId() : null;
+        if (!isVisibleTo(post, viewerId)) {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok(toResponseDto(post));
+    }
+
+    /** Returns true when the post is published, or when the viewer is the author. */
+    private boolean isVisibleTo(ForumPost post, Long viewerId) {
+        if (post.getModerationStatus() == null
+                || post.getModerationStatus() == com.studywebsite.model.ModerationStatus.APPROVED) {
+            return true;
+        }
+        // Show non-published posts to their author
+        if (viewerId != null && post.getAuthor() != null
+                && viewerId.equals(post.getAuthor().getId())) {
+            return true;
+        }
+        return false;
     }
 
     @PreAuthorize("hasAnyRole('CONTRIBUTOR','ADMIN')")

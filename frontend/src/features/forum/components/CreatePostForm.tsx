@@ -1,5 +1,5 @@
 import {useState, type ChangeEvent, type FormEvent} from 'react'
-import {TagAutocomplete, type TagItem} from '../../../components/TagAutocomplete'
+import {TagAutocomplete, type TagField, type TagItem} from '../../../components/TagAutocomplete'
 
 import {
     FORUM_POST_CONTENT_MAX_LENGTH,
@@ -65,7 +65,7 @@ const validateForm = (state: FormState, files: File[]): ForumPostFormErrors => {
 
     return errors
 }
-
+/// TODO : Convert tags from "Strings" to TagItem interface
 const parseTags = (value: string): string[] =>
     Array.from(
         new Set(
@@ -110,18 +110,34 @@ export function CreatePostForm({onCreate}: CreatePostFormProps) {
 
         try {
             const tagNames = selectedTags.map((t) => t.name)
-            const tagIds = selectedTags.map((t) => t.id)
 
             const tags = tagNames.length > 0 ? tagNames : parseTags(formState.tagsText)
+
+            // Distribute selected tags into the correct TagSelectionDto fields by their field type
+            const ids = (field: TagField) => selectedTags.filter((t) => t.field === field).map((t) => t.id)
+            const institutions = ids('INSTITUTION')
+
+            const builtTagSelection: TagSelectionDto = {
+                homeInstitutionId: institutions[0] ?? null,
+                partnerInstitutionId: institutions[1] ?? null,
+                institutionIds: institutions.length > 0 ? institutions : undefined,
+                programIds: ids('PROGRAM').length > 0 ? ids('PROGRAM') : undefined,
+                topicIds: ids('TOPIC').length > 0 ? ids('TOPIC') : undefined,
+                subtopicIds: ids('SUBTOPIC').length > 0 ? ids('SUBTOPIC') : undefined,
+            }
+            /// The separation exists between two tag objects ( builtTagSelection and formState.tagSelection ) is
+            // to support pre-filled session data (Zitouna filters) without losing initial values when the user selects or modifies tags manually.
+            // Merge with any pre-filled tagSelection from Zitouna (user selection takes precedence)
+            const mergedTagSelection = {
+                ...(formState.tagSelection ?? {}),
+                ...builtTagSelection,
+            }
 
             await onCreate({
                 title: formState.title.trim(),
                 content: formState.content.trim(),
                 tags: tags.length > 0 ? tags : undefined,
-                tagSelection: {
-                    ...(formState.tagSelection ?? {}),
-                    topicIds: tagIds,
-                },
+                tagSelection: mergedTagSelection,
             }, files)
 
             window.sessionStorage.removeItem('iac.zitouna.post-prefill')

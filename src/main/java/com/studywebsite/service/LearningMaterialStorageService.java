@@ -77,6 +77,20 @@ public class LearningMaterialStorageService {
         return new FileSystemResource(path);
     }
 
+    /** Deletes the stored material file from disk. Returns true if the file was removed. */
+    public boolean delete(String storedPath) {
+        try {
+            Path root = Path.of(uploadDirectory).toAbsolutePath().normalize();
+            Path path = Path.of(storedPath).toAbsolutePath().normalize();
+            if (!path.startsWith(root)) {
+                throw new IllegalArgumentException("Invalid material path");
+            }
+            return Files.deleteIfExists(path);
+        } catch (IOException exception) {
+            throw new IllegalStateException("The material file could not be deleted", exception);
+        }
+    }
+
     private ResourceType detectType(String contentType) {
         if (contentType.equals("application/pdf")) return ResourceType.PDF;
         if (contentType.startsWith("audio/")) return ResourceType.AUDIO;

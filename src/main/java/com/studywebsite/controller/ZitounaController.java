@@ -46,10 +46,19 @@ public class ZitounaController {
     @GetMapping("/api/learning-materials")
     public List<ZitounaDtos.LearningMaterialResponse> materials(
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
-            @RequestParam(defaultValue = "false") boolean includeMine
+            @RequestParam(defaultValue = "false") boolean includeMine,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) Set<Long> tagIds
     ) {
         return zitounaService.listMaterials(includeMine && principal != null,
-                principal == null ? null : principal.userId());
+                principal == null ? null : principal.userId(), q, tagIds);
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @DeleteMapping("/api/admin/learning-materials/{id}")
+    public ResponseEntity<Void> deleteLearningMaterial(@PathVariable Long id) {
+        zitounaService.deleteLearningMaterial(id);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping(value = "/api/learning-materials", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
