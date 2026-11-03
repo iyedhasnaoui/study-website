@@ -88,8 +88,8 @@ public class ZitounaService {
         User author = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
         requireActive(author);
-        LearningMaterialStorageService.StoredMaterial stored = materialStorageService.store(file, request.type());
         TagService.AppliedTags selection = tagService.resolveSelection(request.tags(), List.of(), userId);
+        LearningMaterialStorageService.StoredMaterial stored = materialStorageService.store(file, request.type());
 
         Resource material = Resource.builder()
                 .author(author)

@@ -1,4 +1,4 @@
-import type {TagItem} from "../../components/TagAutocomplete"
+import type {TagItem, TagProposalItem} from "../../components/TagAutocomplete"
 
 export type RoadmapNodeType = 'ROOT' | 'PRIMARY' | 'SECONDARY' | 'OPTIONAL' | 'NOTE'
 
@@ -79,6 +79,7 @@ export interface TagSelectionDto {
     programIds?: number[]
     topicIds?: number[]
     subtopicIds?: number[]
+    proposals?: TagProposalItem[]
 }
 
 export interface RoadmapCreateDto {

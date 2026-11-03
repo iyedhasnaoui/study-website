@@ -97,7 +97,19 @@ public class TagService {
     public ZitounaDtos.TagResponse propose(ZitounaDtos.TagProposalRequest request, Long userId) {
         ZitounaTag parent = requireValidParent(request.field(), request.parentId());
         Optional<ZitounaTag> existing = findExisting(request.name(), parent);
-        if (existing.isPresent()) return toResponse(existing.get());
+        if (existing.isPresent()) {
+            ZitounaTag tag = existing.get();
+            if (tag.getType().getField() != request.field()) {
+                throw new IllegalArgumentException(tag.getName() + " is already a "
+                        + tag.getType().getField().name().toLowerCase() + " tag");
+            }
+            if (tag.getStatus() == TagStatus.REJECTED) {
+                throw new IllegalArgumentException("This tag was rejected and cannot be proposed again");
+            }
+            throw new IllegalArgumentException(tag.getStatus() == TagStatus.APPROVED
+                    ? "An approved tag with this name already exists"
+                    : "A proposal with this name is already awaiting review");
+        }
 
         TagTypeDefinition type = defaultType(request.field());
         User proposer = userId == null ? null : userRepository.findById(userId).orElse(null);
@@ -113,13 +125,36 @@ public class TagService {
     }
 
     @Transactional
+    public ZitounaDtos.TagResponse createApprovedTag(ZitounaDtos.TagCreateRequest request) {
+        TagTypeDefinition type = typeRepository.findById(request.typeId())
+                .orElseThrow(() -> new EntityNotFoundException("Tag type not found"));
+        if (!Boolean.TRUE.equals(type.getActive())) {
+            throw new IllegalArgumentException("Tags can only use an active tag type");
+        }
+        ZitounaTag parent = requireValidParent(type.getField(), request.parentId());
+        if (findExisting(request.name(), parent).isPresent()) {
+            throw new IllegalArgumentException("A tag with this name already exists");
+        }
+        ZitounaTag tag = ZitounaTag.builder()
+                .name(request.name().trim())
+                .normalizedName(normalize(request.name()))
+                .type(type)
+                .parent(parent)
+                .status(TagStatus.APPROVED)
+                .aliases(joinAliases(request.aliases()))
+                .build();
+        return toResponse(tagRepository.save(tag));
+    }
+
+    @Transactional
     public ZitounaDtos.TagResponse approve(Long tagId, ZitounaDtos.TagDecisionRequest request) {
         ZitounaTag tag = requireTag(tagId);
         TagTypeDefinition type = typeRepository.findById(request.typeId())
                 .orElseThrow(() -> new EntityNotFoundException("Tag type not found"));
-        if (tag.getParent() != null && type.getField() != TagField.SUBTOPIC) {
-            throw new IllegalArgumentException("A child tag must use a subtopic type");
+        if (!Boolean.TRUE.equals(type.getActive()) || type.getField() != tag.getType().getField()) {
+            throw new IllegalArgumentException("A proposed tag must be approved with an active type in its field");
         }
+        requireValidParent(type.getField(), tag.getParent() == null ? null : tag.getParent().getId());
         tag.setType(type);
         tag.setAliases(joinAliases(request.aliases()));
         tag.setDecisionReason(request.reason());
@@ -168,11 +203,21 @@ public class TagService {
 
         for (String legacyName : safe(legacyNames)) {
             if (legacyName == null || legacyName.isBlank()) continue;
-            ZitounaTag tag = findExisting(legacyName, null).orElseGet(() -> {
+            Optional<ZitounaTag> existing = findExisting(legacyName, null);
+            ZitounaTag tag;
+            if (existing.isPresent()) {
+                tag = existing.get();
+                if (tags.contains(tag)) continue;
+                if (tag.getStatus() != TagStatus.APPROVED) {
+                    String state = tag.getStatus() == TagStatus.REJECTED
+                            ? "rejected" : "awaiting admin approval";
+                    throw new IllegalArgumentException("Tag is " + state);
+                }
+            } else {
                 ZitounaDtos.TagResponse proposed = propose(
                         new ZitounaDtos.TagProposalRequest(legacyName.trim(), TagField.TOPIC, null), userId);
-                return requireTag(proposed.id());
-            });
+                tag = requireTag(proposed.id());
+            }
             tags.add(tag);
         }
 
@@ -242,6 +287,9 @@ public class TagService {
         }
         if (parentId == null) throw new IllegalArgumentException("A subtopic must belong to a topic or subtopic");
         ZitounaTag parent = requireTag(parentId);
+        if (parent.getStatus() != TagStatus.APPROVED) {
+            throw new IllegalArgumentException("A subtopic must have an approved parent");
+        }
         TagField parentField = parent.getType().getField();
         if (parentField == TagField.TOPIC) return parent;
         if (parentField == TagField.SUBTOPIC && parent.getParent() != null

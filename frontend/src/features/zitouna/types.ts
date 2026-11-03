@@ -32,6 +32,13 @@ export interface TagTypePayload {
   active: boolean
 }
 
+export interface TagCreatePayload {
+  name: string
+  typeId: number
+  parentId?: number | null
+  aliases?: string[]
+}
+
 export interface FeedItem {
   area: FeedArea
   id: number

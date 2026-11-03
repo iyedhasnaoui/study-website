@@ -64,13 +64,13 @@ public class TagController {
         return tagService.listTags(status, field, q);
     }
 
-    @PostMapping("/api/tags/proposals")
-    public ResponseEntity<ZitounaDtos.TagResponse> propose(
-            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
-            @Valid @RequestBody ZitounaDtos.TagProposalRequest request
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/api/admin/tags")
+    public ResponseEntity<ZitounaDtos.TagResponse> createTag(
+            @Valid @RequestBody ZitounaDtos.TagCreateRequest request
     ) {
-        ZitounaDtos.TagResponse tag = tagService.propose(request, principal.userId());
-        return ResponseEntity.created(URI.create("/api/tags/" + tag.id())).body(tag);
+        ZitounaDtos.TagResponse created = tagService.createApprovedTag(request);
+        return ResponseEntity.created(URI.create("/api/tags/" + created.id())).body(created);
     }
 
     @PreAuthorize("hasRole('ADMIN')")

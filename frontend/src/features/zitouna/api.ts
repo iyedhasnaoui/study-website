@@ -6,6 +6,7 @@ import type {
     LearningMaterial,
     ModerationQueueItem,
     TagField,
+    TagCreatePayload,
     TagTypeDefinition,
     TagTypePayload,
     ZitounaTag,
@@ -27,10 +28,6 @@ export async function getTagTypes(): Promise<TagTypeDefinition[]> {
     return response.data
 }
 
-export async function proposeTag(payload: { name: string; field: TagField; parentId?: number }): Promise<ZitounaTag> {
-    const response = await apiClient.post<ZitounaTag>('/api/tags/proposals', payload)
-    return response.data
-}
 
 export async function getZitounaFeed(filters: {
     query?: string
@@ -82,6 +79,7 @@ export async function submitLearningMaterial(
             programIds?: number[]
             topicIds?: number[]
             subtopicIds?: number[]
+            proposals?: { name: string; field: TagField; parentId?: number | null }[]
         }
     },
     file: File,
@@ -105,6 +103,7 @@ export async function submitLearningMaterial(
             programIds: payload.tags?.programIds ?? [],
             topicIds: payload.tags?.topicIds ?? [],
             subtopicIds: payload.tags?.subtopicIds ?? [],
+            proposals: payload.tags?.proposals ?? [],
         },
     }
 
@@ -154,6 +153,11 @@ export async function deleteFaq(id: number): Promise<void> {
 
 export async function createTagType(payload: TagTypePayload): Promise<TagTypeDefinition> {
     const response = await apiClient.post<TagTypeDefinition>('/api/admin/tag-types', payload)
+    return response.data
+}
+
+export async function createTag(payload: TagCreatePayload): Promise<ZitounaTag> {
+    const response = await apiClient.post<ZitounaTag>('/api/admin/tags', payload)
     return response.data
 }
 

@@ -22,6 +22,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URI;
 import java.util.Collections;
@@ -40,6 +41,7 @@ public class ForumPostController {
     private TagService tagService;
 
     @PreAuthorize("hasAnyRole('CONTRIBUTOR','ADMIN')")
+    @Transactional
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ForumPostResponseDto> createPost(
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
@@ -50,6 +52,7 @@ public class ForumPostController {
     }
 
     @PreAuthorize("hasAnyRole('CONTRIBUTOR','ADMIN')")
+    @Transactional
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ForumPostResponseDto> createPostWithMedia(
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal,

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import { TagAutocomplete, type TagField, type TagItem } from '../../../components/TagAutocomplete'
+import { TagAutocomplete, type TagField, type TagItem, type TagProposalItem } from '../../../components/TagAutocomplete'
 import { getApiErrorMessage } from '../../../lib/apiClient'
 import { createRoadmap } from '../api/roadmapApi'
 import type { RoadmapCreateDto } from '../types'
@@ -13,6 +13,7 @@ export function CreateRoadmapForm({ onCreated }: CreateRoadmapFormProps) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [selectedTags, setSelectedTags] = useState<TagItem[]>([])
+  const [tagProposals, setTagProposals] = useState<TagProposalItem[]>([])
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -34,6 +35,7 @@ export function CreateRoadmapForm({ onCreated }: CreateRoadmapFormProps) {
         programIds: ids('PROGRAM').length > 0 ? ids('PROGRAM') : undefined,
         topicIds: ids('TOPIC').length > 0 ? ids('TOPIC') : undefined,
         subtopicIds: ids('SUBTOPIC').length > 0 ? ids('SUBTOPIC') : undefined,
+        proposals: tagProposals,
       },
     }
 
@@ -49,6 +51,7 @@ export function CreateRoadmapForm({ onCreated }: CreateRoadmapFormProps) {
       setTitle('')
       setDescription('')
       setSelectedTags([])
+      setTagProposals([])
       onCreated?.(created.id)
     } catch (submissionError) {
       setError(getApiErrorMessage(submissionError, 'Unable to create roadmap.'))
@@ -96,6 +99,9 @@ export function CreateRoadmapForm({ onCreated }: CreateRoadmapFormProps) {
           <TagAutocomplete
               selectedTags={selectedTags}
               onChange={setSelectedTags}
+              proposals={tagProposals}
+              onProposalsChange={setTagProposals}
+              allowProposals
               placeholder="Search tags (e.g. Computer Science)..."
           />
 

@@ -1,5 +1,5 @@
 import {useEffect, useMemo, useState, type Dispatch, type FormEvent, type SetStateAction} from 'react'
-import {TagAutocomplete, type TagItem} from '../../components/TagAutocomplete'
+import {TagAutocomplete, type TagItem, type TagProposalItem} from '../../components/TagAutocomplete'
 import {useFaqMutations} from './hooks/useFaqMutations'
 import {useAuth} from '../../auth/AuthContext'
 import {getApiErrorMessage, resolveApiUrl} from '../../lib/apiClient'
@@ -9,6 +9,7 @@ import { RoadmapPage } from '../roadmap/RoadmapPage'
 import {
     // createFaq,
     createTagType,
+    createTag,
     decideTag,
     deleteLearningMaterial,
     getFaq,
@@ -20,7 +21,6 @@ import {
     getZitounaFeed,
     moderate,
     notifyTagsUpdated,
-    proposeTag,
     submitLearningMaterial,
     TAGS_UPDATED_EVENT,
 } from './api'
@@ -31,6 +31,7 @@ import type {
     LearningMaterial,
     ModerationQueueItem,
     TagField,
+    TagCreatePayload,
     TagTypeDefinition,
     TagTypePayload,
     ZitounaTag,
@@ -85,12 +86,6 @@ export function ZitounaPage({onCreatePost, onOpenForum, onOpenRoadmaps, onRequir
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [notice, setNotice] = useState<string | null>(null)
-    const [proposalOpen, setProposalOpen] = useState(false)
-    const [proposal, setProposal] = useState<{ name: string; field: TagField; parentId: string }>({
-        name: '',
-        field: 'TOPIC',
-        parentId: ''
-    })
 
 
     useEffect(() => {
@@ -256,50 +251,6 @@ export function ZitounaPage({onCreatePost, onOpenForum, onOpenRoadmaps, onRequir
                                 ))}
                             </fieldset>
                         ))}
-                        <button className="filter-panel__proposal" type="button"
-                                onClick={() => session ? setProposalOpen((current) => !current) : onRequireLogin()}>
-                            Missing a tag? Propose it
-                        </button>
-                        {proposalOpen ? (
-                            <form className="tag-proposal-form" onSubmit={async (event) => {
-                                event.preventDefault()
-                                try {
-                                    await proposeTag({
-                                        name: proposal.name.trim(),
-                                        field: proposal.field,
-                                        parentId: proposal.field === 'SUBTOPIC' && proposal.parentId ? Number(proposal.parentId) : undefined,
-                                    })
-                                    setProposal({name: '', field: 'TOPIC', parentId: ''})
-                                    setProposalOpen(false)
-                                    setNotice('Your tag suggestion is waiting for admin approval.')
-                                } catch (reason) {
-                                    setError(getApiErrorMessage(reason, 'Unable to propose this tag.'))
-                                }
-                            }}>
-                                <input required maxLength={120} value={proposal.name}
-                                       onChange={(event) => setProposal({...proposal, name: event.target.value})}
-                                       placeholder="Tag name"/>
-                                <select value={proposal.field} onChange={(event) => setProposal({
-                                    ...proposal,
-                                    field: event.target.value as TagField,
-                                    parentId: ''
-                                })}>
-                                    {(Object.keys(fieldLabels) as TagField[]).map((field) => <option key={field}
-                                                                                                     value={field}>{fieldLabels[field]}</option>)}
-                                </select>
-                                {proposal.field === 'SUBTOPIC' ? (
-                                    <select required value={proposal.parentId} onChange={(event) => setProposal({
-                                        ...proposal,
-                                        parentId: event.target.value
-                                    })}>
-                                        <option value="">Parent topic</option>
-                                        {tags.filter((tag) => tag.field === 'TOPIC' || tag.field === 'SUBTOPIC').map((tag) =>
-                                            <option key={tag.id} value={tag.id}>{tag.name}</option>)}
-                                    </select>
-                                ) : null}
-                                <button type="submit">Send suggestion</button>
-                            </form>
-                        ) : null}
                     </aside>
 
                     <div className="discovery-panel">
@@ -426,6 +377,13 @@ export function ZitounaPage({onCreatePost, onOpenForum, onOpenRoadmaps, onRequir
                         setNotice('Tag type created. Its validation rules are active.')
                         await loadAdmin()
                     }}
+                    onCreateTag={async (payload) => {
+                        await createTag(payload)
+                        notifyTagsUpdated()
+                        setTags(await getTags())
+                        setNotice('Approved tag created.')
+                        await loadAdmin()
+                    }}
                 />
             ) : null}
         </main>
@@ -470,6 +428,7 @@ function MaterialsPanel({
     const [error, setError] = useState<string | null>(null)
     const [file, setFile] = useState<File | null>(null)
     const [formTags, setFormTags] = useState<TagItem[]>([])
+    const [tagProposals, setTagProposals] = useState<TagProposalItem[]>([])
     const [form, setForm] = useState({
         title: '',
         description: '',
@@ -508,6 +467,7 @@ function MaterialsPanel({
         if (ids('PROGRAM').length > 0) builtTagSelection.programIds = ids('PROGRAM')
         if (ids('TOPIC').length > 0) builtTagSelection.topicIds = ids('TOPIC')
         if (ids('SUBTOPIC').length > 0) builtTagSelection.subtopicIds = ids('SUBTOPIC')
+        builtTagSelection.proposals = tagProposals
 
         // Merge with pre-filtered tagSelection from the Zitouna filter panel (user autocomplete takes precedence)
         const tagPayload = {
@@ -521,6 +481,7 @@ function MaterialsPanel({
             setOpen(false)
             setFile(null)
             setFormTags([])
+            setTagProposals([])
             setForm({
                 title: '',
                 description: '',
@@ -608,7 +569,14 @@ function MaterialsPanel({
                         <label>Roadmap followed<input value={form.roadmapFollowed} onChange={(event) => setForm({ ...form, roadmapFollowed: event.target.value })} /></label>
 
                         <div className="material-form__wide">
-                            <TagAutocomplete selectedTags={formTags} onChange={setFormTags} placeholder="Add relevant tags..." />
+                            <TagAutocomplete
+                                selectedTags={formTags}
+                                onChange={setFormTags}
+                                proposals={tagProposals}
+                                onProposalsChange={setTagProposals}
+                                allowProposals
+                                placeholder="Add relevant tags..."
+                            />
                         </div>
 
                         <label className="material-form__wide file-field">File<input required type="file" accept="application/pdf,audio/*,video/*" onChange={(event) => setFile(event.target.files?.[0] ?? null)} /></label>
@@ -662,7 +630,8 @@ function AdminPanel({
                         availableTags,
                         onModerate,
                         onTagDecision,
-                        onCreateType
+                        onCreateType,
+                        onCreateTag,
                     }: {
     loading: boolean
     queue: ModerationQueueItem[]
@@ -673,6 +642,7 @@ function AdminPanel({
     onModerate: (item: ModerationQueueItem, decision: 'approve' | 'reject' | 'needs-fixing') => Promise<void>
     onTagDecision: (tag: ZitounaTag, decision: 'approve' | 'reject') => Promise<void>
     onCreateType: (payload: TagTypePayload) => Promise<void>
+    onCreateTag: (payload: TagCreatePayload) => Promise<void>
 }) {
     const [typeForm, setTypeForm] = useState<TagTypePayload>({
         name: '',
@@ -685,6 +655,11 @@ function AdminPanel({
     const [saving, setSaving] = useState(false)
     const {createMutation, updateMutation, deleteMutation} = useFaqMutations();
     const [editingId, setEditingId] = useState<number | null>(null);
+    const [tagForm, setTagForm] = useState<TagCreatePayload>({name: '', typeId: tagTypes[0]?.id ?? 0})
+
+    useEffect(() => {
+        if (!tagForm.typeId && tagTypes.length > 0) setTagForm((current) => ({...current, typeId: tagTypes[0].id}))
+    }, [tagForm.typeId, tagTypes])
 
     return (
         <section className="simple-panel section-shell admin-panel">
@@ -718,6 +693,35 @@ function AdminPanel({
                     <p className="empty-state">No tag proposals are waiting.</p> : null}</div>
             </div>
             <div className="admin-tools">
+                <form className="review-card" onSubmit={async (event) => {
+                    event.preventDefault()
+                    setSaving(true)
+                    setFormError(null)
+                    try {
+                        await onCreateTag(tagForm)
+                        setTagForm({name: '', typeId: tagForm.typeId, parentId: null})
+                    } catch (reason) {
+                        setFormError(getApiErrorMessage(reason, 'Unable to create the tag.'))
+                    } finally {
+                        setSaving(false)
+                    }
+                }}>
+                    <h3>Create an approved tag</h3>
+                    <label>Name<input required maxLength={120} value={tagForm.name} onChange={(event) => setTagForm({...tagForm, name: event.target.value})} /></label>
+                    <label>Tag type<select required value={tagForm.typeId || ''} onChange={(event) => setTagForm({...tagForm, typeId: Number(event.target.value), parentId: null})}>
+                        <option value="" disabled>Choose a tag type</option>
+                        {tagTypes.map((type) => <option key={type.id} value={type.id}>{type.name} · {fieldLabels[type.field]}</option>)}
+                    </select></label>
+                    {tagTypes.find((type) => type.id === tagForm.typeId)?.field === 'SUBTOPIC' ? (
+                        <label>Approved parent topic or subtopic<select required value={tagForm.parentId ?? ''} onChange={(event) => setTagForm({...tagForm, parentId: Number(event.target.value)})}>
+                            <option value="">Choose a parent</option>
+                            {availableTags.filter((tag) => tag.field === 'TOPIC'
+                                || (tag.field === 'SUBTOPIC' && availableTags.some((parent) => parent.id === tag.parentId && parent.field === 'TOPIC')))
+                                .map((tag) => <option key={tag.id} value={tag.id}>{tag.name}</option>)}
+                        </select></label>
+                    ) : null}
+                    <button disabled={saving || !tagForm.typeId} type="submit">Create approved tag</button>
+                </form>
 
                 {/* NEW FAQ MANAGEMENT SECTION */}
                 <div className="faq-manager"

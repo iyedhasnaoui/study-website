@@ -1,5 +1,5 @@
 import {useState, type ChangeEvent, type FormEvent} from 'react'
-import {TagAutocomplete, type TagField, type TagItem} from '../../../components/TagAutocomplete'
+import {TagAutocomplete, type TagField, type TagItem, type TagProposalItem} from '../../../components/TagAutocomplete'
 
 import {
     FORUM_POST_CONTENT_MAX_LENGTH,
@@ -84,6 +84,7 @@ export function CreatePostForm({onCreate}: CreatePostFormProps) {
     const [files, setFiles] = useState<File[]>([])
 
     const [selectedTags, setSelectedTags] = useState<TagItem[]>([])
+    const [tagProposals, setTagProposals] = useState<TagProposalItem[]>([])
 
 
     const handleChange = (field: TextField) => (
@@ -124,6 +125,7 @@ export function CreatePostForm({onCreate}: CreatePostFormProps) {
                 programIds: ids('PROGRAM').length > 0 ? ids('PROGRAM') : undefined,
                 topicIds: ids('TOPIC').length > 0 ? ids('TOPIC') : undefined,
                 subtopicIds: ids('SUBTOPIC').length > 0 ? ids('SUBTOPIC') : undefined,
+                proposals: tagProposals,
             }
             /// The separation exists between two tag objects ( builtTagSelection and formState.tagSelection ) is
             // to support pre-filled session data (Zitouna filters) without losing initial values when the user selects or modifies tags manually.
@@ -144,6 +146,7 @@ export function CreatePostForm({onCreate}: CreatePostFormProps) {
             setFormState(createInitialFormState())
             setFiles([])
             setFieldErrors({})
+            setTagProposals([])
         } catch (error) {
             setSubmitError(getApiErrorMessage(error, 'Unable to create the post.'))
         } finally {
@@ -216,6 +219,9 @@ export function CreatePostForm({onCreate}: CreatePostFormProps) {
                 <TagAutocomplete
                     selectedTags={selectedTags}
                     onChange={setSelectedTags}
+                    proposals={tagProposals}
+                    onProposalsChange={setTagProposals}
+                    allowProposals
                 />
 
                 {submitError ? (

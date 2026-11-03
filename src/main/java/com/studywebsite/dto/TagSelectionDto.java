@@ -1,6 +1,7 @@
 package com.studywebsite.dto;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -29,7 +30,7 @@ public class TagSelectionDto {
     @Builder.Default
     private List<Long> subtopicIds = new ArrayList<>();
 
-    @Valid
+    @Size(max = 20)
     @Builder.Default
-    private List<TagProposalDto> proposals = new ArrayList<>();
+    private List<@Valid TagProposalDto> proposals = new ArrayList<>();
 }

@@ -57,6 +57,14 @@ public final class ZitounaDtos {
     ) {
     }
 
+    public record TagCreateRequest(
+            @NotBlank @Size(max = 120) String name,
+            @NotNull Long typeId,
+            Long parentId,
+            List<@NotBlank @Size(max = 120) String> aliases
+    ) {
+    }
+
     public record TagDecisionRequest(
             @NotNull Long typeId,
             List<@Size(max = 120) String> aliases,

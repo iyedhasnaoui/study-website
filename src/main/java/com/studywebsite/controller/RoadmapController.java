@@ -6,16 +6,19 @@ import com.studywebsite.dto.RoadmapUpdateDto;
 import com.studywebsite.model.ModerationStatus;
 import com.studywebsite.model.Roadmap;
 import com.studywebsite.model.User;
+import com.studywebsite.repository.UserRepository;
 import com.studywebsite.security.AuthenticatedUserPrincipal;
 import com.studywebsite.security.CurrentUser;
 import com.studywebsite.service.RoadmapService;
 import com.studywebsite.service.TagService;
 import com.studywebsite.service.roadmap.RoadmapGraphService;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
@@ -30,6 +33,7 @@ public class RoadmapController {
     private final RoadmapService roadmapService;
     private final RoadmapGraphService roadmapGraphService;
     private final RoadmapMapper mapper;
+    private final UserRepository userRepository;
 
     @Autowired(required = false)
     private TagService tagService;
@@ -94,6 +98,7 @@ public class RoadmapController {
     }
 
     @PreAuthorize("hasAnyRole('CONTRIBUTOR','ADMIN')")
+    @Transactional
     @PostMapping
     public ResponseEntity<RoadmapResponseDto> create(@Valid @RequestBody RoadmapCreateDto dto) {
         AuthenticatedUserPrincipal principal = CurrentUser.require();
@@ -102,8 +107,8 @@ public class RoadmapController {
         roadmap.setTitle(dto.getTitle());
         roadmap.setDescription(dto.getDescription());
 
-        User author = new User();
-        author.setId(principal.userId());
+        User author = userRepository.findById(principal.userId())
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
         roadmap.setAuthor(author);
         roadmap.setModerationStatus(ModerationStatus.PENDING);
 

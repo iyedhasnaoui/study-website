@@ -7,11 +7,21 @@ export interface TagItem {
     id: number
     name: string
     field?: TagField
+    parentId?: number | null
+}
+
+export interface TagProposalItem {
+    name: string
+    field: TagField
+    parentId?: number | null
 }
 
 interface TagAutocompleteProps {
     selectedTags: TagItem[]
     onChange: (tags: TagItem[]) => void
+    proposals?: TagProposalItem[]
+    onProposalsChange?: (proposals: TagProposalItem[]) => void
+    allowProposals?: boolean
     placeholder?: string
     label?: string
 }
@@ -19,12 +29,17 @@ interface TagAutocompleteProps {
 export function TagAutocomplete({
                                     selectedTags,
                                     onChange,
+                                    proposals = [],
+                                    onProposalsChange,
+                                    allowProposals = false,
                                     placeholder = 'Type to search existing tags...',
                                     label = 'Tags',
                                 }: TagAutocompleteProps) {
     const [availableTags, setAvailableTags] = useState<TagItem[]>([])
     const [tagInput, setTagInput] = useState('')
     const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+    const [proposalField, setProposalField] = useState<TagField>('TOPIC')
+    const [proposalParentId, setProposalParentId] = useState('')
 
     useEffect(() => {
         let active = true
@@ -50,6 +65,11 @@ export function TagAutocomplete({
             tag.name.toLowerCase().includes(tagInput.toLowerCase()) &&
             !selectedTags.some((selected) => selected.id === tag.id)
     )
+    const topicParents = availableTags.filter((tag) => tag.field === 'TOPIC'
+        || (tag.field === 'SUBTOPIC' && availableTags.some((parent) => parent.id === tag.parentId && parent.field === 'TOPIC')))
+    const proposalAlreadyExists = availableTags.some((tag) => tag.name.trim().toLocaleLowerCase() === tagInput.trim().toLocaleLowerCase()
+        && tag.field === proposalField
+        && (proposalField !== 'SUBTOPIC' || tag.parentId === Number(proposalParentId)))
 
     const addTag = (tagToAdd: TagItem) => {
         onChange([...selectedTags, tagToAdd])
@@ -59,6 +79,22 @@ export function TagAutocomplete({
 
     const removeTag = (tagIdToRemove: number) => {
         onChange(selectedTags.filter((tag) => tag.id !== tagIdToRemove))
+    }
+
+    const addProposal = () => {
+        const name = tagInput.trim()
+        if (!name || !onProposalsChange || proposalAlreadyExists) return
+        if (proposalField === 'SUBTOPIC' && !proposalParentId) return
+        if (proposals.some((proposal) => proposal.name.trim().toLocaleLowerCase() === name.toLocaleLowerCase()
+            && proposal.field === proposalField && (proposal.parentId ?? null) === (proposalField === 'SUBTOPIC' ? Number(proposalParentId) : null))) return
+        onProposalsChange([...proposals, {
+            name,
+            field: proposalField,
+            parentId: proposalField === 'SUBTOPIC' ? Number(proposalParentId) : null,
+        }])
+        setTagInput('')
+        setProposalParentId('')
+        setIsDropdownOpen(false)
     }
 
     return (
@@ -85,6 +121,20 @@ export function TagAutocomplete({
               ×
             </button>
           </span>
+                ))}
+                {proposals.map((proposal, index) => (
+                    <span
+                        key={`${proposal.field}-${proposal.parentId ?? 'root'}-${proposal.name}-${index}`}
+                        className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-3 py-1 text-xs font-medium text-sky-800 dark:bg-sky-900/40 dark:text-sky-300"
+                    >
+                        {proposal.name} · proposed
+                        <button
+                            type="button"
+                            onClick={() => onProposalsChange?.(proposals.filter((_, proposalIndex) => proposalIndex !== index))}
+                            className="hover:text-sky-600 dark:hover:text-sky-100"
+                            aria-label={`Remove proposed tag ${proposal.name}`}
+                        >×</button>
+                    </span>
                 ))}
             </div>
 
@@ -115,6 +165,46 @@ export function TagAutocomplete({
                     ))}
                 </ul>
             )}
+            {allowProposals && onProposalsChange && tagInput.trim() ? (
+                <div className="space-y-2 rounded-xl border border-sky-200 bg-sky-50 p-3 dark:border-sky-900/60 dark:bg-sky-950/30">
+                    <p className="text-xs text-slate-600 dark:text-zinc-300">Can’t find this tag? Propose it with your submission.</p>
+                    <div className="flex flex-wrap gap-2">
+                        <select
+                            aria-label="Proposed tag field"
+                            value={proposalField}
+                            onChange={(event) => {
+                                setProposalField(event.target.value as TagField)
+                                setProposalParentId('')
+                            }}
+                            className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                        >
+                            <option value="INSTITUTION">Institution</option>
+                            <option value="PROGRAM">Program / position</option>
+                            <option value="TOPIC">Topic</option>
+                            <option value="SUBTOPIC">Subtopic</option>
+                        </select>
+                        {proposalField === 'SUBTOPIC' ? (
+                            <select
+                                aria-label="Proposed subtopic parent"
+                                required
+                                value={proposalParentId}
+                                onChange={(event) => setProposalParentId(event.target.value)}
+                                className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                            >
+                                <option value="">Choose an approved topic or subtopic</option>
+                                {topicParents.map((parent) => <option key={parent.id} value={parent.id}>{parent.name}</option>)}
+                            </select>
+                        ) : null}
+                        <button
+                            type="button"
+                            disabled={proposalAlreadyExists || (proposalField === 'SUBTOPIC' && !proposalParentId)}
+                            onClick={addProposal}
+                            className="rounded-lg bg-sky-700 px-3 py-1 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+                        >Propose “{tagInput.trim()}”</button>
+                    </div>
+                    {proposalAlreadyExists ? <p className="text-xs text-rose-700 dark:text-rose-300">An approved tag with this name already exists.</p> : null}
+                </div>
+            ) : null}
         </div>
     )
 }
