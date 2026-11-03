@@ -84,10 +84,10 @@ public class RoadmapController {
 
     @GetMapping("/{id}")
     public ResponseEntity<RoadmapResponseDto> getById(@PathVariable Long id) {
-        Roadmap roadmap = roadmapService.getById(id);
-        Long viewerId = CurrentUser.find().map(AuthenticatedUserPrincipal::userId).orElse(null);
+        Roadmap roadmap = roadmapService.getByIdWithTags(id);
+        AuthenticatedUserPrincipal principal = CurrentUser.find().orElse(null);
 
-        if (!isVisibleTo(roadmap, viewerId)) {
+        if (!isVisibleTo(roadmap, principal)) {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok(toDto(roadmap));
@@ -115,7 +115,7 @@ public class RoadmapController {
 
         Roadmap saved = roadmapService.create(roadmap);
         return ResponseEntity.created(URI.create("/api/roadmaps/" + saved.getId()))
-                .body(toDto(saved));
+                .body(toDto(roadmapService.getByIdWithTags(saved.getId())));
     }
 
     @PreAuthorize("hasAnyRole('CONTRIBUTOR','ADMIN')")
@@ -125,7 +125,7 @@ public class RoadmapController {
             @Valid @RequestBody RoadmapUpdateDto dto) {
 
         AuthenticatedUserPrincipal principal = CurrentUser.require();
-        Roadmap existing = roadmapService.getById(id);
+        Roadmap existing = roadmapService.getByIdWithTags(id);
         roadmapService.assertCanEdit(existing, principal);
 
         if (dto.getTitle() != null) {
@@ -139,7 +139,8 @@ public class RoadmapController {
         existing.setModerationStatus(ModerationStatus.PENDING);
         existing.setModerationNote(null);
 
-        return ResponseEntity.ok(toDto(roadmapService.save(existing)));
+        roadmapService.save(existing);
+        return ResponseEntity.ok(toDto(roadmapService.getByIdWithTags(id)));
     }
 
     // Deleting whole roadmaps is reserved for ADMIN; contributors may not delete content.
@@ -154,17 +155,18 @@ public class RoadmapController {
     }
 
     /**
-     * Readers only see approved roadmaps, but an author keeps access to their own while it waits
-     * for moderation — otherwise they could not open the roadmap they just created.
+     * Readers see approved and legacy roadmaps; authors and administrators can also see
+     * roadmaps awaiting moderation or rejected by a moderator.
      */
-    static boolean isVisibleTo(Roadmap roadmap, Long viewerId) {
-        if (roadmap.getModerationStatus() == null
+    static boolean isVisibleTo(Roadmap roadmap, AuthenticatedUserPrincipal principal) {
+        if ((principal != null && principal.isAdmin())
+                || roadmap.getModerationStatus() == null
                 || roadmap.getModerationStatus() == ModerationStatus.APPROVED) {
             return true;
         }
-        return viewerId != null
+        return principal != null
                 && roadmap.getAuthor() != null
-                && viewerId.equals(roadmap.getAuthor().getId());
+                && principal.userId().equals(roadmap.getAuthor().getId());
     }
 
     private RoadmapResponseDto toDto(Roadmap roadmap) {

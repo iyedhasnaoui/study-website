@@ -34,6 +34,7 @@ export interface RoadmapResponseDto {
     moderationNote?: string | null
     nodes: RoadmapNodeResponseDto[]
     edges: RoadmapEdgeResponseDto[]
+    tags: string[]
 }
 
 export interface RoadmapGraphResponseDto {
@@ -49,6 +50,7 @@ export interface RoadmapGraphResponseDto {
     moderationStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'NEEDS_FIXING' | null
     moderationNote?: string | null
     advisories: string[]
+    tags: string[]
 }
 
 export interface RoadmapGraphSaveDto {

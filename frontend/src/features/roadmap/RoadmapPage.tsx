@@ -10,12 +10,22 @@ export function RoadmapPage() {
     return getRoadmapRouteFromHash(window.location.hash)
   })
 
+  // Incremented each time the route returns to the feed so that RoadmapFeedPage
+  // remounts and fetches fresh data instead of showing stale state from a previous visit.
+  const [feedNavigationKey, setFeedNavigationKey] = useState(0)
+
   useEffect(() => {
     if (!window.location.hash) {
       window.location.hash = getRoadmapHash({ name: 'feed' })
     }
 
-    const onHashChange = () => setRoute(getRoadmapRouteFromHash(window.location.hash))
+    const onHashChange = () => {
+      const next = getRoadmapRouteFromHash(window.location.hash)
+      setRoute(next)
+      if (next.name === 'feed') {
+        setFeedNavigationKey((k) => k + 1) // force remount of RoadmapFeedPage to refresh data
+      }
+    }
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [])
@@ -40,6 +50,9 @@ export function RoadmapPage() {
   }
 
   return (
-    <RoadmapFeedPage onOpenRoadmap={(roadmapId) => navigate({ name: 'detail', roadmapId })} />
+    <RoadmapFeedPage
+      key={feedNavigationKey}
+      onOpenRoadmap={(roadmapId) => navigate({ name: 'detail', roadmapId })}
+    />
   )
 }

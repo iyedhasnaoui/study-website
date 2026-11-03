@@ -10,7 +10,8 @@ vi.mock('../features/forum/api/forumApi', () => ({ updatePost: vi.fn() }))
 import { updatePost } from '../features/forum/api/forumApi'
 
 const post: ForumPostResponseDto = { id: 7, title: 'Local discussion', content: 'Original content', authorId: 1,
-  authorUsername: 'author', tags: [], attachments: [], createdAt: null, updatedAt: null }
+  authorUsername: 'author', tags: [], moderationStatus: 'APPROVED', moderationNote: null,
+  attachments: [], createdAt: null, updatedAt: null }
 const onDelete = vi.fn()
 beforeEach(() => { auth.session = null; auth.role = null })
 

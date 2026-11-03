@@ -85,6 +85,7 @@ public class RoadmapMapper {
                 .nodes(nodes.stream().map(this::toNodeDto).toList())
                 .edges(edges.stream().map(this::toEdgeDto).toList())
                 .advisories(advisories)
+                .tags(tagNames(roadmap))
                 .build();
     }
 }

@@ -5,6 +5,9 @@ import { deleteRoadmap, getRoadmaps } from '../api/roadmapApi'
 import type { RoadmapResponseDto } from '../types'
 import { formatDateTime } from '../utils'
 
+const getErrorMessage = (error: unknown): string =>
+    error instanceof Error ? error.message : 'Unable to load roadmaps.'
+
 export interface RoadmapFeedProps {
   reloadKey?: number
   searchFilter?: string
@@ -12,18 +15,19 @@ export interface RoadmapFeedProps {
   onSelectRoadmap?: (roadmapId: number) => void
 }
 
-const getErrorMessage = (error: unknown): string =>
-    error instanceof Error ? error.message : 'Unable to load roadmaps.'
-
 export function RoadmapFeed({ reloadKey = 0, searchFilter, tagIds, onSelectRoadmap }: RoadmapFeedProps = {}) {
-  const { session } = useAuth()
+  const { session, isAdmin, isReady } = useAuth()
   const [roadmaps, setRoadmaps] = useState<RoadmapResponseDto[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [deletingRoadmapId, setDeletingRoadmapId] = useState<number | null>(null)
+  const [loadedViewer, setLoadedViewer] = useState<string | null>(null)
+  const viewer = JSON.stringify([session?.user.id ?? null, session?.user.role ?? null, isAdmin])
+  const loading = !isReady || isLoading || loadedViewer !== viewer
 
   useEffect(() => {
+    if (!isReady) return
     let isMounted = true
 
     const loadRoadmaps = async () => {
@@ -38,10 +42,12 @@ export function RoadmapFeed({ reloadKey = 0, searchFilter, tagIds, onSelectRoadm
         })
         if (isMounted) {
           setRoadmaps(response)
+          setLoadedViewer(viewer)
         }
       } catch (error) {
         if (isMounted) {
           setLoadError(getErrorMessage(error))
+          setLoadedViewer(viewer)
         }
       } finally {
         if (isMounted) {
@@ -55,7 +61,7 @@ export function RoadmapFeed({ reloadKey = 0, searchFilter, tagIds, onSelectRoadm
     return () => {
       isMounted = false
     }
-  }, [reloadKey, searchFilter, tagIds])
+  }, [reloadKey, searchFilter, tagIds, isReady, viewer])
 
   const handleOpen = (roadmapId: number) => {
     if (onSelectRoadmap) {
@@ -94,25 +100,25 @@ export function RoadmapFeed({ reloadKey = 0, searchFilter, tagIds, onSelectRoadm
           </div>
         </div>
 
-        {isLoading ? (
+        {loading ? (
             <div className="rounded-2xl border border-dashed border-slate-200 bg-white/80 px-4 py-6 text-sm text-slate-500 shadow-sm dark:border-zinc-800 dark:bg-zinc-950/60 dark:text-zinc-400">
               Loading roadmaps…
             </div>
         ) : null}
 
-        {!isLoading && loadError ? (
+        {!loading && loadError ? (
             <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-200">
               {loadError}
             </div>
         ) : null}
 
-        {!isLoading && !loadError && deleteError ? (
+        {!loading && !loadError && deleteError ? (
             <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-200">
               {deleteError}
             </div>
         ) : null}
 
-        {!isLoading && !loadError && roadmaps.length === 0 ? (
+        {!loading && !loadError && roadmaps.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-200 bg-white/80 px-4 py-8 text-sm text-slate-500 shadow-sm dark:border-zinc-800 dark:bg-zinc-950/60 dark:text-zinc-400">
               <strong className="block text-base font-semibold text-slate-900 dark:text-zinc-100">No roadmaps yet.</strong>
               <span className="mt-1 block">Create the first learning path.</span>
@@ -120,7 +126,7 @@ export function RoadmapFeed({ reloadKey = 0, searchFilter, tagIds, onSelectRoadm
         ) : null}
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-2" aria-live="polite">
-          {roadmaps.map((roadmap) => {
+          {!loading && !loadError && roadmaps.map((roadmap) => {
             const nodeCount = roadmap.nodes.length
             const isOwner = Boolean(session && session.user.id === roadmap.authorId)
             const status = roadmap.moderationStatus
@@ -194,6 +200,19 @@ export function RoadmapFeed({ reloadKey = 0, searchFilter, tagIds, onSelectRoadm
                     </div>
                   </dl>
 
+                  {roadmap.tags && roadmap.tags.length > 0 && (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {roadmap.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 dark:bg-zinc-800 dark:text-zinc-300"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
                   <div className="mt-5 flex items-center gap-2">
                     <button
                         type="button"
@@ -203,8 +222,8 @@ export function RoadmapFeed({ reloadKey = 0, searchFilter, tagIds, onSelectRoadm
                       View roadmap
                     </button>
 
-                    {/* Delete button available ONLY to the author */}
-                    {isOwner ? (
+                    {/* Delete button available to the author and admins */}
+                    {(isOwner || isAdmin) ? (
                         <button
                             type="button"
                             onClick={() => handleDelete(roadmap.id)}

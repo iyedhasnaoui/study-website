@@ -35,6 +35,13 @@ public class RoadmapService {
                 .orElseThrow(() -> new EntityNotFoundException("Roadmap entity not found"));
     }
 
+    @Transactional(readOnly = true)
+    public Roadmap getByIdWithTags(Long id) {
+        return roadmapRepository.findByIdWithTags(id)
+                .orElseThrow(() -> new EntityNotFoundException("Roadmap entity not found"));
+    }
+
+    @Transactional(readOnly = true)
     public List<Roadmap> getVisibleRoadmaps(Long viewerId, boolean isAdmin) {
         return roadmapRepository.findVisibleRoadmaps(viewerId, isAdmin);
     }

@@ -34,4 +34,8 @@ public class RoadmapGraphResponseDto {
     /** Non-blocking guidance, such as the nudge to split a roadmap that is getting large. */
     @Builder.Default
     private List<String> advisories = new ArrayList<>();
+
+    /** Tag names associated with this roadmap. */
+    @Builder.Default
+    private List<String> tags = new ArrayList<>();
 }

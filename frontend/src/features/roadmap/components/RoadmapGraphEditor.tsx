@@ -99,8 +99,8 @@ function GraphCanvas({
   focusNodeId,
   onDirtyChange,
 }: RoadmapGraphEditorProps) {
-  const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>(toFlowNodes(graph))
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(toFlowEdges(graph))
+  const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>([])
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
   const [selectedId, setSelectedId] = useState<string | null>(
     focusNodeId ? nodeId(focusNodeId) : null,
   )
@@ -124,6 +124,19 @@ function GraphCanvas({
     },
     [setEdges, setNodes],
   )
+
+  // Sync nodes and edges when the graph prop changes (e.g., after initial async load)
+  // After setting nodes, fit the view so the canvas is usable — fitView on the ReactFlow
+  // prop cannot be used because nodes/edges start empty and would produce a broken viewport.
+  useEffect(() => {
+    applyGraph(graph)
+    // Use requestAnimationFrame + setTimeout to let React Flow measure the new nodes before fitting
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        fitView({ duration: 300 })
+      }, 50)
+    })
+  }, [graph, applyGraph, fitView])
 
   useEffect(() => {
     onDirtyChange?.(isDirty)
@@ -347,7 +360,6 @@ function GraphCanvas({
           deleteKeyCode={['Delete', 'Backspace']}
           minZoom={0.2}
           maxZoom={2.5}
-          fitView
           colorMode="system"
           proOptions={{ hideAttribution: false }}
         >
