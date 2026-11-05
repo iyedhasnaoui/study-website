@@ -1,15 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { TagFilterFields } from '../../components/TagFilterFields'
 import { getTags, TAGS_UPDATED_EVENT } from '../../features/zitouna/api'
 import type { ZitounaTag } from '../../features/zitouna/types'
 import { PostFeed } from './components/PostFeed'
 import '../../features/zitouna/zitouna.css'
-
-const fieldLabels: Record<string, string> = {
-    INSTITUTION: 'Institution',
-    PROGRAM: 'Program / position',
-    TOPIC: 'Topic',
-    SUBTOPIC: 'Subtopic',
-}
 
 interface ForumFeedPageProps {
     onCreateNew: () => void
@@ -29,12 +23,6 @@ export function ForumFeedPage({ onCreateNew }: ForumFeedPageProps) {
         return () => window.removeEventListener(TAGS_UPDATED_EVENT, loadTags)
     }, [])
 
-    const groupedTags = useMemo(() => {
-        const groups = new Map<string, ZitounaTag[]>()
-        tags.forEach((tag) => groups.set(tag.field, [...(groups.get(tag.field) ?? []), tag]))
-        return groups
-    }, [tags])
-
     return (
         <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
             <section className="zitouna-workspace">
@@ -45,25 +33,7 @@ export function ForumFeedPage({ onCreateNew }: ForumFeedPageProps) {
                             <button type="button" onClick={() => setSelectedTagIds([])}>Clear</button>
                         ) : null}
                     </div>
-                    {[...groupedTags.entries()].map(([field, values]) => (
-                        <fieldset key={field}>
-                            <legend>{fieldLabels[field] || field}</legend>
-                            {values.map((tag) => (
-                                <label key={tag.id}>
-                                    <input
-                                        type="checkbox"
-                                        checked={selectedTagIds.includes(tag.id)}
-                                        onChange={() => setSelectedTagIds((current) =>
-                                            current.includes(tag.id)
-                                                ? current.filter((id) => id !== tag.id)
-                                                : [...current, tag.id]
-                                        )}
-                                    />
-                                    <span>{tag.name}</span>
-                                </label>
-                            ))}
-                        </fieldset>
-                    ))}
+                    <TagFilterFields tags={tags} selectedTagIds={selectedTagIds} onChange={setSelectedTagIds}/>
                 </aside>
 
                 <div className="discovery-panel">

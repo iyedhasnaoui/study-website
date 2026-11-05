@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useId, useRef } from 'react'
 import { getTags, TAGS_UPDATED_EVENT } from '../features/zitouna/api'
 
 export type TagField = 'INSTITUTION' | 'PROGRAM' | 'TOPIC' | 'SUBTOPIC'
@@ -19,6 +19,8 @@ export interface TagProposalItem {
 interface TagAutocompleteProps {
     selectedTags: TagItem[]
     onChange: (tags: TagItem[]) => void
+    availableTags?: TagItem[]
+    field?: TagField
     proposals?: TagProposalItem[]
     onProposalsChange?: (proposals: TagProposalItem[]) => void
     allowProposals?: boolean
@@ -29,24 +31,30 @@ interface TagAutocompleteProps {
 export function TagAutocomplete({
                                     selectedTags,
                                     onChange,
+                                    availableTags,
+                                    field,
                                     proposals = [],
                                     onProposalsChange,
                                     allowProposals = false,
                                     placeholder = 'Type to search existing tags...',
                                     label = 'Tags',
                                 }: TagAutocompleteProps) {
-    const [availableTags, setAvailableTags] = useState<TagItem[]>([])
+    const [loadedTags, setLoadedTags] = useState<TagItem[]>([])
     const [tagInput, setTagInput] = useState('')
     const [isDropdownOpen, setIsDropdownOpen] = useState(false)
     const [proposalField, setProposalField] = useState<TagField>('TOPIC')
     const [proposalParentId, setProposalParentId] = useState('')
+    const dropdownId = useId()
+    const containerRef = useRef<HTMLDivElement>(null)
+    const inputRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
+        if (availableTags) return
         let active = true
         const loadTags = () => {
             getTags()
                 .then((data) => {
-                    if (active) setAvailableTags(data)
+                    if (active) setLoadedTags(data)
                 })
                 .catch((err) => console.error('Failed to load tags', err))
         }
@@ -57,23 +65,34 @@ export function TagAutocomplete({
             active = false
             window.removeEventListener(TAGS_UPDATED_EVENT, loadTags)
         }
+    }, [availableTags])
+
+    useEffect(() => {
+        const closeOnOutsideClick = (event: PointerEvent) => {
+            if (!containerRef.current?.contains(event.target as Node)) setIsDropdownOpen(false)
+        }
+        document.addEventListener('pointerdown', closeOnOutsideClick)
+        return () => document.removeEventListener('pointerdown', closeOnOutsideClick)
     }, [])
 
     // Filter available tags matching user input, excluding already selected tag IDs
-    const filteredTags = availableTags.filter(
+    const tags = availableTags ?? loadedTags
+    const filteredTags = tags.filter(
         (tag) =>
+            (!field || tag.field === field) &&
             tag.name.toLowerCase().includes(tagInput.toLowerCase()) &&
             !selectedTags.some((selected) => selected.id === tag.id)
     )
-    const topicParents = availableTags.filter((tag) => tag.field === 'TOPIC'
-        || (tag.field === 'SUBTOPIC' && availableTags.some((parent) => parent.id === tag.parentId && parent.field === 'TOPIC')))
-    const proposalAlreadyExists = availableTags.some((tag) => tag.name.trim().toLocaleLowerCase() === tagInput.trim().toLocaleLowerCase()
+    const topicParents = tags.filter((tag) => tag.field === 'TOPIC'
+        || (tag.field === 'SUBTOPIC' && tags.some((parent) => parent.id === tag.parentId && parent.field === 'TOPIC')))
+    const proposalAlreadyExists = tags.some((tag) => tag.name.trim().toLocaleLowerCase() === tagInput.trim().toLocaleLowerCase()
         && tag.field === proposalField
         && (proposalField !== 'SUBTOPIC' || tag.parentId === Number(proposalParentId)))
 
     const addTag = (tagToAdd: TagItem) => {
         onChange([...selectedTags, tagToAdd])
         setTagInput('')
+        inputRef.current?.focus()
         setIsDropdownOpen(false)
     }
 
@@ -98,7 +117,7 @@ export function TagAutocomplete({
     }
 
     return (
-        <div className="relative space-y-2">
+        <div ref={containerRef} className="relative space-y-2">
             {label && (
                 <label className="block text-sm font-medium text-slate-700 dark:text-zinc-300">
                     {label}
@@ -117,6 +136,7 @@ export function TagAutocomplete({
                             type="button"
                             onClick={() => removeTag(tag.id)}
                             className="hover:text-amber-600 dark:hover:text-amber-100"
+                            aria-label={`Remove tag ${tag.name}`}
                         >
               ×
             </button>
@@ -140,6 +160,7 @@ export function TagAutocomplete({
 
             {/* Input Field */}
             <input
+                ref={inputRef}
                 type="text"
                 value={tagInput}
                 onChange={(e) => {
@@ -147,17 +168,48 @@ export function TagAutocomplete({
                     setIsDropdownOpen(true)
                 }}
                 onFocus={() => setIsDropdownOpen(true)}
+                aria-label={label ? `${label} search` : placeholder}
+                aria-expanded={isDropdownOpen}
+                aria-controls={dropdownId}
+                aria-autocomplete="list"
+                role="combobox"
+                onKeyDown={(event) => {
+                    if (event.key === 'Escape') setIsDropdownOpen(false)
+                    if (event.key === 'ArrowDown' && filteredTags.length > 0) {
+                        event.preventDefault()
+                        setIsDropdownOpen(true)
+                        document.getElementById(dropdownId)?.querySelector<HTMLElement>('[role="option"]')?.focus()
+                    }
+                }}
                 placeholder={placeholder}
                 className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-amber-400"
             />
 
             {/* Dropdown Options */}
             {isDropdownOpen && filteredTags.length > 0 && (
-                <ul className="absolute z-10 mt-1 max-h-40 w-full overflow-auto rounded-xl border border-gray-200 bg-white py-1 shadow-lg dark:border-zinc-800 dark:bg-zinc-900">
-                    {filteredTags.map((tag) => (
+                <ul id={dropdownId} role="listbox" className="absolute z-10 mt-1 max-h-40 w-full overflow-auto rounded-xl border border-gray-200 bg-white py-1 shadow-lg dark:border-zinc-800 dark:bg-zinc-900">
+                    {filteredTags.map((tag, index) => (
                         <li
                             key={tag.id}
+                            role="option"
+                            aria-selected="false"
+                            tabIndex={0}
                             onClick={() => addTag(tag)}
+                            onKeyDown={(event) => {
+                                if (event.key === 'Enter' || event.key === ' ') {
+                                    event.preventDefault()
+                                    addTag(tag)
+                                } else if (event.key === 'Escape') {
+                                    setIsDropdownOpen(false)
+                                    inputRef.current?.focus()
+                                } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                                    event.preventDefault()
+                                    const options = Array.from(document.getElementById(dropdownId)?.querySelectorAll<HTMLElement>('[role="option"]') ?? [])
+                                    const nextIndex = index + (event.key === 'ArrowDown' ? 1 : -1)
+                                    if (nextIndex >= 0 && nextIndex < options.length) options[nextIndex].focus()
+                                    else if (event.key === 'ArrowUp' && nextIndex < 0) inputRef.current?.focus()
+                                }
+                            }}
                             className="cursor-pointer px-4 py-2 text-sm text-slate-700 hover:bg-amber-50 dark:text-zinc-200 dark:hover:bg-zinc-800"
                         >
                             #{tag.name}

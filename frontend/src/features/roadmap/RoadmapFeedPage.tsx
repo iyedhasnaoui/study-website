@@ -1,23 +1,18 @@
-import {useEffect, useMemo, useState} from 'react'
+import {useEffect, useState} from 'react'
 
 import {useAuth} from '../../auth/AuthContext'
+import {TagFilterFields} from '../../components/TagFilterFields'
 import {getTags, TAGS_UPDATED_EVENT} from '../../features/zitouna/api'
 import type {ZitounaTag} from '../../features/zitouna/types'
 import {RoadmapFeed} from './components/RoadmapFeed'
 
-const fieldLabels: Record<string, string> = {
-    INSTITUTION: 'Institution',
-    PROGRAM: 'Program / position',
-    TOPIC: 'Topic',
-    SUBTOPIC: 'Subtopic',
-}
-
 export interface RoadmapFeedPageProps {
     onOpenRoadmap: (roadmapId: number) => void
     onOpenCreate: () => void
+    sharedFilters?: {query?: string; tagIds: number[]}
 }
 
-export function RoadmapFeedPage({onOpenRoadmap, onOpenCreate}: RoadmapFeedPageProps) {
+export function RoadmapFeedPage({onOpenRoadmap, onOpenCreate, sharedFilters}: RoadmapFeedPageProps) {
     const {session, canContribute} = useAuth()
     const [reloadKey, setReloadKey] = useState(0)
     const [searchDraft, setSearchDraft] = useState('')
@@ -33,18 +28,8 @@ export function RoadmapFeedPage({onOpenRoadmap, onOpenCreate}: RoadmapFeedPagePr
         return () => window.removeEventListener(TAGS_UPDATED_EVENT, loadTags)
     }, [])
 
-    const groupedTags = useMemo(() => {
-        const groups = new Map<string, ZitounaTag[]>()
-        tags.forEach((tag) => groups.set(tag.field, [...(groups.get(tag.field) ?? []), tag]))
-        return groups
-    }, [tags])
-
-    const subtitle = useMemo(() => {
-        const parts: string[] = []
-        if (activeSearch) parts.push(`Search: ${activeSearch}`)
-        if (selectedTagIds.length > 0) parts.push(`${selectedTagIds.length} tag filter${selectedTagIds.length > 1 ? 's' : ''}`)
-        return parts.length > 0 ? parts.join(' · ') : 'Browse study plans and learning paths'
-    }, [activeSearch, selectedTagIds])
+    const activeQuery = sharedFilters ? sharedFilters.query : activeSearch
+    const activeTagIds = sharedFilters ? sharedFilters.tagIds : selectedTagIds
 
     return (
         <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
@@ -59,34 +44,18 @@ export function RoadmapFeedPage({onOpenRoadmap, onOpenCreate}: RoadmapFeedPagePr
                   </p>
               </div>
             ) : null}
-            <section className="zitouna-workspace">
-                <aside className="filter-panel">
-                    <div className="filter-panel__heading">
-                        <span>Filters</span>
-                        {selectedTagIds.length > 0 ? (
-                            <button type="button" onClick={() => setSelectedTagIds([])}>Clear</button>
-                        ) : null}
-                    </div>
-                    {[...groupedTags.entries()].map(([field, values]) => (
-                        <fieldset key={field}>
-                            <legend>{fieldLabels[field] || field}</legend>
-                            {values.map((tag) => (
-                                <label key={tag.id}>
-                                    <input
-                                        type="checkbox"
-                                        checked={selectedTagIds.includes(tag.id)}
-                                        onChange={() => setSelectedTagIds((current) =>
-                                            current.includes(tag.id)
-                                                ? current.filter((id) => id !== tag.id)
-                                                : [...current, tag.id]
-                                        )}
-                                    />
-                                    <span>{tag.name}</span>
-                                </label>
-                            ))}
-                        </fieldset>
-                    ))}
-                </aside>
+            <section className={`zitouna-workspace${sharedFilters ? ' zitouna-workspace--single' : ''}`}>
+                {!sharedFilters ? (
+                    <aside className="filter-panel">
+                        <div className="filter-panel__heading">
+                            <span>Filters</span>
+                            {selectedTagIds.length > 0 ? (
+                                <button type="button" onClick={() => setSelectedTagIds([])}>Clear</button>
+                            ) : null}
+                        </div>
+                        <TagFilterFields tags={tags} selectedTagIds={selectedTagIds} onChange={setSelectedTagIds}/>
+                    </aside>
+                ) : null}
 
                 <div className="discovery-panel">
                     <header className="materials-heading">
@@ -102,27 +71,29 @@ export function RoadmapFeedPage({onOpenRoadmap, onOpenCreate}: RoadmapFeedPagePr
                         ) : null}
                     </header>
 
-                    <form
-                        className="zitouna-search"
-                        onSubmit={(event) => {
-                            event.preventDefault()
-                            setActiveSearch(searchDraft.trim() || undefined)
-                            setReloadKey((value) => value + 1)
-                        }}
-                    >
-                        <span aria-hidden="true">⌕</span>
-                        <input
-                            type="text"
-                            value={searchDraft}
-                            onChange={(event) => setSearchDraft(event.target.value)}
-                            placeholder="Search roadmap title or description..."
-                        />
-                        <button type="submit">Search</button>
-                    </form>
+                    {!sharedFilters ? (
+                        <form
+                            className="zitouna-search"
+                            onSubmit={(event) => {
+                                event.preventDefault()
+                                setActiveSearch(searchDraft.trim() || undefined)
+                                setReloadKey((value) => value + 1)
+                            }}
+                        >
+                            <span aria-hidden="true">⌕</span>
+                            <input
+                                type="text"
+                                value={searchDraft}
+                                onChange={(event) => setSearchDraft(event.target.value)}
+                                placeholder="Search roadmap title or description..."
+                            />
+                            <button type="submit">Search</button>
+                        </form>
+                    ) : null}
 
-                    {activeSearch ? (
+                    {!sharedFilters && activeSearch ? (
                         <div className="mt-3 flex items-center gap-2">
-                            <span className="text-sm text-slate-500 dark:text-zinc-400">{subtitle}</span>
+                            <span className="text-sm text-slate-500 dark:text-zinc-400">Search: {activeSearch}</span>
                             <button
                                 type="button"
                                 onClick={() => {
@@ -139,8 +110,8 @@ export function RoadmapFeedPage({onOpenRoadmap, onOpenCreate}: RoadmapFeedPagePr
 
                     <RoadmapFeed
                         reloadKey={reloadKey}
-                        searchFilter={activeSearch}
-                        tagIds={selectedTagIds.length > 0 ? selectedTagIds : undefined}
+                        searchFilter={activeQuery}
+                        tagIds={activeTagIds.length > 0 ? activeTagIds : undefined}
                         onSelectRoadmap={onOpenRoadmap}
                     />
                 </div>

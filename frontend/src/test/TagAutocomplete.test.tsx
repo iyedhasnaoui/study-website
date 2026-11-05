@@ -40,3 +40,42 @@ it('does not expose proposal controls in ordinary tag-picker contexts', async ()
 
   expect(screen.queryByRole('button', { name: 'Propose “New topic”' })).not.toBeInTheDocument()
 })
+
+it('limits autocomplete choices to the requested tag field', async () => {
+  const onChange = vi.fn()
+  const topicTag = { id: 1, name: 'Calculus', field: 'TOPIC' as const }
+  const availableTags = [
+    topicTag,
+    { id: 2, name: 'Berlin University', field: 'INSTITUTION' as const },
+  ]
+  render(
+    <TagAutocomplete
+      selectedTags={[]}
+      onChange={onChange}
+      field="TOPIC"
+      availableTags={availableTags}
+      placeholder="Search topics..."
+      label="Topic"
+    />,
+  )
+
+  fireEvent.focus(screen.getByPlaceholderText('Search topics...'))
+
+  expect(await screen.findByRole('option', { name: '#Calculus' })).toBeInTheDocument()
+  expect(screen.queryByRole('option', { name: '#Berlin University' })).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('option', { name: '#Calculus' }))
+  expect(onChange).toHaveBeenLastCalledWith([topicTag])
+
+  render(
+    <TagAutocomplete
+      selectedTags={[topicTag]}
+      onChange={onChange}
+      field="TOPIC"
+      availableTags={availableTags}
+      placeholder="Search topics..."
+      label="Topic"
+    />,
+  )
+  fireEvent.click(screen.getByRole('button', {name: 'Remove tag Calculus'}))
+  expect(onChange).toHaveBeenLastCalledWith([])
+})

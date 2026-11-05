@@ -1,5 +1,6 @@
-import {useEffect, useMemo, useState, type Dispatch, type FormEvent, type SetStateAction} from 'react'
+import {useEffect, useMemo, useState, type FormEvent} from 'react'
 import {TagAutocomplete, type TagItem, type TagProposalItem} from '../../components/TagAutocomplete'
+import {TagFilterFields} from '../../components/TagFilterFields'
 import {useFaqMutations} from './hooks/useFaqMutations'
 import {useAuth} from '../../auth/AuthContext'
 import {getApiErrorMessage, resolveApiUrl} from '../../lib/apiClient'
@@ -83,14 +84,7 @@ export function ZitounaPage({onCreatePost, onOpenRoadmaps, onRequireLogin}: Zito
     const [query, setQuery] = useState('')
     const [feed, setFeed] = useState<FeedItem[]>([])
     const [materials, setMaterials] = useState<LearningMaterial[]>([])
-    const [_materialsQuery, setMaterialsQuery] = useState('')
-    const [materialsQueryDraft, setMaterialsQueryDraft] = useState('')
-    const [materialsSelectedTags, setMaterialsSelectedTags] = useState<number[]>([])
     const [faq, setFaq] = useState<FaqEntry[]>([])
-    const [forumSearchDraft, setForumSearchDraft] = useState('')
-    const [forumSearch, setForumSearch] = useState<string | undefined>()
-    const [forumSelectedTags, setForumSelectedTags] = useState<number[]>([])
-    const [forumReloadKey, setForumReloadKey] = useState(0)
     const [queue, setQueue] = useState<ModerationQueueItem[]>([])
     const [proposals, setProposals] = useState<ZitounaTag[]>([])
     const [tagTypes, setTagTypes] = useState<TagTypeDefinition[]>([])
@@ -134,26 +128,34 @@ export function ZitounaPage({onCreatePost, onOpenRoadmaps, onRequireLogin}: Zito
 
     useEffect(() => {
         if (tab !== 'materials') return
+        let active = true
         setLoading(true)
         setError(null)
         getLearningMaterials({
             includeMine: Boolean(session),
-            query: _materialsQuery,
-            tagIds: materialsSelectedTags,
+            query,
+            tagIds: selectedTags,
         })
-            .then(setMaterials)
-            .catch((reason) => setError(getApiErrorMessage(reason, 'Unable to load learning materials.')))
-            .finally(() => setLoading(false))
-    }, [session, tab, _materialsQuery, materialsSelectedTags])
+            .then((items) => active && setMaterials(items))
+            .catch((reason) => active && setError(getApiErrorMessage(reason, 'Unable to load learning materials.')))
+            .finally(() => active && setLoading(false))
+        return () => {
+            active = false
+        }
+    }, [session, tab, query, selectedTags])
 
     useEffect(() => {
         if (tab !== 'faq') return
+        let active = true
         setLoading(true)
         setError(null)
         getFaq({query, tagIds: selectedTags})
-            .then(setFaq)
-            .catch((reason) => setError(getApiErrorMessage(reason, 'Unable to load the FAQ.')))
-            .finally(() => setLoading(false))
+            .then((items) => active && setFaq(items))
+            .catch((reason) => active && setError(getApiErrorMessage(reason, 'Unable to load the FAQ.')))
+            .finally(() => active && setLoading(false))
+        return () => {
+            active = false
+        }
     }, [tab, query, selectedTags])
 
     const loadAdmin = async () => {
@@ -176,12 +178,6 @@ export function ZitounaPage({onCreatePost, onOpenRoadmaps, onRequireLogin}: Zito
     useEffect(() => {
         if (tab === 'admin') void loadAdmin()
     }, [tab, isAdmin])
-
-    const groupedTags = useMemo(() => {
-        const groups = new Map<string, ZitounaTag[]>()
-        tags.forEach((tag) => groups.set(tag.field, [...(groups.get(tag.field) ?? []), tag]))
-        return groups
-    }, [tags])
 
     const tagSelection = useMemo(() => {
         const selected = tags.filter((tag) => selectedTags.includes(tag.id))
@@ -227,6 +223,43 @@ export function ZitounaPage({onCreatePost, onOpenRoadmaps, onRequireLogin}: Zito
                 <div className="zitouna-hero__mark"><img src="/assets/iac-logo.jpeg" alt="IAC palm tree"/></div>
             </section>
 
+            {tab !== 'admin' ? (
+                <section className="zitouna-global-filters section-shell" aria-label="Search and filter Zitouna content">
+                    <div className="zitouna-global-filters__heading">
+                        <div>
+                            <p className="eyebrow">Explore Zitouna</p>
+                            <h2>Find the right resource</h2>
+                        </div>
+                        {query || queryDraft || selectedTags.length > 0 ? (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setQueryDraft('')
+                                    setQuery('')
+                                    setSelectedTags([])
+                                }}
+                            >
+                                Clear filters
+                            </button>
+                        ) : null}
+                    </div>
+                    <form className="zitouna-search" role="search" onSubmit={(event) => {
+                        event.preventDefault()
+                        setQuery(queryDraft.trim())
+                    }}>
+                        <span aria-hidden="true">⌕</span>
+                        <input
+                            value={queryDraft}
+                            onChange={(event) => setQueryDraft(event.target.value)}
+                            placeholder="Search titles and descriptions..."
+                            aria-label="Search titles and descriptions"
+                        />
+                        <button type="submit">Search</button>
+                    </form>
+                    <TagFilterFields tags={tags} selectedTagIds={selectedTags} onChange={setSelectedTags}/>
+                </section>
+            ) : null}
+
             <nav className="zitouna-tabs section-shell" aria-label="Zitouna sections">
                 {(['discover', 'materials', 'roadmaps', 'forum', 'faq'] as ZitounaTab[]).map((name) => (
                     <button key={name} className={tab === name ? 'is-active' : ''} type="button"
@@ -249,41 +282,8 @@ export function ZitounaPage({onCreatePost, onOpenRoadmaps, onRequireLogin}: Zito
             {error ? <div className="zitouna-error section-shell" role="alert">{error}</div> : null}
 
             {tab === 'discover' ? (
-                <section className="zitouna-workspace section-shell">
-                    <aside className="filter-panel">
-                        <div className="filter-panel__heading"><span>Filters</span>
-                            <button type="button" onClick={() => setSelectedTags([])}>Clear</button>
-                        </div>
-                        {[...groupedTags.entries()].map(([field, values]) => (
-                            <fieldset key={field}>
-                                <legend>{fieldLabels[field] ?? field}</legend>
-                                {values.map((tag) => (
-                                    <label key={tag.id}>
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedTags.includes(tag.id)}
-                                            onChange={() => setSelectedTags((current) => current.includes(tag.id)
-                                                ? current.filter((id) => id !== tag.id)
-                                                : [...current, tag.id])}
-                                        />
-                                        <span>{tag.name}</span>
-                                    </label>
-                                ))}
-                            </fieldset>
-                        ))}
-                    </aside>
-
+                <section className="zitouna-workspace zitouna-workspace--single section-shell">
                     <div className="discovery-panel">
-                        <form className="zitouna-search" onSubmit={(event) => {
-                            event.preventDefault();
-                            setQuery(queryDraft.trim())
-                        }}>
-                            <span aria-hidden="true">⌕</span>
-                            <input value={queryDraft} onChange={(event) => setQueryDraft(event.target.value)}
-                                   placeholder="Search by title — e.g. Formelsammlung …"/>
-                            <button type="submit">Search</button>
-                        </form>
-
                         <div className="area-toolbar">
                             <div><b>Show:</b>{allAreas.map((area) => (
                                 <button
@@ -330,13 +330,6 @@ export function ZitounaPage({onCreatePost, onOpenRoadmaps, onRequireLogin}: Zito
                     signedIn={Boolean(session)}
                     isAdmin={isAdmin}
                     loading={loading}
-                    tags={tags}
-                    materialsSelectedTags={materialsSelectedTags}
-                    setMaterialsSelectedTags={setMaterialsSelectedTags}
-                    materialsQuery={_materialsQuery}
-                    materialsQueryDraft={materialsQueryDraft}
-                    setMaterialsQueryDraft={setMaterialsQueryDraft}
-                    setMaterialsQuery={setMaterialsQuery}
                     onRequireLogin={onRequireLogin}
                     onSubmitted={(material) => {
                         setMaterials((current) => [material, ...current])
@@ -365,40 +358,15 @@ export function ZitounaPage({onCreatePost, onOpenRoadmaps, onRequireLogin}: Zito
 
             {tab === 'roadmaps' ? (
                 <section className="section-shell">
-                    <RoadmapPage onBackToFeed={() => setTab('roadmaps')} />
+                    <RoadmapPage
+                        onBackToFeed={() => setTab('roadmaps')}
+                        sharedFilters={{query: query || undefined, tagIds: selectedTags}}
+                    />
                 </section>
             ) : null}
 
             {tab === 'forum' ? (
-                <section className="zitouna-workspace section-shell">
-                    <aside className="filter-panel">
-                        <div className="filter-panel__heading">
-                            <span>Filters</span>
-                            {forumSelectedTags.length > 0 ? (
-                                <button type="button" onClick={() => setForumSelectedTags([])}>Clear</button>
-                            ) : null}
-                        </div>
-                        {[...groupedTags.entries()].map(([field, values]) => (
-                            <fieldset key={field}>
-                                <legend>{fieldLabels[field] ?? field}</legend>
-                                {values.map((tag) => (
-                                    <label key={tag.id}>
-                                        <input
-                                            type="checkbox"
-                                            checked={forumSelectedTags.includes(tag.id)}
-                                            onChange={() => setForumSelectedTags((current) =>
-                                                current.includes(tag.id)
-                                                    ? current.filter((id) => id !== tag.id)
-                                                    : [...current, tag.id]
-                                            )}
-                                        />
-                                        <span>{tag.name}</span>
-                                    </label>
-                                ))}
-                            </fieldset>
-                        ))}
-                    </aside>
-
+                <section className="zitouna-workspace zitouna-workspace--single section-shell">
                     <div className="discovery-panel">
                         <header className="materials-heading">
                             <div>
@@ -409,45 +377,9 @@ export function ZitounaPage({onCreatePost, onOpenRoadmaps, onRequireLogin}: Zito
                             <button className="button button--gold" type="button" onClick={startPost}>+ New post</button>
                         </header>
 
-                        <form
-                            className="zitouna-search"
-                            onSubmit={(event) => {
-                                event.preventDefault()
-                                setForumSearch(forumSearchDraft.trim() || undefined)
-                                setForumReloadKey((k) => k + 1)
-                            }}
-                        >
-                            <span aria-hidden="true">⌕</span>
-                            <input
-                                type="text"
-                                value={forumSearchDraft}
-                                onChange={(event) => setForumSearchDraft(event.target.value)}
-                                placeholder="Search by post title..."
-                            />
-                            <button type="submit">Search</button>
-                        </form>
-
-                        {forumSearch ? (
-                            <div className="mt-3 flex items-center gap-2">
-                                <span className="text-sm text-slate-500 dark:text-zinc-400">Search: {forumSearch}</span>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setForumSearchDraft('')
-                                        setForumSearch(undefined)
-                                        setForumReloadKey((k) => k + 1)
-                                    }}
-                                    className="text-xs font-semibold text-amber-600 hover:text-amber-700 dark:text-amber-400"
-                                >
-                                    Clear
-                                </button>
-                            </div>
-                        ) : null}
-
                         <PostFeed
-                            reloadKey={forumReloadKey}
-                            query={forumSearch}
-                            tagIds={forumSelectedTags.length > 0 ? forumSelectedTags : undefined}
+                            query={query || undefined}
+                            tagIds={selectedTags.length > 0 ? selectedTags : undefined}
                         />
                     </div>
                 </section>
@@ -499,13 +431,6 @@ function MaterialsPanel({
                             signedIn,
                             isAdmin,
                             loading,
-                            tags,
-                            materialsSelectedTags,
-                            setMaterialsSelectedTags,
-                            materialsQuery: _materialsQuery,
-                            materialsQueryDraft,
-                            setMaterialsQueryDraft,
-                            setMaterialsQuery,
                             onRequireLogin,
                             onSubmitted,
                             onDelete,
@@ -515,13 +440,6 @@ function MaterialsPanel({
     signedIn: boolean
     isAdmin: boolean
     loading: boolean
-    tags: ZitounaTag[]
-    materialsSelectedTags: number[]
-    setMaterialsSelectedTags: Dispatch<SetStateAction<number[]>>
-    materialsQuery: string // unused in component body; kept for future use
-    materialsQueryDraft: string
-    setMaterialsQueryDraft: (draft: string) => void
-    setMaterialsQuery: (query: string) => void
     onRequireLogin: () => void
     onSubmitted: (material: LearningMaterial) => void
     onDelete: (id: number) => void
@@ -540,12 +458,6 @@ function MaterialsPanel({
         methodUsed: '',
         roadmapFollowed: '',
     })
-
-    const groupedTags = useMemo(() => {
-        const groups = new Map<string, ZitounaTag[]>()
-        tags.forEach((tag) => groups.set(tag.field, [...(groups.get(tag.field) ?? []), tag]))
-        return groups
-    }, [tags])
 
     const submit = async (event: FormEvent) => {
         event.preventDefault()
@@ -611,35 +523,7 @@ function MaterialsPanel({
     }
 
     return (
-        <section className="zitouna-workspace section-shell">
-            <aside className="filter-panel">
-                <div className="filter-panel__heading">
-                    <span>Filters</span>
-                    <button type="button" onClick={() => setMaterialsSelectedTags([])}>Clear</button>
-                </div>
-                {[...groupedTags.entries()].map(([field, values]) => (
-                    <fieldset key={field}>
-                        <legend>{fieldLabels[field] ?? field}</legend>
-                        {values.map((tag) => (
-                            <label key={tag.id}>
-                                <input
-                                    type="checkbox"
-                                    checked={materialsSelectedTags.includes(tag.id)}
-                                    onChange={() => {
-                                        setMaterialsSelectedTags((current) =>
-                                            current.includes(tag.id)
-                                                ? current.filter((id) => id !== tag.id)
-                                                : [...current, tag.id]
-                                        )
-                                    }}
-                                />
-                                <span>{tag.name}</span>
-                            </label>
-                        ))}
-                    </fieldset>
-                ))}
-            </aside>
-
+        <section className="zitouna-workspace zitouna-workspace--single section-shell">
             <div className="discovery-panel">
                 <header className="materials-heading">
                     <div>
@@ -651,16 +535,6 @@ function MaterialsPanel({
                         Upload material
                     </button>
                 </header>
-
-                <form className="zitouna-search" onSubmit={(event) => {
-                    event.preventDefault()
-                    setMaterialsQuery(materialsQueryDraft.trim())
-                }}>
-                    <span aria-hidden="true">⌕</span>
-                    <input value={materialsQueryDraft} onChange={(event) => setMaterialsQueryDraft(event.target.value)}
-                           placeholder="Search by title or description…"/>
-                    <button type="submit">Search</button>
-                </form>
 
                 {open ? (
                     <form className="material-form" onSubmit={submit}>

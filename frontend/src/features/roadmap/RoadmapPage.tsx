@@ -3,14 +3,15 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../../auth/AuthContext'
 import { CreateRoadmapForm } from './components/CreateRoadmapForm'
 import { RoadmapDetailPage } from './RoadmapDetailPage'
-import { RoadmapFeedPage } from './RoadmapFeedPage'
+import { RoadmapFeedPage, type RoadmapFeedPageProps } from './RoadmapFeedPage'
 import { getRoadmapHash, getRoadmapRouteFromHash, type RoadmapRoute } from './roadmapRoutes'
 
 interface RoadmapPageProps {
   onBackToFeed?: () => void
+  sharedFilters?: RoadmapFeedPageProps['sharedFilters']
 }
 
-export function RoadmapPage({ onBackToFeed }: RoadmapPageProps = {}) {
+export function RoadmapPage({ onBackToFeed, sharedFilters }: RoadmapPageProps = {}) {
   const { canContribute } = useAuth()
   const [route, setRoute] = useState<RoadmapRoute>(() => {
     if (typeof window === 'undefined') return { name: 'feed' }
@@ -91,6 +92,7 @@ export function RoadmapPage({ onBackToFeed }: RoadmapPageProps = {}) {
       key={feedNavigationKey}
       onOpenRoadmap={(roadmapId) => navigate({ name: 'detail', roadmapId })}
       onOpenCreate={() => navigate({ name: 'create' })}
+      sharedFilters={sharedFilters}
     />
   )
 }
