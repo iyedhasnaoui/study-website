@@ -40,6 +40,14 @@ import './zitouna.css'
 
 type ZitounaTab = 'discover' | 'materials' | 'faq' | 'admin' | 'roadmaps' | 'forum'
 
+const validTabs: ZitounaTab[] = ['discover', 'materials', 'faq', 'admin', 'roadmaps', 'forum']
+
+function getZitounaTabFromHash(hash: string): ZitounaTab | undefined {
+    if (!hash.startsWith('#zitouna/')) return undefined
+    const sub = hash.slice('#zitouna/'.length)
+    return validTabs.includes(sub as ZitounaTab) ? (sub as ZitounaTab) : undefined
+}
+
 interface ZitounaPageProps {
     onCreatePost: () => void
     onOpenRoadmaps: () => void
@@ -67,7 +75,7 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {dateStyle: 'medium', t
 export function ZitounaPage({onCreatePost, onOpenRoadmaps, onRequireLogin}: ZitounaPageProps) {
     const {session} = useAuth()
     const isAdmin = Boolean(session?.user.roles?.includes('ADMIN'))
-    const [tab, setTab] = useState<ZitounaTab>('discover')
+    const [tab, setTab] = useState<ZitounaTab>(() => getZitounaTabFromHash(window.location.hash) ?? 'discover')
     const [tags, setTags] = useState<ZitounaTag[]>([])
     const [selectedTags, setSelectedTags] = useState<number[]>([])
     const [areas, setAreas] = useState<FeedArea[]>(allAreas)
@@ -99,6 +107,15 @@ export function ZitounaPage({onCreatePost, onOpenRoadmaps, onRequireLogin}: Zito
         loadTags()
         window.addEventListener(TAGS_UPDATED_EVENT, loadTags)
         return () => window.removeEventListener(TAGS_UPDATED_EVENT, loadTags)
+    }, [])
+
+    useEffect(() => {
+        const onHashChange = () => {
+            const tabFromHash = getZitounaTabFromHash(window.location.hash)
+            if (tabFromHash) setTab(tabFromHash)
+        }
+        window.addEventListener('hashchange', onHashChange)
+        return () => window.removeEventListener('hashchange', onHashChange)
     }, [])
 
     useEffect(() => {
@@ -348,7 +365,7 @@ export function ZitounaPage({onCreatePost, onOpenRoadmaps, onRequireLogin}: Zito
 
             {tab === 'roadmaps' ? (
                 <section className="section-shell">
-                    <RoadmapPage />
+                    <RoadmapPage onBackToFeed={() => setTab('roadmaps')} />
                 </section>
             ) : null}
 

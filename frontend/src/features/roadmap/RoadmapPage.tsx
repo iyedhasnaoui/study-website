@@ -6,7 +6,11 @@ import { RoadmapDetailPage } from './RoadmapDetailPage'
 import { RoadmapFeedPage } from './RoadmapFeedPage'
 import { getRoadmapHash, getRoadmapRouteFromHash, type RoadmapRoute } from './roadmapRoutes'
 
-export function RoadmapPage() {
+interface RoadmapPageProps {
+  onBackToFeed?: () => void
+}
+
+export function RoadmapPage({ onBackToFeed }: RoadmapPageProps = {}) {
   const { canContribute } = useAuth()
   const [route, setRoute] = useState<RoadmapRoute>(() => {
     if (typeof window === 'undefined') return { name: 'feed' }
@@ -39,6 +43,8 @@ export function RoadmapPage() {
     setRoute(next)
   }
 
+  const handleBackToFeed = onBackToFeed ?? (() => navigate({ name: 'feed' }))
+
   if (route.name === 'detail' || route.name === 'node') {
     const roadmapId = route.roadmapId
 
@@ -47,7 +53,7 @@ export function RoadmapPage() {
         key={roadmapId}
         roadmapId={roadmapId}
         focusNodeId={route.name === 'node' ? route.nodeId : null}
-        onBackToFeed={() => navigate({ name: 'feed' })}
+        onBackToFeed={handleBackToFeed}
       />
     )
   }
@@ -58,7 +64,7 @@ export function RoadmapPage() {
         <div className="mb-6">
           <button
             type="button"
-            onClick={() => navigate({ name: 'feed' })}
+            onClick={handleBackToFeed}
             className="text-sm font-semibold text-amber-600 hover:text-amber-700 dark:text-amber-400"
           >
             ← Back to feed

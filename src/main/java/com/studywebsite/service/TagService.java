@@ -222,6 +222,9 @@ public class TagService {
         }
 
         validateRules(tags);
+        if (tags.isEmpty()) {
+            throw new IllegalArgumentException("At least one tag is required");
+        }
         boolean needsTwoNamedInstitutions = tags.stream()
                 .filter(tag -> tag.getStatus() == TagStatus.APPROVED)
                 .anyMatch(tag -> orZero(tag.getType().getMinimumInstitutions()) >= 2);

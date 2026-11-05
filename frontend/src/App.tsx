@@ -73,6 +73,11 @@ function App() {
     setSection('zitouna')
   }
 
+  const navigateZitounaToTab = (tab: 'forum' | 'roadmaps') => {
+    window.location.hash = `#zitouna/${tab}`
+    setSection('zitouna')
+  }
+
   const navigateAdmin = () => {
     window.location.hash = '#admin'
     setSection('admin')
@@ -125,13 +130,13 @@ function App() {
       ) : section === 'admin' ? (
         <AdminUsersPage />
       ) : section === 'roadmaps' ? (
-        <RoadmapPage />
+        <RoadmapPage onBackToFeed={() => navigateZitounaToTab('roadmaps')} />
       ) : forumRoute === 'create' ? (
         <CreatePostPage
-          onBackToFeed={() => navigateForum('feed')}
+          onBackToFeed={() => navigateZitounaToTab('forum')}
           onCreated={() => {
             setToast('Your post is waiting for admin approval.')
-            navigateForum('feed')
+            navigateZitounaToTab('forum')
           }}
         />
       ) : (
