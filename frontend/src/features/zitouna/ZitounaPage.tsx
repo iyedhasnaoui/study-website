@@ -3,7 +3,7 @@ import {TagAutocomplete, type TagItem, type TagProposalItem} from '../../compone
 import {useFaqMutations} from './hooks/useFaqMutations'
 import {useAuth} from '../../auth/AuthContext'
 import {getApiErrorMessage, resolveApiUrl} from '../../lib/apiClient'
-
+import {PostFeed} from '../forum/components/PostFeed'
 import { RoadmapPage } from '../roadmap/RoadmapPage'
 
 import {
@@ -38,11 +38,10 @@ import type {
 } from './types'
 import './zitouna.css'
 
-type ZitounaTab = 'discover' | 'materials' | 'faq' | 'admin' | 'roadmaps'
+type ZitounaTab = 'discover' | 'materials' | 'faq' | 'admin' | 'roadmaps' | 'forum'
 
 interface ZitounaPageProps {
     onCreatePost: () => void
-    onOpenForum: () => void
     onOpenRoadmaps: () => void
     onRequireLogin: () => void
 }
@@ -65,7 +64,7 @@ const allAreas = Object.keys(areaLabels) as FeedArea[]
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, {dateStyle: 'medium', timeStyle: 'short'})
 
-export function ZitounaPage({onCreatePost, onOpenForum, onOpenRoadmaps, onRequireLogin}: ZitounaPageProps) {
+export function ZitounaPage({onCreatePost, onOpenRoadmaps, onRequireLogin}: ZitounaPageProps) {
     const {session} = useAuth()
     const isAdmin = Boolean(session?.user.roles?.includes('ADMIN'))
     const [tab, setTab] = useState<ZitounaTab>('discover')
@@ -80,6 +79,10 @@ export function ZitounaPage({onCreatePost, onOpenForum, onOpenRoadmaps, onRequir
     const [materialsQueryDraft, setMaterialsQueryDraft] = useState('')
     const [materialsSelectedTags, setMaterialsSelectedTags] = useState<number[]>([])
     const [faq, setFaq] = useState<FaqEntry[]>([])
+    const [forumSearchDraft, setForumSearchDraft] = useState('')
+    const [forumSearch, setForumSearch] = useState<string | undefined>()
+    const [forumSelectedTags, setForumSelectedTags] = useState<number[]>([])
+    const [forumReloadKey, setForumReloadKey] = useState(0)
     const [queue, setQueue] = useState<ModerationQueueItem[]>([])
     const [proposals, setProposals] = useState<ZitounaTag[]>([])
     const [tagTypes, setTagTypes] = useState<TagTypeDefinition[]>([])
@@ -189,7 +192,7 @@ export function ZitounaPage({onCreatePost, onOpenForum, onOpenRoadmaps, onRequir
     }
 
     const openFeedItem = (item: FeedItem) => {
-        if (item.area === 'FORUM') onOpenForum()
+        if (item.area === 'FORUM') setTab('forum')
         else if (item.area === 'ROADMAP') onOpenRoadmaps()
         else if (item.area === 'LEARNING_MATERIAL' && item.contentUrl) window.open(resolveApiUrl(item.contentUrl), '_blank', 'noopener,noreferrer')
         else setTab('faq')
@@ -208,10 +211,10 @@ export function ZitounaPage({onCreatePost, onOpenForum, onOpenRoadmaps, onRequir
             </section>
 
             <nav className="zitouna-tabs section-shell" aria-label="Zitouna sections">
-                {(['discover', 'materials', 'roadmaps', 'faq'] as ZitounaTab[]).map((name) => (
+                {(['discover', 'materials', 'roadmaps', 'forum', 'faq'] as ZitounaTab[]).map((name) => (
                     <button key={name} className={tab === name ? 'is-active' : ''} type="button"
                             onClick={() => setTab(name)}>
-                        {name === 'discover' ? 'Discover' : name === 'materials' ? 'Learning materials' : name === 'roadmaps' ? 'Roadmaps' : 'FAQ'}
+                        {name === 'discover' ? 'Discover' : name === 'materials' ? 'Learning materials' : name === 'roadmaps' ? 'Roadmaps' : name === 'forum' ? 'Forum' : 'FAQ'}
                     </button>
                 ))}
                 {isAdmin ? <button className={tab === 'admin' ? 'is-active' : ''} type="button"
@@ -275,7 +278,6 @@ export function ZitounaPage({onCreatePost, onOpenForum, onOpenRoadmaps, onRequir
                                         : [...current, area])}
                                 >{areaLabels[area]}</button>
                             ))}</div>
-                            <button className="post-button" type="button" onClick={startPost}>+ Post</button>
                         </div>
 
                         <div className="feed-list" aria-live="polite">
@@ -294,7 +296,7 @@ export function ZitounaPage({onCreatePost, onOpenForum, onOpenRoadmaps, onRequir
                                     <div className="tag-row">{item.tags.map((tag) => <span
                                         key={tag.id}>#{tag.name}</span>)}</div>
                                     <footer>
-                                        <small>{item.authorUsername ? `Shared by ${item.authorUsername}` : 'Curated by IAC'}</small>
+                                        <small>{item.authorUsername ? `${item.authorUsername}` : 'Curated by IAC'}</small>
                                         <button type="button" onClick={() => openFeedItem(item)}>Open →</button>
                                     </footer>
                                 </article>
@@ -347,6 +349,90 @@ export function ZitounaPage({onCreatePost, onOpenForum, onOpenRoadmaps, onRequir
             {tab === 'roadmaps' ? (
                 <section className="section-shell">
                     <RoadmapPage />
+                </section>
+            ) : null}
+
+            {tab === 'forum' ? (
+                <section className="zitouna-workspace section-shell">
+                    <aside className="filter-panel">
+                        <div className="filter-panel__heading">
+                            <span>Filters</span>
+                            {forumSelectedTags.length > 0 ? (
+                                <button type="button" onClick={() => setForumSelectedTags([])}>Clear</button>
+                            ) : null}
+                        </div>
+                        {[...groupedTags.entries()].map(([field, values]) => (
+                            <fieldset key={field}>
+                                <legend>{fieldLabels[field] ?? field}</legend>
+                                {values.map((tag) => (
+                                    <label key={tag.id}>
+                                        <input
+                                            type="checkbox"
+                                            checked={forumSelectedTags.includes(tag.id)}
+                                            onChange={() => setForumSelectedTags((current) =>
+                                                current.includes(tag.id)
+                                                    ? current.filter((id) => id !== tag.id)
+                                                    : [...current, tag.id]
+                                            )}
+                                        />
+                                        <span>{tag.name}</span>
+                                    </label>
+                                ))}
+                            </fieldset>
+                        ))}
+                    </aside>
+
+                    <div className="discovery-panel">
+                        <header className="materials-heading">
+                            <div>
+                                <p className="eyebrow">Community discussions</p>
+                                <h2>Forum</h2>
+                                <p>Browse the most recent discussions and join any thread.</p>
+                            </div>
+                            <button className="button button--gold" type="button" onClick={startPost}>+ New post</button>
+                        </header>
+
+                        <form
+                            className="zitouna-search"
+                            onSubmit={(event) => {
+                                event.preventDefault()
+                                setForumSearch(forumSearchDraft.trim() || undefined)
+                                setForumReloadKey((k) => k + 1)
+                            }}
+                        >
+                            <span aria-hidden="true">⌕</span>
+                            <input
+                                type="text"
+                                value={forumSearchDraft}
+                                onChange={(event) => setForumSearchDraft(event.target.value)}
+                                placeholder="Search by post title..."
+                            />
+                            <button type="submit">Search</button>
+                        </form>
+
+                        {forumSearch ? (
+                            <div className="mt-3 flex items-center gap-2">
+                                <span className="text-sm text-slate-500 dark:text-zinc-400">Search: {forumSearch}</span>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setForumSearchDraft('')
+                                        setForumSearch(undefined)
+                                        setForumReloadKey((k) => k + 1)
+                                    }}
+                                    className="text-xs font-semibold text-amber-600 hover:text-amber-700 dark:text-amber-400"
+                                >
+                                    Clear
+                                </button>
+                            </div>
+                        ) : null}
+
+                        <PostFeed
+                            reloadKey={forumReloadKey}
+                            query={forumSearch}
+                            tagIds={forumSelectedTags.length > 0 ? forumSelectedTags : undefined}
+                        />
+                    </div>
                 </section>
             ) : null}
 
@@ -593,6 +679,9 @@ function MaterialsPanel({
                             <h3>{material.title}</h3>
                             <p>{material.description || 'Shared learning material'}</p>
                             <div className="tag-row">{material.tags.map((tag) => <span key={tag.id}>#{tag.name}</span>)}</div>
+                            {material.authorUsername ? (
+                                <small className="text-slate-500 dark:text-zinc-400">{material.authorUsername}</small>
+                            ) : null}
                             {material.moderationStatus === 'PENDING' ? (
                                 <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
                                     Awaiting admin approval

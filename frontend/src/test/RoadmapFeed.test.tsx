@@ -50,8 +50,8 @@ it('waits for authentication before loading and displays saved tags', async () =
   rerender(<RoadmapFeed />)
 
   expect(await screen.findByText('My roadmap')).toBeVisible()
-  expect(screen.getByText('TUM')).toBeVisible()
-  expect(screen.getByText('Algebra')).toBeVisible()
+  expect(screen.getByText('#TUM')).toBeVisible()
+  expect(screen.getByText('#Algebra')).toBeVisible()
   expect(getRoadmaps).toHaveBeenCalledTimes(1)
 })
 
@@ -92,7 +92,7 @@ it('ignores a late response from an earlier filter request', async () => {
 
   expect(getRoadmaps).toHaveBeenLastCalledWith({ query: undefined, tags: [2] })
   expect(screen.getByText('Filtered roadmap')).toBeVisible()
-  expect(screen.getByText('Algebra')).toBeVisible()
+  expect(screen.getByText('#Algebra')).toBeVisible()
   expect(screen.queryByText('Old roadmap')).not.toBeInTheDocument()
 })
 

@@ -6,13 +6,15 @@ import { PostCard } from './PostCard'
 
 interface PostFeedProps {
   reloadKey?: number
+  query?: string
+  tagIds?: number[]
   tagFilter?: string
 }
 
 const getErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : 'Unable to load forum posts.'
 
-export function PostFeed({ reloadKey = 0, tagFilter }: PostFeedProps = {}) {
+export function PostFeed({ reloadKey = 0, query, tagIds, tagFilter }: PostFeedProps = {}) {
   const [posts, setPosts] = useState<ForumPostResponseDto[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -28,7 +30,7 @@ export function PostFeed({ reloadKey = 0, tagFilter }: PostFeedProps = {}) {
       setDeleteError(null)
 
       try {
-        const response = await getForumPosts(tagFilter)
+        const response = await getForumPosts({ query, tagIds, tag: tagFilter })
         if (isMounted) {
           setPosts(response)
         }
@@ -48,7 +50,7 @@ export function PostFeed({ reloadKey = 0, tagFilter }: PostFeedProps = {}) {
     return () => {
       isMounted = false
     }
-  }, [reloadKey, tagFilter])
+  }, [reloadKey, query, tagIds, tagFilter])
 
   const handleDelete = async (postId: number) => {
     setDeletingPostId(postId)

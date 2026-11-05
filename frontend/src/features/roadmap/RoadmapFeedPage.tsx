@@ -3,7 +3,6 @@ import {useEffect, useMemo, useState} from 'react'
 import {useAuth} from '../../auth/AuthContext'
 import {getTags, TAGS_UPDATED_EVENT} from '../../features/zitouna/api'
 import type {ZitounaTag} from '../../features/zitouna/types'
-import {CreateRoadmapForm} from './components/CreateRoadmapForm'
 import {RoadmapFeed} from './components/RoadmapFeed'
 
 const fieldLabels: Record<string, string> = {
@@ -15,14 +14,14 @@ const fieldLabels: Record<string, string> = {
 
 export interface RoadmapFeedPageProps {
     onOpenRoadmap: (roadmapId: number) => void
+    onOpenCreate: () => void
 }
 
-export function RoadmapFeedPage({onOpenRoadmap}: RoadmapFeedPageProps) {
+export function RoadmapFeedPage({onOpenRoadmap, onOpenCreate}: RoadmapFeedPageProps) {
     const {session, canContribute} = useAuth()
     const [reloadKey, setReloadKey] = useState(0)
     const [searchDraft, setSearchDraft] = useState('')
     const [activeSearch, setActiveSearch] = useState<string | undefined>(undefined)
-    const [notice, setNotice] = useState<string | null>(null)
     const [tags, setTags] = useState<ZitounaTag[]>([])
     const [selectedTagIds, setSelectedTagIds] = useState<number[]>([])
 
@@ -47,21 +46,19 @@ export function RoadmapFeedPage({onOpenRoadmap}: RoadmapFeedPageProps) {
         return parts.length > 0 ? parts.join(' · ') : 'Browse study plans and learning paths'
     }, [activeSearch, selectedTagIds])
 
-    const handleCreated = (roadmapId: number) => {
-        setReloadKey((value) => value + 1)
-        onOpenRoadmap(roadmapId)
-        setNotice('Your roadmap has been submitted and is currently in the admin moderation queue.')
-    }
-
     return (
         <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-            {notice ? (
-                <div
-                    className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200">
-                    {notice}
-                </div>
-            ) : null}
 
+            {!canContribute ? (
+              <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/20">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700 dark:text-amber-300">Members contribute</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-zinc-300">
+                      {session
+                          ? 'Your account can browse every roadmap. Ask an administrator for contributor access to publish your own.'
+                          : 'Use the sign-in button above, then turn what you learned into a path others can follow.'}
+                  </p>
+              </div>
+            ) : null}
             <section className="zitouna-workspace">
                 <aside className="filter-panel">
                     <div className="filter-panel__heading">
@@ -70,18 +67,6 @@ export function RoadmapFeedPage({onOpenRoadmap}: RoadmapFeedPageProps) {
                             <button type="button" onClick={() => setSelectedTagIds([])}>Clear</button>
                         ) : null}
                     </div>
-                    {session && canContribute ? (
-                        <CreateRoadmapForm onCreated={handleCreated} />
-                    ) : (
-                        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/20">
-                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700 dark:text-amber-300">Members contribute</p>
-                            <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-zinc-300">
-                                {session
-                                    ? 'Your account can browse every roadmap. Ask an administrator for contributor access to publish your own.'
-                                    : 'Use the sign-in button above, then turn what you learned into a path others can follow.'}
-                            </p>
-                        </div>
-                    )}
                     {[...groupedTags.entries()].map(([field, values]) => (
                         <fieldset key={field}>
                             <legend>{fieldLabels[field] || field}</legend>
@@ -110,6 +95,11 @@ export function RoadmapFeedPage({onOpenRoadmap}: RoadmapFeedPageProps) {
                             <h2>Learning paths</h2>
                             <p>Explore curated study plans as interactive graphs, and build your own.</p>
                         </div>
+                        {canContribute ? (
+                            <button className="button button--gold" type="button" onClick={onOpenCreate}>
+                                Create roadmap
+                            </button>
+                        ) : null}
                     </header>
 
                     <form

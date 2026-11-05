@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react'
 
+import { useAuth } from '../../auth/AuthContext'
+import { CreateRoadmapForm } from './components/CreateRoadmapForm'
 import { RoadmapDetailPage } from './RoadmapDetailPage'
 import { RoadmapFeedPage } from './RoadmapFeedPage'
 import { getRoadmapHash, getRoadmapRouteFromHash, type RoadmapRoute } from './roadmapRoutes'
 
 export function RoadmapPage() {
+  const { canContribute } = useAuth()
   const [route, setRoute] = useState<RoadmapRoute>(() => {
     if (typeof window === 'undefined') return { name: 'feed' }
     return getRoadmapRouteFromHash(window.location.hash)
@@ -49,10 +52,39 @@ export function RoadmapPage() {
     )
   }
 
+  if (route.name === 'create') {
+    return (
+      <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mb-6">
+          <button
+            type="button"
+            onClick={() => navigate({ name: 'feed' })}
+            className="text-sm font-semibold text-amber-600 hover:text-amber-700 dark:text-amber-400"
+          >
+            ← Back to feed
+          </button>
+        </div>
+        {canContribute ? (
+          <CreateRoadmapForm
+            onCreated={(roadmapId) => navigate({ name: 'detail', roadmapId })}
+          />
+        ) : (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 dark:border-amber-900/50 dark:bg-amber-950/20">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700 dark:text-amber-300">Members contribute</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-zinc-300">
+              Ask an administrator for contributor access to publish your own roadmap.
+            </p>
+          </div>
+        )}
+      </main>
+    )
+  }
+
   return (
     <RoadmapFeedPage
       key={feedNavigationKey}
       onOpenRoadmap={(roadmapId) => navigate({ name: 'detail', roadmapId })}
+      onOpenCreate={() => navigate({ name: 'create' })}
     />
   )
 }

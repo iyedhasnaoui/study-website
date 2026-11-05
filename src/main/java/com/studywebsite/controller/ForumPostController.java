@@ -66,13 +66,37 @@ public class ForumPostController {
     @GetMapping
     public ResponseEntity<List<ForumPostResponseDto>> getAll(
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) List<Long> tagIds,
             @RequestParam(required = false) String tag
     ) {
-        // Tag filtering isn't currently supported at the entity level; return all posts and ignore tag if provided
         Long viewerId = principal != null ? principal.userId() : null;
         List<ForumPost> posts = forumPostService.getAll().stream()
                 .filter(post -> isVisibleTo(post, viewerId))
                 .toList();
+
+        if (q != null && !q.isBlank()) {
+            String query = q.trim().toLowerCase();
+            posts = posts.stream()
+                    .filter(p -> p.getTitle() != null && p.getTitle().toLowerCase().contains(query))
+                    .collect(Collectors.toList());
+        }
+
+        if (tagIds != null && !tagIds.isEmpty()) {
+            posts = posts.stream()
+                    .filter(p -> p.getTags() != null && p.getTags().stream()
+                            .anyMatch(t -> tagIds.contains(t.getId())))
+                    .collect(Collectors.toList());
+        }
+
+        if (tag != null && !tag.isBlank()) {
+            String tagName = tag.trim().toLowerCase();
+            posts = posts.stream()
+                    .filter(p -> p.getTags() != null && p.getTags().stream()
+                            .anyMatch(t -> t.getName() != null && t.getName().toLowerCase().equals(tagName)))
+                    .collect(Collectors.toList());
+        }
+
         List<ForumPostResponseDto> dtos = posts.stream().map(this::toResponseDto).collect(Collectors.toList());
         return ResponseEntity.ok(dtos);
     }

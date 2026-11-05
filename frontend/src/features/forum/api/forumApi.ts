@@ -15,9 +15,20 @@ const withUserHeader = (userId?: number) => {
   return { 'X-User-Id': String(userId ?? authenticatedUser.id) }
 }
 
-export async function getForumPosts(tag?: string): Promise<ForumPostResponseDto[]> {
+export interface GetForumPostsParams {
+  query?: string
+  tagIds?: number[]
+  tag?: string
+}
+
+export async function getForumPosts(params?: GetForumPostsParams): Promise<ForumPostResponseDto[]> {
+  const buildParams: Record<string, string> = {}
+  if (params?.query && params.query.trim().length > 0) buildParams.q = params.query.trim()
+  if (params?.tagIds && params.tagIds.length > 0) buildParams.tagIds = params.tagIds.join(',')
+  if (params?.tag && params.tag.trim().length > 0) buildParams.tag = params.tag.trim()
+
   const response = await forumApiClient.get<ForumPostResponseDto[]>('/api/forum/posts', {
-    params: tag && tag.trim().length > 0 ? { tag: tag.trim() } : undefined,
+    params: Object.keys(buildParams).length > 0 ? buildParams : undefined,
   })
 
   return response.data

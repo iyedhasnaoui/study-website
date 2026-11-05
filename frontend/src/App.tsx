@@ -117,7 +117,6 @@ function App() {
       ) : section === 'zitouna' ? (
         <ZitounaPage
           onCreatePost={() => navigateForum('create')}
-          onOpenForum={() => navigateForum('feed')}
           onOpenRoadmaps={navigateRoadmaps}
           onRequireLogin={() => openAuth('login')}
         />

@@ -18,13 +18,13 @@ it('shows material descriptions and submits the version of the forum revision re
   vi.spyOn(apiClient, 'get').mockImplementation((url) => Promise.resolve({ data: url === '/api/admin/moderation' ? queue : [] }))
   const post = vi.spyOn(apiClient, 'post').mockResolvedValue({ data: undefined })
   render(<QueryClientProvider client={new QueryClient()}><ZitounaPage onCreatePost={vi.fn()}
-    onOpenForum={vi.fn()} onOpenRoadmaps={vi.fn()} onRequireLogin={vi.fn()} /></QueryClientProvider>)
+    onOpenRoadmaps={vi.fn()} onRequireLogin={vi.fn()} /></QueryClientProvider>)
   await userEvent.click(screen.getByRole('button', { name: 'Admin queue' }))
-  expect(await screen.findByText('Material description for review')).toBeVisible()
+  expect(await screen.findByText(/Material description for review/)).toBeVisible()
   expect(screen.getByText(/Local author/)).toBeVisible()
   const card = screen.getByRole('heading', { name: 'Proposed title' }).closest('article')!
-  expect(within(card).getByText('Proposed text')).toBeVisible()
-  expect(within(card).getByText('Public text')).toBeVisible()
+  expect(within(card).getByText(/Proposed text/)).toBeVisible()
+  expect(within(card).getByText(/Public text/)).toBeVisible()
   await userEvent.click(within(card).getByRole('button', { name: 'Accept' }))
   await waitFor(() => expect(post).toHaveBeenCalledWith('/api/admin/moderation/FORUM/2/approve', { note: '', version: 5 }))
 })

@@ -201,14 +201,9 @@ export function RoadmapFeed({ reloadKey = 0, searchFilter, tagIds, onSelectRoadm
                   </dl>
 
                   {roadmap.tags && roadmap.tags.length > 0 && (
-                    <div className="mt-4 flex flex-wrap gap-2">
+                    <div className="tag-row">
                       {roadmap.tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 dark:bg-zinc-800 dark:text-zinc-300"
-                        >
-                          {tag}
-                        </span>
+                        <span key={tag}>#{tag}</span>
                       ))}
                     </div>
                   )}
