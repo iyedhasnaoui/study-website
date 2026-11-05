@@ -594,11 +594,17 @@ function MaterialsPanel({
                             <p>{material.description || 'Shared learning material'}</p>
                             <div className="tag-row">{material.tags.map((tag) => <span key={tag.id}>#{tag.name}</span>)}</div>
                             {material.moderationStatus === 'PENDING' ? (
-                                <small className="text-amber-600 dark:text-amber-400">Awaiting admin approval</small>
+                                <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                                    Awaiting admin approval
+                                </span>
                             ) : material.moderationStatus === 'NEEDS_FIXING' ? (
-                                <small className="text-orange-600 dark:text-orange-400">Needs fixing{material.moderationNote ? ` — ${material.moderationNote}` : ''}</small>
+                                <span className="inline-flex items-center rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-medium text-orange-800 dark:bg-orange-900/40 dark:text-orange-300">
+                                    Needs fixing{material.moderationNote ? ` — ${material.moderationNote}` : ''}
+                                </span>
                             ) : material.moderationStatus === 'REJECTED' ? (
-                                <small className="text-rose-600 dark:text-rose-400">Rejected{material.moderationNote ? ` — ${material.moderationNote}` : ''}</small>
+                                <span className="inline-flex items-center rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-medium text-rose-800 dark:bg-rose-900/40 dark:text-rose-300">
+                                    Rejected{material.moderationNote ? ` — ${material.moderationNote}` : ''}
+                                </span>
                             ) : (
                                 <a href={resolveApiUrl(material.contentUrl)} target="_blank" rel="noreferrer">Open material →</a>
                             )}

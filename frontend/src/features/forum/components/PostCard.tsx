@@ -186,10 +186,10 @@ export function PostCard({ post, onDelete, onUpdated, deleting = false }: PostCa
                 <div className="mt-1 flex items-center gap-2">
                   <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                     post.moderationStatus === 'PENDING'
-                      ? 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200'
+                      ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'
                       : post.moderationStatus === 'NEEDS_FIXING'
-                      ? 'bg-orange-50 text-orange-700 dark:bg-orange-500/10 dark:text-orange-200'
-                      : 'bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-200'
+                      ? 'bg-orange-50 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300'
+                      : 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300'
                   }`}>
                     {post.moderationStatus === 'PENDING'
                       ? 'Awaiting admin approval'
