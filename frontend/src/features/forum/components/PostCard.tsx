@@ -38,7 +38,7 @@ const formatDateTime = (value: string | null): string => {
 
 export function PostCard({ post, onDelete, onUpdated, deleting = false }: PostCardProps) {
   const { session, role } = useAuth()
-  const canManage = role === 'ADMIN' || (role === 'CONTRIBUTOR' && session?.user.id === post.authorId)
+  const canManage = role === 'ADMIN' || (role === 'CONTRIBUTOR' || role === 'VIEWER') && session?.user.id === post.authorId
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isRepliesOpen, setIsRepliesOpen] = useState(false)
@@ -48,6 +48,8 @@ export function PostCard({ post, onDelete, onUpdated, deleting = false }: PostCa
   })
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const hasChanges = draft.title?.trim() !== post.title || draft.content?.trim() !== post.content
 
   useEffect(() => {
     setDraft({
@@ -170,7 +172,7 @@ export function PostCard({ post, onDelete, onUpdated, deleting = false }: PostCa
                 <button
                   type="button"
                   onClick={handleSave}
-                  disabled={isSaving}
+                  disabled={isSaving || !hasChanges}
                   className="rounded-full bg-amber-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isSaving ? 'Saving…' : 'Save changes'}

@@ -82,6 +82,7 @@ interface RoadmapGraphEditorProps {
   /** Deep-link target: selects and centres this node once the canvas has measured its nodes. */
   focusNodeId?: number | null
   onDirtyChange?: (dirty: boolean) => void
+  onSave?: (graph: RoadmapGraphResponseDto) => void
 }
 
 export function RoadmapGraphEditor(props: RoadmapGraphEditorProps) {
@@ -98,6 +99,7 @@ function GraphCanvas({
   canEdit,
   focusNodeId,
   onDirtyChange,
+  onSave,
 }: RoadmapGraphEditorProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>([])
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
@@ -289,7 +291,9 @@ function GraphCanvas({
     }
 
     try {
-      applyGraph(await saveRoadmapGraph(roadmapId, payload))
+      const saved = await saveRoadmapGraph(roadmapId, payload)
+      applyGraph(saved)
+      onSave?.(saved)
       setSavedAt(new Date().toLocaleTimeString())
     } catch (saveError) {
       setError(extractErrorMessage(saveError, 'Unable to save the roadmap graph.'))

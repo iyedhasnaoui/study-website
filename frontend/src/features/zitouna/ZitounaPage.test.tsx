@@ -52,7 +52,7 @@ beforeEach(() => {
 
 it('shares search and field-specific tag filters across Zitouna content tabs', async () => {
     const {container} = render(
-        <ZitounaPage onCreatePost={vi.fn()} onOpenRoadmaps={vi.fn()} onRequireLogin={vi.fn()}/>,
+        <ZitounaPage onCreatePost={vi.fn()} onRequireLogin={vi.fn()}/>,
     )
 
     expect(container.querySelector('.zitouna-global-filters')?.compareDocumentPosition(container.querySelector('.zitouna-tabs')!))

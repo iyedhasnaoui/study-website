@@ -18,7 +18,7 @@ it('creates an approved tag from the admin queue and posts to the admin endpoint
   }) as never)
   const post = vi.spyOn(apiClient, 'post').mockResolvedValue({ data: { id: 25 } } as never)
   render(<QueryClientProvider client={new QueryClient()}>
-    <ZitounaPage onCreatePost={vi.fn()} onOpenRoadmaps={vi.fn()} onRequireLogin={vi.fn()} />
+    <ZitounaPage onCreatePost={vi.fn()} onRequireLogin={vi.fn()} />
   </QueryClientProvider>)
 
   await userEvent.click(screen.getByRole('button', { name: 'Admin queue' }))

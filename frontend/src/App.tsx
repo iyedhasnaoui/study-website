@@ -63,11 +63,6 @@ function App() {
     setForumRoute(nextRoute)
   }
 
-  const navigateRoadmaps = () => {
-    window.location.hash = '#roadmaps'
-    setSection('roadmaps')
-  }
-
   const navigateZitouna = () => {
     window.location.hash = '#zitouna'
     setSection('zitouna')
@@ -122,7 +117,6 @@ function App() {
       ) : section === 'zitouna' ? (
         <ZitounaPage
           onCreatePost={() => navigateForum('create')}
-          onOpenRoadmaps={navigateRoadmaps}
           onRequireLogin={() => openAuth('login')}
         />
       ) : section === 'about' ? (

@@ -6,7 +6,7 @@ import { RoadmapDetailPage } from './RoadmapDetailPage'
 import { RoadmapFeedPage, type RoadmapFeedPageProps } from './RoadmapFeedPage'
 import { getRoadmapHash, getRoadmapRouteFromHash, type RoadmapRoute } from './roadmapRoutes'
 
-interface RoadmapPageProps {
+export interface RoadmapPageProps {
   onBackToFeed?: () => void
   sharedFilters?: RoadmapFeedPageProps['sharedFilters']
   page?: number

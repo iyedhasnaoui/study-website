@@ -18,7 +18,7 @@ it('shows material descriptions and submits the version of the forum revision re
   vi.spyOn(apiClient, 'get').mockImplementation((url) => Promise.resolve({ data: url === '/api/admin/moderation' ? queue : [] }))
   const post = vi.spyOn(apiClient, 'post').mockResolvedValue({ data: undefined })
   render(<QueryClientProvider client={new QueryClient()}><ZitounaPage onCreatePost={vi.fn()}
-    onOpenRoadmaps={vi.fn()} onRequireLogin={vi.fn()} /></QueryClientProvider>)
+    onRequireLogin={vi.fn()} /></QueryClientProvider>)
   await userEvent.click(screen.getByRole('button', { name: 'Admin queue' }))
   expect(await screen.findByText(/Material description for review/)).toBeVisible()
   expect(screen.getByText(/Local author/)).toBeVisible()

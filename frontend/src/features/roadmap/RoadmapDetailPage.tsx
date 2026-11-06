@@ -129,7 +129,7 @@ export function RoadmapDetailPage({
     )
   }
 
-  const canEdit = Boolean(session && session.user.id === graph.authorId)
+  const canEdit = Boolean(session && session.user.id === graph.authorId && graph.moderationStatus !== 'REJECTED')
 
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -196,6 +196,7 @@ export function RoadmapDetailPage({
         canEdit={canEdit}
         focusNodeId={focusNodeId}
         onDirtyChange={setIsDirty}
+        onSave={setGraph}
       />
     </main>
   )

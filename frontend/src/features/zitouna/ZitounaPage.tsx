@@ -52,7 +52,6 @@ function getZitounaTabFromHash(hash: string): ZitounaTab | undefined {
 
 interface ZitounaPageProps {
     onCreatePost: () => void
-    onOpenRoadmaps: () => void
     onRequireLogin: () => void
 }
 
@@ -74,7 +73,7 @@ const allAreas = Object.keys(areaLabels) as FeedArea[]
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, {dateStyle: 'medium', timeStyle: 'short'})
 
-export function ZitounaPage({onCreatePost, onOpenRoadmaps, onRequireLogin}: ZitounaPageProps) {
+export function ZitounaPage({onCreatePost, onRequireLogin}: ZitounaPageProps) {
     const {session} = useAuth()
     const isAdmin = Boolean(session?.user.roles?.includes('ADMIN'))
     const [tab, setTab] = useState<ZitounaTab>(() => getZitounaTabFromHash(window.location.hash) ?? 'discover')
@@ -274,7 +273,7 @@ export function ZitounaPage({onCreatePost, onOpenRoadmaps, onRequireLogin}: Zito
 
     const openFeedItem = (item: FeedItem) => {
         if (item.area === 'FORUM') setTab('forum')
-        else if (item.area === 'ROADMAP') onOpenRoadmaps()
+        else if (item.area === 'ROADMAP') window.location.hash = `#roadmaps/${item.id}`
         else if (item.area === 'LEARNING_MATERIAL' && item.contentUrl) window.open(resolveApiUrl(item.contentUrl), '_blank', 'noopener,noreferrer')
         else setTab('faq')
     }

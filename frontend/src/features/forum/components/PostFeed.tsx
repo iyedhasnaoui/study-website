@@ -4,7 +4,7 @@ import { deleteForumPost, getForumPosts } from '../api/forumApi'
 import type { ForumPostResponseDto } from '../types'
 import { PostCard } from './PostCard'
 
-interface PostFeedProps {
+export interface PostFeedProps {
   reloadKey?: number
   query?: string
   tagIds?: number[]
@@ -37,11 +37,11 @@ export function PostFeed({ reloadKey = 0, query, tagIds, tagFilter, page, size, 
       try {
         const response = await getForumPosts({ query, tagIds, tag: tagFilter, page: usePagination ? page : undefined, size: usePagination ? size : undefined })
         if (isMounted) {
-          if (usePagination && 'content' in response) {
+          if ('content' in response) {
             setPosts(response.content)
             onTotalPages?.(response.totalPages)
           } else {
-            setPosts(response as ForumPostResponseDto[])
+            setPosts(response)
             onTotalPages?.(0)
           }
         }
