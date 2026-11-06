@@ -12,12 +12,13 @@ export interface PostFeedProps {
   page?: number
   size?: number
   onTotalPages?: (totalPages: number) => void
+  onOpenPost?: (postId: number) => void
 }
 
 const getErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : 'Unable to load forum posts.'
 
-export function PostFeed({ reloadKey = 0, query, tagIds, tagFilter, page, size, onTotalPages }: PostFeedProps = {}) {
+export function PostFeed({ reloadKey = 0, query, tagIds, tagFilter, page, size, onTotalPages, onOpenPost }: PostFeedProps = {}) {
   const [posts, setPosts] = useState<ForumPostResponseDto[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -129,6 +130,7 @@ export function PostFeed({ reloadKey = 0, query, tagIds, tagFilter, page, size, 
             deleting={deletingPostId === post.id}
             onDelete={handleDelete}
             onUpdated={handlePostUpdated}
+            onOpenPost={onOpenPost}
           />
         ))}
       </div>

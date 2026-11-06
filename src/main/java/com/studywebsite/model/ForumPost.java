@@ -101,5 +101,12 @@ public class ForumPost {
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private List<ForumAttachment> attachments = new ArrayList<>();
+
+    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("createdAt ASC")
+    @Builder.Default
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private List<ForumReply> replies = new ArrayList<>();
 }
 

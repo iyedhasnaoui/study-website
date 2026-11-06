@@ -25,5 +25,6 @@ public class ForumPostResponseDto {
     private List<ForumAttachmentResponseDto> attachments;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private Integer replyCount;
 }
 

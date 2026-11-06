@@ -12,6 +12,7 @@ interface PostCardProps {
   post: ForumPostResponseDto
   onDelete?: (postId: number) => void | Promise<void>
   onUpdated?: (post: ForumPostResponseDto) => void
+  onOpenPost?: (postId: number) => void
   deleting?: boolean
 }
 
@@ -36,7 +37,7 @@ const formatDateTime = (value: string | null): string => {
   return dateFormatter.format(parsed)
 }
 
-export function PostCard({ post, onDelete, onUpdated, deleting = false }: PostCardProps) {
+export function PostCard({ post, onDelete, onUpdated, onOpenPost, deleting = false }: PostCardProps) {
   const { session, role } = useAuth()
   const canManage = role === 'ADMIN' || (role === 'CONTRIBUTOR' || role === 'VIEWER') && session?.user.id === post.authorId
   const [isEditing, setIsEditing] = useState(false)
@@ -182,7 +183,17 @@ export function PostCard({ post, onDelete, onUpdated, deleting = false }: PostCa
           ) : (
             <div>
               <h2 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-zinc-100">
-                {post.title}
+                {onOpenPost ? (
+                  <button
+                    type="button"
+                    onClick={() => onOpenPost(post.id)}
+                    className="cursor-pointer underline decoration-amber-300 underline-offset-4 hover:decoration-amber-500 dark:decoration-amber-600 dark:hover:decoration-amber-400"
+                  >
+                    {post.title}
+                  </button>
+                ) : (
+                  post.title
+                )}
               </h2>
               {post.moderationStatus && post.moderationStatus !== 'APPROVED' ? (
                 <div className="mt-1 flex items-center gap-2">
@@ -235,9 +246,18 @@ export function PostCard({ post, onDelete, onUpdated, deleting = false }: PostCa
       {submitted ? <p role="status" className="mt-3 text-sm">Changes submitted for admin approval. The approved version remains public.</p> : null}
       {!isEditing ? (
         <>
-          <PostContent key={`${post.id}:${post.content}`} content={post.content} />
-
-          <AttachmentGallery attachments={post.attachments} />
+          {onOpenPost ? (
+            /* Preview mode — short excerpt like Reddit */
+            <p className="line-clamp-4 text-sm leading-relaxed text-slate-600 dark:text-zinc-300">
+              {post.content}
+            </p>
+          ) : (
+            /* Full post mode */
+            <>
+              <PostContent key={`${post.id}:${post.content}`} content={post.content} />
+              <AttachmentGallery attachments={post.attachments} />
+            </>
+          )}
 
           <div className="mt-5 flex flex-wrap items-center gap-2">
             {post.tags.length > 0 ? (
@@ -259,21 +279,24 @@ export function PostCard({ post, onDelete, onUpdated, deleting = false }: PostCa
             {post.updatedAt && post.updatedAt !== post.createdAt ? (
               <span>Updated {formatDateTime(post.updatedAt)}</span>
             ) : null}
+            {onOpenPost ? (
+              <span className="inline-flex items-center gap-1 font-medium text-amber-600 dark:text-amber-400">
+                💬 {post.replyCount ?? 0} {post.replyCount === 1 ? 'reply' : 'replies'}
+              </span>
+            ) : null}
           </footer>
-          { post.moderationStatus === 'APPROVED' &&
-                <div className="mt-6 border-t border-gray-200 pt-4 dark:border-zinc-800">
-
-            <button
-              type="button"
-              onClick={() => setIsRepliesOpen((current) => !current)}
-              className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-amber-300 hover:text-amber-700 dark:border-zinc-700 dark:text-zinc-200 dark:hover:border-amber-500/50 dark:hover:text-amber-200"
-            >
-              <span>{isRepliesOpen ? 'Hide replies' : 'Show replies'}</span>
-            </button>
-
-            {isRepliesOpen ? <ReplyList postId={post.id} /> : null}
-          </div>
-          }
+          {!onOpenPost && post.moderationStatus === 'APPROVED' && (
+            <div className="mt-6 border-t border-gray-200 pt-4 dark:border-zinc-800">
+              <button
+                type="button"
+                onClick={() => setIsRepliesOpen((current) => !current)}
+                className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-amber-300 hover:text-amber-700 dark:border-zinc-700 dark:text-zinc-200 dark:hover:border-amber-500/50 dark:hover:text-amber-200"
+              >
+                <span>{isRepliesOpen ? 'Hide replies' : 'Show replies'}</span>
+              </button>
+              {isRepliesOpen ? <ReplyList postId={post.id} /> : null}
+            </div>
+          )}
         </>
       ) : null}
     </article>

@@ -57,6 +57,7 @@ export interface ForumPostResponseDto {
   attachments: ForumAttachmentResponseDto[]
   createdAt: string | null
   updatedAt: string | null
+  replyCount: number
 }
 
 export interface ForumPostFormErrors {

@@ -53,6 +53,7 @@ function getZitounaTabFromHash(hash: string): ZitounaTab | undefined {
 interface ZitounaPageProps {
     onCreatePost: () => void
     onRequireLogin: () => void
+    onOpenPost?: (postId: number) => void
 }
 
 const areaLabels: Record<FeedArea, string> = {
@@ -73,7 +74,7 @@ const allAreas = Object.keys(areaLabels) as FeedArea[]
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, {dateStyle: 'medium', timeStyle: 'short'})
 
-export function ZitounaPage({onCreatePost, onRequireLogin}: ZitounaPageProps) {
+export function ZitounaPage({onCreatePost, onRequireLogin, onOpenPost}: ZitounaPageProps) {
     const {session} = useAuth()
     const isAdmin = Boolean(session?.user.roles?.includes('ADMIN'))
     const [tab, setTab] = useState<ZitounaTab>(() => getZitounaTabFromHash(window.location.hash) ?? 'discover')
@@ -272,7 +273,10 @@ export function ZitounaPage({onCreatePost, onRequireLogin}: ZitounaPageProps) {
     }
 
     const openFeedItem = (item: FeedItem) => {
-        if (item.area === 'FORUM') setTab('forum')
+        if (item.area === 'FORUM') {
+            if (onOpenPost) onOpenPost(item.id)
+            else setTab('forum')
+        }
         else if (item.area === 'ROADMAP') window.location.hash = `#roadmaps/${item.id}`
         else if (item.area === 'LEARNING_MATERIAL' && item.contentUrl) window.open(resolveApiUrl(item.contentUrl), '_blank', 'noopener,noreferrer')
         else setTab('faq')
@@ -461,6 +465,7 @@ export function ZitounaPage({onCreatePost, onRequireLogin}: ZitounaPageProps) {
                             page={forumPage}
                             size={PAGE_SIZE}
                             onTotalPages={setForumTotalPages}
+                            onOpenPost={onOpenPost}
                         />
                         <Pagination currentPage={forumPage} totalPages={forumTotalPages} onPageChange={(p) => setForumPage(p)} />
                     </div>

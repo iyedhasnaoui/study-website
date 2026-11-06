@@ -218,6 +218,7 @@ public class ForumPostController {
                         .toList())
                 .createdAt(p.getCreatedAt())
                 .updatedAt(p.getUpdatedAt())
+                .replyCount(p.getReplies() != null ? p.getReplies().size() : 0)
                 .build();
     }
 

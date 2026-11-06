@@ -7,9 +7,10 @@ import '../../features/zitouna/zitouna.css'
 
 interface ForumFeedPageProps {
     onCreateNew: () => void
+    onOpenPost?: (postId: number) => void
 }
 
-export function ForumFeedPage({ onCreateNew }: ForumFeedPageProps) {
+export function ForumFeedPage({ onCreateNew, onOpenPost }: ForumFeedPageProps) {
     const [reloadKey, setReloadKey] = useState(0)
     const [searchDraft, setSearchDraft] = useState('')
     const [activeSearch, setActiveSearch] = useState<string | undefined>()
@@ -87,6 +88,7 @@ export function ForumFeedPage({ onCreateNew }: ForumFeedPageProps) {
                         reloadKey={reloadKey}
                         query={activeSearch}
                         tagIds={selectedTagIds.length > 0 ? selectedTagIds : undefined}
+                        onOpenPost={onOpenPost}
                     />
                 </div>
             </section>

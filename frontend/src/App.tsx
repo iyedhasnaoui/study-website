@@ -5,7 +5,8 @@ import { useAuth } from './auth/AuthContext'
 import { Navbar } from './components/Navbar'
 import { CreatePostPage } from './features/forum/CreatePostPage'
 import { ForumFeedPage } from './features/forum/ForumFeedPage'
-import { getForumHash, getForumRouteFromHash, type ForumRoute } from './features/forum/forumRoutes'
+import { ForumPostPage } from './features/forum/ForumPostPage'
+import { getForumHash, getForumRouteFromHash, getPostIdFromHash, type ForumRoute } from './features/forum/forumRoutes'
 import { RoadmapPage } from './features/roadmap/RoadmapPage'
 import { ZitounaPage } from './features/zitouna/ZitounaPage'
 import { HomePage } from './pages/HomePage'
@@ -27,12 +28,14 @@ function App() {
   const { session, logout, login, register, isAdmin } = useAuth()
   const [section, setSection] = useState<AppSection>(() => getSectionFromHash(window.location.hash))
   const [forumRoute, setForumRoute] = useState<ForumRoute>(() => getForumRouteFromHash(window.location.hash))
+  const [forumPostId, setForumPostId] = useState<number | null>(() => getPostIdFromHash(window.location.hash))
   const [toast, setToast] = useState<string | null>(null)
 
   useEffect(() => {
     const handleHashChange = () => {
       setSection(getSectionFromHash(window.location.hash))
       setForumRoute(getForumRouteFromHash(window.location.hash))
+      setForumPostId(getPostIdFromHash(window.location.hash))
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }
 
@@ -52,15 +55,16 @@ function App() {
     setSection('home')
   }
 
-  const navigateForum = (nextRoute: ForumRoute) => {
+  const navigateForum = (nextRoute: ForumRoute, postId?: number) => {
     if (nextRoute === 'create' && !session) {
       openAuth('login')
       return
     }
-    const nextHash = getForumHash(nextRoute)
+    const nextHash = getForumHash(nextRoute, postId)
     if (window.location.hash !== nextHash) window.location.hash = nextHash
     setSection('forum')
     setForumRoute(nextRoute)
+    setForumPostId(postId ?? null)
   }
 
   const navigateZitouna = () => {
@@ -118,6 +122,7 @@ function App() {
         <ZitounaPage
           onCreatePost={() => navigateForum('create')}
           onRequireLogin={() => openAuth('login')}
+          onOpenPost={(postId) => navigateForum('post', postId)}
         />
       ) : section === 'about' ? (
         <AboutPage />
@@ -133,8 +138,16 @@ function App() {
             navigateZitounaToTab('forum')
           }}
         />
+      ) : forumRoute === 'post' && forumPostId ? (
+        <ForumPostPage
+          postId={forumPostId}
+          onBack={() => navigateZitounaToTab('forum')}
+        />
       ) : (
-        <ForumFeedPage onCreateNew={() => navigateForum('create')} />
+        <ForumFeedPage
+          onCreateNew={() => navigateForum('create')}
+          onOpenPost={(postId) => navigateForum('post', postId)}
+        />
       )}
 
       <footer className="site-footer">
