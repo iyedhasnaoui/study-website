@@ -138,6 +138,10 @@ public class ForumPostController {
         ForumPost existing = forumPostService.getById(id);
         requireOwner(existing, principal);
 
+        if (existing.getModerationStatus() == com.studywebsite.model.ModerationStatus.REJECTED) {
+            throw new InvalidForumContributionException("Rejected posts cannot be edited");
+        }
+
         String baseTitle = existing.getRevisionStatus() == null ? existing.getTitle() : existing.getPendingTitle();
         String baseContent = existing.getRevisionStatus() == null ? existing.getContent() : existing.getPendingContent();
         String title = dto.getTitle() == null ? baseTitle : dto.getTitle().strip();
@@ -190,18 +194,20 @@ public class ForumPostController {
 
         return ForumPostResponseDto.builder()
                 .id(p.getId())
-                .title(p.getTitle())
-                .content(p.getContent())
+                .title(p.getRevisionStatus() != null ? p.getPendingTitle() : p.getTitle())
+                .content(p.getRevisionStatus() != null ? p.getPendingContent() : p.getContent())
                 .authorId(authorId)
                 .authorUsername(authorUsername)
                 .tags(p.getTags() == null ? Collections.emptyList() : p.getTags().stream()
                         .map(com.studywebsite.model.ZitounaTag::getName)
                         .sorted()
                         .toList())
-                .moderationStatus(p.getModerationStatus() == null
-                        ? com.studywebsite.model.ModerationStatus.APPROVED
-                        : p.getModerationStatus())
-                .moderationNote(p.getModerationNote())
+                .moderationStatus(p.getRevisionStatus() != null
+                        ? p.getRevisionStatus()
+                        : (p.getModerationStatus() == null
+                                ? com.studywebsite.model.ModerationStatus.APPROVED
+                                : p.getModerationStatus()))
+                .moderationNote(p.getRevisionStatus() != null ? p.getRevisionNote() : p.getModerationNote())
                 .attachments(p.getAttachments() == null ? List.of() : p.getAttachments().stream()
                         .map(ForumAttachmentResponseDto::from)
                         .toList())

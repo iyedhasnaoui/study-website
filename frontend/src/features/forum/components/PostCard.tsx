@@ -207,7 +207,7 @@ export function PostCard({ post, onDelete, onUpdated, deleting = false }: PostCa
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          {!isEditing && canManage ? (
+          {!isEditing && canManage && post.moderationStatus !== 'REJECTED' ? (
             <button
               type="button"
               onClick={handleStartEditing}
@@ -258,8 +258,9 @@ export function PostCard({ post, onDelete, onUpdated, deleting = false }: PostCa
               <span>Updated {formatDateTime(post.updatedAt)}</span>
             ) : null}
           </footer>
+          { post.moderationStatus === 'APPROVED' &&
+                <div className="mt-6 border-t border-gray-200 pt-4 dark:border-zinc-800">
 
-          <div className="mt-6 border-t border-gray-200 pt-4 dark:border-zinc-800">
             <button
               type="button"
               onClick={() => setIsRepliesOpen((current) => !current)}
@@ -270,6 +271,7 @@ export function PostCard({ post, onDelete, onUpdated, deleting = false }: PostCa
 
             {isRepliesOpen ? <ReplyList postId={post.id} /> : null}
           </div>
+          }
         </>
       ) : null}
     </article>
