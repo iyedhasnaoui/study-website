@@ -29,16 +29,28 @@ export async function getTagTypes(): Promise<TagTypeDefinition[]> {
 }
 
 
+export interface PaginatedResponse<T> {
+    content: T[]
+    page: number
+    size: number
+    total: number
+    totalPages: number
+}
+
 export async function getZitounaFeed(filters: {
     query?: string
     areas?: FeedArea[]
     tagIds?: number[]
-}): Promise<FeedItem[]> {
-    const response = await apiClient.get<FeedItem[]>('/api/zitouna/feed', {
+    page?: number
+    size?: number
+}): Promise<FeedItem[] | PaginatedResponse<FeedItem>> {
+    const response = await apiClient.get<FeedItem[] | PaginatedResponse<FeedItem>>('/api/zitouna/feed', {
         params: {
             q: filters.query || undefined,
             areas: filters.areas?.length ? filters.areas.join(',') : undefined,
             tagIds: filters.tagIds?.length ? filters.tagIds.join(',') : undefined,
+            page: filters.page ?? undefined,
+            size: filters.size ?? undefined,
         },
     })
     return response.data
@@ -48,12 +60,16 @@ export async function getLearningMaterials(params?: {
     includeMine?: boolean
     query?: string
     tagIds?: number[]
-}): Promise<LearningMaterial[]> {
-    const response = await apiClient.get<LearningMaterial[]>('/api/learning-materials', {
+    page?: number
+    size?: number
+}): Promise<LearningMaterial[] | PaginatedResponse<LearningMaterial>> {
+    const response = await apiClient.get<LearningMaterial[] | PaginatedResponse<LearningMaterial>>('/api/learning-materials', {
         params: {
             includeMine: params?.includeMine ?? false,
             q: params?.query && params.query.trim().length > 0 ? params.query.trim() : undefined,
             tagIds: params?.tagIds && params.tagIds.length > 0 ? params.tagIds.join(',') : undefined,
+            page: params?.page ?? undefined,
+            size: params?.size ?? undefined,
         },
     })
     return response.data
@@ -119,11 +135,18 @@ export async function submitLearningMaterial(
     return response.data
 }
 
-export async function getFaq(filters?: { query?: string; tagIds?: number[] }): Promise<FaqEntry[]> {
-    const response = await apiClient.get<FaqEntry[]>('/api/faq', {
+export async function getFaq(filters?: {
+    query?: string
+    tagIds?: number[]
+    page?: number
+    size?: number
+}): Promise<FaqEntry[] | PaginatedResponse<FaqEntry>> {
+    const response = await apiClient.get<FaqEntry[] | PaginatedResponse<FaqEntry>>('/api/faq', {
         params: {
             q: filters?.query || undefined,
             tagIds: filters?.tagIds?.length ? filters.tagIds.join(',') : undefined,
+            page: filters?.page ?? undefined,
+            size: filters?.size ?? undefined,
         },
     })
     return response.data

@@ -26,22 +26,34 @@ const extractErrorMessage = (error: unknown, fallback: string): string => {
   return error instanceof Error ? error.message : fallback
 }
 
+export interface PaginatedResponse<T> {
+  content: T[]
+  page: number
+  size: number
+  total: number
+  totalPages: number
+}
+
 export async function getRoadmaps(
     params?: string | GetRoadmapsParams,
-): Promise<RoadmapResponseDto[]> {
+): Promise<RoadmapResponseDto[] | PaginatedResponse<RoadmapResponseDto>> {
   // Support both legacy string query and new params object
   const query = typeof params === 'string' ? params : params?.query
   const tags = typeof params === 'object' ? params?.tags : undefined
+  const page = typeof params === 'object' ? params?.page : undefined
+  const size = typeof params === 'object' ? params?.size : undefined
 
   // Extract tag IDs depending on whether TagItem objects or raw IDs were passed
   const tagIds = tags
       ?.map((tag) => (typeof tag === 'number' ? tag : tag.id))
       .filter((id): id is number => typeof id === 'number')
 
-  const response = await roadmapApiClient.get<RoadmapResponseDto[]>('/api/roadmaps', {
+  const response = await roadmapApiClient.get<RoadmapResponseDto[] | PaginatedResponse<RoadmapResponseDto>>('/api/roadmaps', {
     params: {
       q: query && query.trim().length > 0 ? query.trim() : undefined,
       tagIds: tagIds && tagIds.length > 0 ? tagIds.join(',') : undefined,
+      page: page ?? undefined,
+      size: size ?? undefined,
     },
   })
 

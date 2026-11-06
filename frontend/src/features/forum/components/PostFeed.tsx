@@ -9,17 +9,22 @@ interface PostFeedProps {
   query?: string
   tagIds?: number[]
   tagFilter?: string
+  page?: number
+  size?: number
+  onTotalPages?: (totalPages: number) => void
 }
 
 const getErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : 'Unable to load forum posts.'
 
-export function PostFeed({ reloadKey = 0, query, tagIds, tagFilter }: PostFeedProps = {}) {
+export function PostFeed({ reloadKey = 0, query, tagIds, tagFilter, page, size, onTotalPages }: PostFeedProps = {}) {
   const [posts, setPosts] = useState<ForumPostResponseDto[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [deletingPostId, setDeletingPostId] = useState<number | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  const usePagination = page !== undefined && size !== undefined
 
   useEffect(() => {
     let isMounted = true
@@ -30,9 +35,15 @@ export function PostFeed({ reloadKey = 0, query, tagIds, tagFilter }: PostFeedPr
       setDeleteError(null)
 
       try {
-        const response = await getForumPosts({ query, tagIds, tag: tagFilter })
+        const response = await getForumPosts({ query, tagIds, tag: tagFilter, page: usePagination ? page : undefined, size: usePagination ? size : undefined })
         if (isMounted) {
-          setPosts(response)
+          if (usePagination && 'content' in response) {
+            setPosts(response.content)
+            onTotalPages?.(response.totalPages)
+          } else {
+            setPosts(response as ForumPostResponseDto[])
+            onTotalPages?.(0)
+          }
         }
       } catch (error) {
         if (isMounted) {
@@ -50,7 +61,7 @@ export function PostFeed({ reloadKey = 0, query, tagIds, tagFilter }: PostFeedPr
     return () => {
       isMounted = false
     }
-  }, [reloadKey, query, tagIds, tagFilter])
+  }, [reloadKey, query, tagIds, tagFilter, page, size, usePagination, onTotalPages])
 
   const handleDelete = async (postId: number) => {
     setDeletingPostId(postId)

@@ -35,23 +35,35 @@ public class ZitounaController {
     private final ForumAttachmentService forumAttachmentService;
 
     @GetMapping("/api/zitouna/feed")
-    public List<ZitounaDtos.FeedItemResponse> feed(
+    public Object feed(
             @RequestParam(required = false) String q,
             @RequestParam(required = false) Set<String> areas,
-            @RequestParam(required = false) Set<Long> tagIds
+            @RequestParam(required = false) Set<Long> tagIds,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size
     ) {
-        return zitounaService.feed(q, areas, tagIds);
+        List<ZitounaDtos.FeedItemResponse> all = zitounaService.feed(q, areas, tagIds);
+        if (page != null && size != null) {
+            return paginate(all, page, size);
+        }
+        return all;
     }
 
     @GetMapping("/api/learning-materials")
-    public List<ZitounaDtos.LearningMaterialResponse> materials(
+    public Object materials(
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
             @RequestParam(defaultValue = "false") boolean includeMine,
             @RequestParam(required = false) String q,
-            @RequestParam(required = false) Set<Long> tagIds
+            @RequestParam(required = false) Set<Long> tagIds,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size
     ) {
-        return zitounaService.listMaterials(includeMine && principal != null,
+        List<ZitounaDtos.LearningMaterialResponse> all = zitounaService.listMaterials(includeMine && principal != null,
                 principal == null ? null : principal.userId(), q, tagIds);
+        if (page != null && size != null) {
+            return paginate(all, page, size);
+        }
+        return all;
     }
 
     @PreAuthorize("hasRole('ADMIN')")
@@ -91,8 +103,17 @@ public class ZitounaController {
     }
 
     @GetMapping("/api/faq")
-    public List<ZitounaDtos.FaqResponse> faq() {
-        return zitounaService.listFaq();
+    public Object faq(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) Set<Long> tagIds,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size
+    ) {
+        List<ZitounaDtos.FaqResponse> all = zitounaService.listFaq();
+        if (page != null && size != null) {
+            return paginate(all, page, size);
+        }
+        return all;
     }
 
     @PreAuthorize("hasRole('ADMIN')")
@@ -185,5 +206,14 @@ public class ZitounaController {
         forumAttachmentService.deleteForReply(id);
         forumReplyService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    private <T> ZitounaDtos.PaginatedResponse<T> paginate(List<T> all, int page, int size) {
+        int p = Math.max(0, page);
+        int s = Math.max(1, Math.min(size, 100));
+        int from = p * s;
+        int to = Math.min(from + s, all.size());
+        List<T> content = from >= all.size() ? List.of() : all.subList(from, to);
+        return new ZitounaDtos.PaginatedResponse<>(content, p, s, (long) all.size());
     }
 }

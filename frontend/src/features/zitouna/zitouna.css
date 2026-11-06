@@ -107,4 +107,13 @@
 .dark .zitouna-global-filters__heading h2,.dark .filter-panel__heading span,.dark .filter-panel label,.dark .zitouna-search input,.dark .area-toolbar b,.dark .feed-card h2,.dark .feed-card footer button,.dark .simple-panel header h2,.dark .material-form label,.dark .material-grid h3,.dark .faq-list summary,.dark .admin-grid > div > h3,.dark .review-card h4,.dark .admin-tools h3,.dark .admin-tools label { color: #f7f1e2; }
 .dark .material-form input,.dark .material-form textarea,.dark .review-card button,.dark .tag-proposal-form input,.dark .tag-proposal-form select,.dark .admin-tools input,.dark .admin-tools textarea,.dark .admin-tools select { border-color: rgba(255,255,255,.12); background: #06152f; color: white; }
 @media (max-width: 900px) { .zitouna-workspace { grid-template-columns: 1fr; } .filter-panel { position: static; max-height: none; } .filter-panel fieldset { display: flex; flex-wrap: wrap; } .tag-filter-fields { grid-template-columns: repeat(2,minmax(0,1fr)); } .material-grid { grid-template-columns: 1fr 1fr; } .admin-grid,.admin-tools { grid-template-columns: 1fr; } }
+.pagination-btn { min-width: 36px; height: 36px; padding: 0 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); color: var(--muted); font-size: .75rem; font-weight: 700; cursor: pointer; }
+.pagination-btn:hover:not(:disabled) { border-color: var(--navy-900); color: var(--navy-900); }
+.pagination-btn.is-active { border-color: var(--navy-900); background: var(--navy-900); color: white; }
+.pagination-btn:disabled { opacity: .4; cursor: default; }
+.pagination-ellipsis { padding: 0 4px; color: var(--muted); font-size: .75rem; }
+.dark .pagination-btn { border-color: rgba(221,181,91,.16); background: rgba(8,25,52,.92); color: #c5d0df; }
+.dark .pagination-btn:hover:not(:disabled) { border-color: var(--gold-500); color: var(--gold-400); }
+.dark .pagination-btn.is-active { background: var(--gold-500); color: var(--navy-950); }
+
 @media (max-width: 640px) { .zitouna-page { padding-top: 34px; } .zitouna-hero { min-height: 370px; padding: 36px 25px; align-items: flex-start; flex-direction: column; } .zitouna-hero__mark { width: 92px; height: 92px; border-radius: 28px; } .zitouna-tabs { border-radius: 18px; } .zitouna-global-filters { padding: 18px; } .zitouna-global-filters__heading { align-items: flex-start; } .tag-filter-fields { grid-template-columns: 1fr; gap: 12px; } .area-toolbar,.materials-heading { align-items: stretch; flex-direction: column; } .post-button { width: 100%; } .material-form { grid-template-columns: 1fr; } .material-form__wide { grid-column: auto; } .material-grid { grid-template-columns: 1fr; } }

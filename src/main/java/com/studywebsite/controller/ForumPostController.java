@@ -64,11 +64,13 @@ public class ForumPostController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ForumPostResponseDto>> getAll(
+    public ResponseEntity<Object> getAll(
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
             @RequestParam(required = false) String q,
             @RequestParam(required = false) List<Long> tagIds,
-            @RequestParam(required = false) String tag
+            @RequestParam(required = false) String tag,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size
     ) {
         Long viewerId = principal != null ? principal.userId() : null;
         List<ForumPost> posts = forumPostService.getAll().stream()
@@ -98,6 +100,9 @@ public class ForumPostController {
         }
 
         List<ForumPostResponseDto> dtos = posts.stream().map(this::toResponseDto).collect(Collectors.toList());
+        if (page != null && size != null) {
+            return ResponseEntity.ok(paginate(dtos, page, size));
+        }
         return ResponseEntity.ok(dtos);
     }
 
@@ -256,6 +261,15 @@ public class ForumPostController {
         if (post.getAuthor() == null || !principal.userId().equals(post.getAuthor().getId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only the author can change this post");
         }
+    }
+
+    private <T> com.studywebsite.dto.zitouna.ZitounaDtos.PaginatedResponse<T> paginate(List<T> all, int page, int size) {
+        int p = Math.max(0, page);
+        int s = Math.max(1, Math.min(size, 100));
+        int from = p * s;
+        int to = Math.min(from + s, all.size());
+        List<T> content = from >= all.size() ? List.of() : all.subList(from, to);
+        return new com.studywebsite.dto.zitouna.ZitounaDtos.PaginatedResponse<>(content, p, s, (long) all.size());
     }
 }
 

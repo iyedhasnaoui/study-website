@@ -15,19 +15,31 @@ const withUserHeader = (userId?: number) => {
   return { 'X-User-Id': String(userId ?? authenticatedUser.id) }
 }
 
+export interface PaginatedResponse<T> {
+  content: T[]
+  page: number
+  size: number
+  total: number
+  totalPages: number
+}
+
 export interface GetForumPostsParams {
   query?: string
   tagIds?: number[]
   tag?: string
+  page?: number
+  size?: number
 }
 
-export async function getForumPosts(params?: GetForumPostsParams): Promise<ForumPostResponseDto[]> {
+export async function getForumPosts(params?: GetForumPostsParams): Promise<ForumPostResponseDto[] | PaginatedResponse<ForumPostResponseDto>> {
   const buildParams: Record<string, string> = {}
   if (params?.query && params.query.trim().length > 0) buildParams.q = params.query.trim()
   if (params?.tagIds && params.tagIds.length > 0) buildParams.tagIds = params.tagIds.join(',')
   if (params?.tag && params.tag.trim().length > 0) buildParams.tag = params.tag.trim()
+  if (params?.page !== undefined) buildParams.page = String(params.page)
+  if (params?.size !== undefined) buildParams.size = String(params.size)
 
-  const response = await forumApiClient.get<ForumPostResponseDto[]>('/api/forum/posts', {
+  const response = await forumApiClient.get<ForumPostResponseDto[] | PaginatedResponse<ForumPostResponseDto>>('/api/forum/posts', {
     params: Object.keys(buildParams).length > 0 ? buildParams : undefined,
   })
 

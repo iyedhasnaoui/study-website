@@ -116,4 +116,6 @@ export interface RoadmapNodeUpdateDto {
 export interface GetRoadmapsParams { // DTO for Query
     query?: string
     tags?: TagItem[] | number[]
+    page?: number
+    size?: number
 }

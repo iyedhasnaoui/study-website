@@ -157,4 +157,16 @@ public final class ZitounaDtos {
             Map<String, Object> details
     ) {
     }
+
+    public record PaginatedResponse<T>(
+            List<T> content,
+            int page,
+            int size,
+            long total,
+            int totalPages
+    ) {
+        public PaginatedResponse(List<T> content, int page, int size, long total) {
+            this(content, page, size, total, size == 0 ? 0 : (int) Math.ceil((double) total / size));
+        }
+    }
 }

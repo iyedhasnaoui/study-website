@@ -39,11 +39,13 @@ public class RoadmapController {
     private TagService tagService;
 
     @GetMapping
-    public ResponseEntity<List<RoadmapResponseDto>> getAll(
+    public ResponseEntity<Object> getAll(
             @RequestParam(required = false) String q,
             @RequestParam(required = false) Long authorId,
             @RequestParam(required = false) List<Long> tagIds,
-            @RequestParam(required = false) String tag) {
+            @RequestParam(required = false) String tag,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
 
         AuthenticatedUserPrincipal principal = CurrentUser.find().orElse(null);
         Long viewerId = principal != null ? principal.userId() : null;
@@ -83,7 +85,11 @@ public class RoadmapController {
                     .collect(Collectors.toList());
         }
 
-        return ResponseEntity.ok(roadmaps.stream().map(this::toDto).toList());
+        List<RoadmapResponseDto> dtos = roadmaps.stream().map(this::toDto).toList();
+        if (page != null && size != null) {
+            return ResponseEntity.ok(paginate(dtos, page, size));
+        }
+        return ResponseEntity.ok(dtos);
     }
 
     @GetMapping("/{id}")
@@ -179,5 +185,14 @@ public class RoadmapController {
                 roadmap,
                 roadmapGraphService.findNodes(roadmap.getId()),
                 roadmapGraphService.findEdges(roadmap.getId()));
+    }
+
+    private <T> com.studywebsite.dto.zitouna.ZitounaDtos.PaginatedResponse<T> paginate(List<T> all, int page, int size) {
+        int p = Math.max(0, page);
+        int s = Math.max(1, Math.min(size, 100));
+        int from = p * s;
+        int to = Math.min(from + s, all.size());
+        List<T> content = from >= all.size() ? List.of() : all.subList(from, to);
+        return new com.studywebsite.dto.zitouna.ZitounaDtos.PaginatedResponse<>(content, p, s, (long) all.size());
     }
 }

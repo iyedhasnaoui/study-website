@@ -1,6 +1,7 @@
 import {useEffect, useMemo, useState, type FormEvent} from 'react'
 import {TagAutocomplete, type TagItem, type TagProposalItem} from '../../components/TagAutocomplete'
 import {TagFilterFields} from '../../components/TagFilterFields'
+import {Pagination} from '../../components/Pagination'
 import {useFaqMutations} from './hooks/useFaqMutations'
 import {useAuth} from '../../auth/AuthContext'
 import {getApiErrorMessage, resolveApiUrl} from '../../lib/apiClient'
@@ -92,6 +93,19 @@ export function ZitounaPage({onCreatePost, onOpenRoadmaps, onRequireLogin}: Zito
     const [error, setError] = useState<string | null>(null)
     const [notice, setNotice] = useState<string | null>(null)
 
+    // Pagination state per tab
+    const PAGE_SIZE = 10
+    const [feedPage, setFeedPage] = useState(0)
+    const [feedTotalPages, setFeedTotalPages] = useState(0)
+    const [materialsPage, setMaterialsPage] = useState(0)
+    const [materialsTotalPages, setMaterialsTotalPages] = useState(0)
+    const [faqPage, setFaqPage] = useState(0)
+    const [faqTotalPages, setFaqTotalPages] = useState(0)
+    const [forumPage, setForumPage] = useState(0)
+    const [forumTotalPages, setForumTotalPages] = useState(0)
+    const [roadmapsPage, setRoadmapsPage] = useState(0)
+    const [roadmapsTotalPages, setRoadmapsTotalPages] = useState(0)
+
 
     useEffect(() => {
         const loadTags = () => {
@@ -113,18 +127,37 @@ export function ZitounaPage({onCreatePost, onOpenRoadmaps, onRequireLogin}: Zito
     }, [])
 
     useEffect(() => {
+        setFeedPage(0)
+        setFeedTotalPages(0)
+    }, [query, selectedTags, areas])
+
+    useEffect(() => {
         if (tab !== 'discover') return
         let active = true
         setLoading(true)
         setError(null)
-        getZitounaFeed({query, areas, tagIds: selectedTags})
-            .then((items) => active && setFeed(items))
+        getZitounaFeed({query, areas, tagIds: selectedTags, page: feedPage, size: PAGE_SIZE})
+            .then((result) => {
+                if (!active) return
+                if ('content' in result) {
+                    setFeed(result.content)
+                    setFeedTotalPages(result.totalPages)
+                } else {
+                    setFeed(result)
+                    setFeedTotalPages(0)
+                }
+            })
             .catch((reason) => active && setError(getApiErrorMessage(reason, 'Unable to load Zitouna.')))
             .finally(() => active && setLoading(false))
         return () => {
             active = false
         }
-    }, [areas, query, selectedTags, tab])
+    }, [areas, query, selectedTags, tab, feedPage])
+
+    useEffect(() => {
+        setMaterialsPage(0)
+        setMaterialsTotalPages(0)
+    }, [query, selectedTags])
 
     useEffect(() => {
         if (tab !== 'materials') return
@@ -135,28 +168,63 @@ export function ZitounaPage({onCreatePost, onOpenRoadmaps, onRequireLogin}: Zito
             includeMine: Boolean(session),
             query,
             tagIds: selectedTags,
+            page: materialsPage,
+            size: PAGE_SIZE,
         })
-            .then((items) => active && setMaterials(items))
+            .then((result) => {
+                if (!active) return
+                if ('content' in result) {
+                    setMaterials(result.content)
+                    setMaterialsTotalPages(result.totalPages)
+                } else {
+                    setMaterials(result)
+                    setMaterialsTotalPages(0)
+                }
+            })
             .catch((reason) => active && setError(getApiErrorMessage(reason, 'Unable to load learning materials.')))
             .finally(() => active && setLoading(false))
         return () => {
             active = false
         }
-    }, [session, tab, query, selectedTags])
+    }, [session, tab, query, selectedTags, materialsPage])
+
+    useEffect(() => {
+        setFaqPage(0)
+        setFaqTotalPages(0)
+    }, [query, selectedTags])
 
     useEffect(() => {
         if (tab !== 'faq') return
         let active = true
         setLoading(true)
         setError(null)
-        getFaq({query, tagIds: selectedTags})
-            .then((items) => active && setFaq(items))
+        getFaq({query, tagIds: selectedTags, page: faqPage, size: PAGE_SIZE})
+            .then((result) => {
+                if (!active) return
+                if ('content' in result) {
+                    setFaq(result.content)
+                    setFaqTotalPages(result.totalPages)
+                } else {
+                    setFaq(result)
+                    setFaqTotalPages(0)
+                }
+            })
             .catch((reason) => active && setError(getApiErrorMessage(reason, 'Unable to load the FAQ.')))
             .finally(() => active && setLoading(false))
         return () => {
             active = false
         }
-    }, [tab, query, selectedTags])
+    }, [tab, query, selectedTags, faqPage])
+
+    useEffect(() => {
+        setForumPage(0)
+        setForumTotalPages(0)
+    }, [query, selectedTags])
+
+    useEffect(() => {
+        setRoadmapsPage(0)
+        setRoadmapsTotalPages(0)
+    }, [query, selectedTags])
 
     const loadAdmin = async () => {
         if (!isAdmin) return
@@ -319,6 +387,7 @@ export function ZitounaPage({onCreatePost, onOpenRoadmaps, onRequireLogin}: Zito
                                 </article>
                             ))}
                         </div>
+                        <Pagination currentPage={feedPage} totalPages={feedTotalPages} onPageChange={(p) => setFeedPage(p)} />
                     </div>
                 </section>
             ) : null}
@@ -341,6 +410,9 @@ export function ZitounaPage({onCreatePost, onOpenRoadmaps, onRequireLogin}: Zito
                     }}
                 />
             ) : null}
+            {tab === 'materials' ? (
+                <Pagination currentPage={materialsPage} totalPages={materialsTotalPages} onPageChange={(p) => setMaterialsPage(p)} />
+            ) : null}
 
             {tab === 'faq' ? (
                 <section className="simple-panel section-shell">
@@ -353,6 +425,7 @@ export function ZitounaPage({onCreatePost, onOpenRoadmaps, onRequireLogin}: Zito
                     {!loading && faq.length === 0 ?
                         <p className="empty-state">The FAQ is being curated. Useful forum questions will appear
                             here.</p> : null}
+                    <Pagination currentPage={faqPage} totalPages={faqTotalPages} onPageChange={(p) => setFaqPage(p)} />
                 </section>
             ) : null}
 
@@ -361,8 +434,14 @@ export function ZitounaPage({onCreatePost, onOpenRoadmaps, onRequireLogin}: Zito
                     <RoadmapPage
                         onBackToFeed={() => setTab('roadmaps')}
                         sharedFilters={{query: query || undefined, tagIds: selectedTags}}
+                        page={roadmapsPage}
+                        size={PAGE_SIZE}
+                        onTotalPages={setRoadmapsTotalPages}
                     />
                 </section>
+            ) : null}
+            {tab === 'roadmaps' ? (
+                <Pagination currentPage={roadmapsPage} totalPages={roadmapsTotalPages} onPageChange={(p) => setRoadmapsPage(p)} />
             ) : null}
 
             {tab === 'forum' ? (
@@ -380,7 +459,11 @@ export function ZitounaPage({onCreatePost, onOpenRoadmaps, onRequireLogin}: Zito
                         <PostFeed
                             query={query || undefined}
                             tagIds={selectedTags.length > 0 ? selectedTags : undefined}
+                            page={forumPage}
+                            size={PAGE_SIZE}
+                            onTotalPages={setForumTotalPages}
                         />
+                        <Pagination currentPage={forumPage} totalPages={forumTotalPages} onPageChange={(p) => setForumPage(p)} />
                     </div>
                 </section>
             ) : null}

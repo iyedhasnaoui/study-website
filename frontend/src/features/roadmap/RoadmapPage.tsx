@@ -9,9 +9,12 @@ import { getRoadmapHash, getRoadmapRouteFromHash, type RoadmapRoute } from './ro
 interface RoadmapPageProps {
   onBackToFeed?: () => void
   sharedFilters?: RoadmapFeedPageProps['sharedFilters']
+  page?: number
+  size?: number
+  onTotalPages?: (totalPages: number) => void
 }
 
-export function RoadmapPage({ onBackToFeed, sharedFilters }: RoadmapPageProps = {}) {
+export function RoadmapPage({ onBackToFeed, sharedFilters, page, size, onTotalPages }: RoadmapPageProps = {}) {
   const { canContribute } = useAuth()
   const [route, setRoute] = useState<RoadmapRoute>(() => {
     if (typeof window === 'undefined') return { name: 'feed' }
@@ -93,6 +96,9 @@ export function RoadmapPage({ onBackToFeed, sharedFilters }: RoadmapPageProps = 
       onOpenRoadmap={(roadmapId) => navigate({ name: 'detail', roadmapId })}
       onOpenCreate={() => navigate({ name: 'create' })}
       sharedFilters={sharedFilters}
+      page={page}
+      size={size}
+      onTotalPages={onTotalPages}
     />
   )
 }

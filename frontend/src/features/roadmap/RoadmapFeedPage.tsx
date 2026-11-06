@@ -10,9 +10,12 @@ export interface RoadmapFeedPageProps {
     onOpenRoadmap: (roadmapId: number) => void
     onOpenCreate: () => void
     sharedFilters?: {query?: string; tagIds: number[]}
+    page?: number
+    size?: number
+    onTotalPages?: (totalPages: number) => void
 }
 
-export function RoadmapFeedPage({onOpenRoadmap, onOpenCreate, sharedFilters}: RoadmapFeedPageProps) {
+export function RoadmapFeedPage({onOpenRoadmap, onOpenCreate, sharedFilters, page, size, onTotalPages}: RoadmapFeedPageProps) {
     const {session, canContribute} = useAuth()
     const [reloadKey, setReloadKey] = useState(0)
     const [searchDraft, setSearchDraft] = useState('')
@@ -113,6 +116,9 @@ export function RoadmapFeedPage({onOpenRoadmap, onOpenCreate, sharedFilters}: Ro
                         searchFilter={activeQuery}
                         tagIds={activeTagIds.length > 0 ? activeTagIds : undefined}
                         onSelectRoadmap={onOpenRoadmap}
+                        page={page}
+                        size={size}
+                        onTotalPages={onTotalPages}
                     />
                 </div>
             </section>

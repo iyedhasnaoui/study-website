@@ -4,6 +4,7 @@ import { useAuth } from '../../../auth/AuthContext'
 import { deleteRoadmap, getRoadmaps } from '../api/roadmapApi'
 import type { RoadmapResponseDto } from '../types'
 import { formatDateTime } from '../utils'
+import { Pagination } from '../../../components/Pagination'
 
 const getErrorMessage = (error: unknown): string =>
     error instanceof Error ? error.message : 'Unable to load roadmaps.'
@@ -13,9 +14,12 @@ export interface RoadmapFeedProps {
   searchFilter?: string
   tagIds?: number[]
   onSelectRoadmap?: (roadmapId: number) => void
+  page?: number
+  size?: number
+  onTotalPages?: (totalPages: number) => void
 }
 
-export function RoadmapFeed({ reloadKey = 0, searchFilter, tagIds, onSelectRoadmap }: RoadmapFeedProps = {}) {
+export function RoadmapFeed({ reloadKey = 0, searchFilter, tagIds, onSelectRoadmap, page, size, onTotalPages }: RoadmapFeedProps = {}) {
   const { session, isAdmin, isReady } = useAuth()
   const [roadmaps, setRoadmaps] = useState<RoadmapResponseDto[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -23,8 +27,11 @@ export function RoadmapFeed({ reloadKey = 0, searchFilter, tagIds, onSelectRoadm
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [deletingRoadmapId, setDeletingRoadmapId] = useState<number | null>(null)
   const [loadedViewer, setLoadedViewer] = useState<string | null>(null)
+  const [totalPages, setTotalPages] = useState(0)
   const viewer = JSON.stringify([session?.user.id ?? null, session?.user.role ?? null, isAdmin])
   const loading = !isReady || isLoading || loadedViewer !== viewer
+
+  const usePagination = page !== undefined && size !== undefined
 
   useEffect(() => {
     if (!isReady) return
@@ -39,9 +46,19 @@ export function RoadmapFeed({ reloadKey = 0, searchFilter, tagIds, onSelectRoadm
         const response = await getRoadmaps({
           query: searchFilter,
           tags: tagIds,
+          page: usePagination ? page : undefined,
+          size: usePagination ? size : undefined,
         })
         if (isMounted) {
-          setRoadmaps(response)
+          if (usePagination && 'content' in response) {
+            setRoadmaps(response.content)
+            setTotalPages(response.totalPages)
+            onTotalPages?.(response.totalPages)
+          } else {
+            setRoadmaps(response as RoadmapResponseDto[])
+            setTotalPages(0)
+            onTotalPages?.(0)
+          }
           setLoadedViewer(viewer)
         }
       } catch (error) {
@@ -61,7 +78,7 @@ export function RoadmapFeed({ reloadKey = 0, searchFilter, tagIds, onSelectRoadm
     return () => {
       isMounted = false
     }
-  }, [reloadKey, searchFilter, tagIds, isReady, viewer])
+  }, [reloadKey, searchFilter, tagIds, isReady, viewer, page, size, usePagination, onTotalPages])
 
   const handleOpen = (roadmapId: number) => {
     if (onSelectRoadmap) {
@@ -233,6 +250,13 @@ export function RoadmapFeed({ reloadKey = 0, searchFilter, tagIds, onSelectRoadm
             )
           })}
         </div>
+
+        {usePagination ? (
+          <Pagination currentPage={page ?? 0} totalPages={totalPages} onPageChange={(p) => {
+            // Trigger reload by updating reloadKey via hash change or external callback
+            window.dispatchEvent(new CustomEvent('roadmap-page-change', { detail: p }))
+          }} />
+        ) : null}
       </section>
   )
 }
