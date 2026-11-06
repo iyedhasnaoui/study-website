@@ -1,5 +1,6 @@
 package com.studywebsite.service;
 
+import com.studywebsite.model.ModerationStatus;
 import com.studywebsite.model.Roadmap;
 import com.studywebsite.repository.RoadmapRepository;
 import com.studywebsite.security.AuthenticatedUserPrincipal;
@@ -71,6 +72,9 @@ public class RoadmapService {
     public void assertCanEdit(Roadmap roadmap, AuthenticatedUserPrincipal principal) {
         if (principal.isAdmin()) {
             return;
+        }
+        if (roadmap.getModerationStatus() == ModerationStatus.REJECTED) {
+            throw new RoadmapAccessDeniedException("Rejected roadmaps cannot be edited");
         }
         if (!principal.canContribute()) {
             throw new RoadmapAccessDeniedException("Your role does not allow changing roadmaps");

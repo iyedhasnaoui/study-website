@@ -133,7 +133,7 @@ public class ForumPostController {
         return false;
     }
 
-    @PreAuthorize("hasAnyRole('CONTRIBUTOR','ADMIN')")
+    @PreAuthorize("hasAnyRole('VIEWER','CONTRIBUTOR','ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<ForumPostResponseDto> update(
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal,

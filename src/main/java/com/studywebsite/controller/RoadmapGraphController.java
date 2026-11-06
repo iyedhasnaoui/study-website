@@ -2,6 +2,7 @@ package com.studywebsite.controller;
 
 import com.studywebsite.dto.RoadmapGraphResponseDto;
 import com.studywebsite.dto.RoadmapGraphSaveDto;
+import com.studywebsite.model.ModerationStatus;
 import com.studywebsite.model.Roadmap;
 import com.studywebsite.model.RoadmapEdge;
 import com.studywebsite.model.RoadmapNode;
@@ -48,6 +49,8 @@ public class RoadmapGraphController {
             @Valid @RequestBody RoadmapGraphSaveDto payload) {
 
         Roadmap roadmap = requireEditableRoadmap(roadmapId);
+        roadmap.setModerationStatus(ModerationStatus.PENDING);
+        roadmap.setModerationNote(null);
         roadmapGraphService.saveGraph(roadmap, payload);
         return ResponseEntity.ok(readGraph(roadmap));
     }
