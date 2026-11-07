@@ -188,3 +188,28 @@ it('continues to render a directly opened forum post without a prior Zitouna vis
   fireEvent.click(screen.getByRole('button', {name: 'Back to Forum'}))
   expect(window.location.hash).toBe('#zitouna/forum')
 })
+
+it('preserves scroll position when switching between Zitouna tabs', async () => {
+  const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined)
+  Object.defineProperty(window, 'scrollY', {configurable: true, value: 500})
+  window.history.replaceState(null, '', '/#zitouna/forum')
+  render(<App />)
+
+  await act(async () => {
+    await new Promise((resolve) => window.setTimeout(resolve, 0))
+  })
+  // Simulate scrolling within the forum tab
+  fireEvent.scroll(window)
+  scrollTo.mockClear()
+
+  // Switch to the roadmaps tab by triggering hash change
+  await act(async () => {
+    window.location.hash = '#zitouna/roadmaps'
+    window.dispatchEvent(new HashChangeEvent('hashchange'))
+    await new Promise((resolve) => window.setTimeout(resolve, 0))
+  })
+
+  expect(window.location.hash).toBe('#zitouna/roadmaps')
+  // Should scroll to the preserved position (500), not to 0
+  expect(scrollTo).toHaveBeenCalledWith(expect.objectContaining({top: 500}))
+})

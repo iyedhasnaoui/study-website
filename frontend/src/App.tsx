@@ -38,6 +38,7 @@ function App() {
   const [toast, setToast] = useState<string | null>(null)
   const pendingScrollY = useRef<number | null>(null)
   const isTraversingHistory = useRef(false)
+  const isProgrammaticHashChange = useRef(false)
   const lastHandledHash = useRef(window.location.hash)
   const currentHash = useRef(window.location.hash)
   const currentEntryId = useRef<string | null>(null)
@@ -67,7 +68,9 @@ function App() {
       const entryId = createEntryId()
       saveEntryId(entryId)
       currentEntryId.current = entryId
-      scrollPositions.current.set(entryId, 0)
+      const previousHash = currentHash.current
+      const sameZitounaTabSwitch = isZitounaHash(previousHash) && isZitounaHash(nextHash)
+      scrollPositions.current.set(entryId, sameZitounaTabSwitch ? window.scrollY : 0)
 
       const currentIndex = historyEntryIndex.current
       if (currentIndex === null) {
@@ -79,7 +82,6 @@ function App() {
         historyEntryIndex.current = historyEntryIds.current.length - 1
       }
 
-      const previousHash = currentHash.current
       if (isDetailHash(nextHash) && isZitounaHash(previousHash)) {
         zitounaEntryId.current = previousEntryId
       } else if (!(isDetailHash(nextHash) && isDetailHash(previousHash))) {
@@ -111,26 +113,23 @@ function App() {
         entryIdBeforeTransition.current = currentEntryId.current
         pushCurrentHashEntry(window.location.hash)
       }
-      scrollPositions.current.set(currentEntryId.current, window.scrollY)
+      scrollPositions.current.set(currentEntryId.current!, window.scrollY)
     }
     const handlePopState = () => {
-      const state = window.history.state
-      const entryId = state && typeof state === 'object' ? state[HISTORY_ENTRY_ID] : null
-      entryIdBeforeTransition.current = currentEntryId.current
-      if (typeof entryId !== 'string' && window.location.hash !== currentHash.current) {
-        isTraversingHistory.current = false
-        pushCurrentHashEntry(window.location.hash)
-        setHash(window.location.hash)
-        setSection(getSectionFromHash(window.location.hash))
-        setForumRoute(getForumRouteFromHash(window.location.hash))
-        setForumPostId(getPostIdFromHash(window.location.hash))
-        if (window.location.hash.startsWith('#zitouna')) setHasVisitedZitouna(true)
+      if (isProgrammaticHashChange.current) {
+        isProgrammaticHashChange.current = false
         return
       }
-      currentEntryId.current = typeof entryId === 'string' ? entryId : null
-      historyEntryIndex.current = typeof entryId === 'string' ? historyEntryIds.current.indexOf(entryId) : -1
-      if (historyEntryIndex.current < 0) historyEntryIndex.current = null
-      pendingScrollY.current = typeof entryId === 'string' ? scrollPositions.current.get(entryId) ?? 0 : 0
+      const state = window.history.state
+      const entryId = state && typeof state === 'object' ? state[HISTORY_ENTRY_ID] : null
+      // Only handle browser back/forward: entry must be in our tracked list
+      if (typeof entryId !== 'string' || !historyEntryIds.current.includes(entryId)) {
+        return
+      }
+      entryIdBeforeTransition.current = currentEntryId.current
+      currentEntryId.current = entryId
+      historyEntryIndex.current = historyEntryIds.current.indexOf(entryId)
+      pendingScrollY.current = scrollPositions.current.get(entryId) ?? 0
       isTraversingHistory.current = true
 
       if (window.location.hash === currentHash.current) {
@@ -142,7 +141,6 @@ function App() {
     const handleHashChange = () => {
       const nextHash = window.location.hash
       if (nextHash === currentHash.current) return
-      if (!isTraversingHistory.current) entryIdBeforeTransition.current = currentEntryId.current
       if (isTraversingHistory.current) {
         const state = window.history.state
         const entryId = state && typeof state === 'object' ? state[HISTORY_ENTRY_ID] : null
@@ -160,8 +158,18 @@ function App() {
           zitounaEntryId.current = null
         }
         currentHash.current = nextHash
-      } else {
-        pushCurrentHashEntry(nextHash)
+        setHash(nextHash)
+        setSection(getSectionFromHash(nextHash))
+        setForumRoute(getForumRouteFromHash(nextHash))
+        setForumPostId(getPostIdFromHash(nextHash))
+        if (nextHash.startsWith('#zitouna')) setHasVisitedZitouna(true)
+        return
+      }
+      entryIdBeforeTransition.current = currentEntryId.current
+      const previousHash = currentHash.current
+      pushCurrentHashEntry(nextHash)
+      if (isZitounaHash(previousHash) && isZitounaHash(nextHash)) {
+        pendingScrollY.current = scrollPositions.current.get(currentEntryId.current!) ?? window.scrollY
       }
       setHash(nextHash)
       setSection(getSectionFromHash(nextHash))
@@ -199,6 +207,7 @@ function App() {
 
   const navigateHome = () => {
     syncCurrentHashEntryRef.current()
+    isProgrammaticHashChange.current = true
     window.location.hash = '#home'
     setSection('home')
   }
@@ -210,7 +219,10 @@ function App() {
     }
     syncCurrentHashEntryRef.current()
     const nextHash = getForumHash(nextRoute, postId)
-    if (window.location.hash !== nextHash) window.location.hash = nextHash
+    if (window.location.hash !== nextHash) {
+      isProgrammaticHashChange.current = true
+      window.location.hash = nextHash
+    }
     setSection('forum')
     setForumRoute(nextRoute)
     setForumPostId(postId ?? null)
@@ -218,13 +230,17 @@ function App() {
 
   const navigateZitouna = () => {
     syncCurrentHashEntryRef.current()
-    if (window.location.hash !== '#zitouna') window.location.hash = '#zitouna'
+    if (window.location.hash !== '#zitouna') {
+      isProgrammaticHashChange.current = true
+      window.location.hash = '#zitouna'
+    }
     setHasVisitedZitouna(true)
     setSection('zitouna')
   }
 
   const navigateZitounaToTab = (tab: 'forum' | 'roadmaps') => {
     syncCurrentHashEntryRef.current()
+    isProgrammaticHashChange.current = true
     window.location.hash = `#zitouna/${tab}`
     setHasVisitedZitouna(true)
     setSection('zitouna')
@@ -232,12 +248,14 @@ function App() {
 
   const navigateAdmin = () => {
     syncCurrentHashEntryRef.current()
+    isProgrammaticHashChange.current = true
     window.location.hash = '#admin'
     setSection('admin')
   }
 
   const navigateAbout = () => {
     syncCurrentHashEntryRef.current()
+    isProgrammaticHashChange.current = true
     window.location.hash = '#about'
     setSection('about')
   }
