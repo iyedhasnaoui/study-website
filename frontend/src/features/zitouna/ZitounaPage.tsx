@@ -810,11 +810,11 @@ function AdminPanel({
 
                 {/* NEW FAQ MANAGEMENT SECTION */}
                 <div className="faq-manager"
-                     style={{gridColumn: '1 / -1', marginTop: '2rem', borderTop: '1px solid #ccc', paddingTop: '2rem'}}>
+                     style={{gridColumn: '1 / -1', marginTop: '2rem', borderTop: '1px solid var(--line)', paddingTop: '2rem'}}>
                     <h3>Manage FAQs</h3>
 
                     {/* Create Form */}
-                    <div className="review-card" style={{marginBottom: '2rem', border: '2px solid #D9A05B'}}>
+                    <div className="review-card" style={{marginBottom: '2rem', border: '2px solid var(--gold-500)'}}>
                         <div className="review-card-header"><h4>Draft New FAQ</h4></div>
                         <div className="review-card-body">
                             <FaqForm availableTags={availableTags} onSubmit={(data) => {
@@ -842,7 +842,7 @@ function AdminPanel({
                                 <div className="review-card-body">
                                     <p>{faq.answer}</p>
                                     <div className="tag-row">
-                                        {!faq.published && <span style={{color: '#D9A05B'}}>[Draft]</span>}
+                                        {!faq.published && <span style={{color: 'var(--gold-500)'}}>[Draft]</span>}
                                         {faq.tags?.map(tag => <span key={tag.id}>#{tag.name}</span>)}
                                     </div>
                                 </div>

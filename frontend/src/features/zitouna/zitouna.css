@@ -9,7 +9,7 @@
 .zitouna-tabs { margin-top: 26px; padding: 6px; display: flex; gap: 5px; overflow-x: auto; border: 1px solid var(--line); border-radius: 999px; background: rgba(255,253,248,.9); box-shadow: 0 14px 40px rgba(6,25,54,.06); }
 .zitouna-tabs button { min-height: 42px; padding: 0 19px; flex: 0 0 auto; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font-size: .78rem; font-weight: 800; }
 .zitouna-tabs button.is-active { background: var(--navy-900); color: white; }
-.zitouna-global-filters { margin-top: 24px; padding: 24px; border: 1px solid var(--line); border-radius: 25px; background: var(--paper); box-shadow: 0 20px 55px rgba(6,25,54,.07); }
+.zitouna-global-filters { margin-top: 24px; padding: 32px 24px; border: 1px solid var(--line); border-radius: 25px; background: var(--paper); box-shadow: 0 20px 55px rgba(6,25,54,.07); }
 .zitouna-global-filters__heading { margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .zitouna-global-filters__heading h2 { margin: 4px 0 0; color: var(--navy-900); font: 400 1.65rem Georgia,serif; }
 .zitouna-global-filters__heading > button { padding: 8px 12px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--gold-600); font-size: .72rem; font-weight: 800; }
@@ -115,5 +115,53 @@
 .dark .pagination-btn { border-color: rgba(221,181,91,.16); background: rgba(8,25,52,.92); color: #c5d0df; }
 .dark .pagination-btn:hover:not(:disabled) { border-color: var(--gold-500); color: var(--gold-400); }
 .dark .pagination-btn.is-active { background: var(--gold-500); color: var(--navy-950); }
+
+/* Additional dark mode coverage for Zitouna elements */
+.dark .zitouna-hero { background: var(--navy-950); }
+.dark .zitouna-hero p:not(.eyebrow) { color: #aebbd0; }
+.dark .zitouna-hero__mark { background: rgba(8,25,52,.9); border-color: rgba(221,181,91,.25); }
+.dark .zitouna-tabs button { color: #aebbd0; }
+.dark .zitouna-tabs button.is-active { background: var(--gold-500); color: var(--navy-950); }
+.dark .zitouna-global-filters__heading > button { color: var(--gold-400); border-color: rgba(221,181,91,.16); }
+.dark .zitouna-notice { border-color: rgba(43,122,75,.3); background: rgba(43,122,75,.15); color: #86efac; }
+.dark .zitouna-error,.dark .form-error { border-color: rgba(220,38,38,.25); background: rgba(127,29,29,.2); color: #fca5a5; }
+.dark .filter-panel legend { color: #94a3b8; }
+.dark .filter-panel label { color: #cbd5e1; }
+.dark .filter-panel label:hover { background: rgba(255,255,255,.04); }
+.dark .filter-panel__proposal { border-color: rgba(195,149,56,.3); background: rgba(195,149,56,.06); color: var(--gold-400); }
+.dark .tag-proposal-form input,.dark .tag-proposal-form select { border-color: rgba(255,255,255,.12); background: #06152f; color: white; }
+.dark .tag-proposal-form button { background: var(--gold-500); color: var(--navy-950); }
+.dark .zitouna-search > span { color: var(--gold-400); }
+.dark .zitouna-search button,.dark .post-button { background: var(--gold-500); color: var(--navy-950); }
+.dark .area-toolbar div button { border-color: rgba(221,181,91,.16); color: #aebbd0; }
+.dark .area-toolbar div button.is-active { border-color: var(--gold-500); background: var(--gold-500); color: var(--navy-950); }
+.dark .feed-card::before { background: var(--gold-400); }
+.dark .feed-card--roadmap::before { background: var(--navy-700); }
+.dark .feed-card--learning_material::before { background: #4ade80; }
+.dark .feed-card--faq::before { background: #a78bfa; }
+.dark .feed-card__meta { color: #aebbd0; }
+.dark .feed-card__meta span { color: var(--gold-400); }
+.dark .feed-card > p { color: #94a3b8; }
+.dark .tag-row span { background: rgba(195,149,56,.12); color: var(--gold-400); }
+.dark .feed-card footer small { color: #64748b; }
+.dark .empty-state { border-color: rgba(221,181,91,.12); background: rgba(255,255,255,.03); color: #94a3b8; }
+.dark .simple-panel header > p:not(.eyebrow),.dark .materials-heading > div > p:not(.eyebrow) { color: #94a3b8; }
+.dark .material-form { border-color: rgba(195,149,56,.2); }
+.dark .material-form input,.dark .material-form textarea { border-color: rgba(255,255,255,.12); background: #06152f; color: white; }
+.dark .file-field { border-color: rgba(195,149,56,.3); }
+.dark .material-grid article { border-color: rgba(221,181,91,.16); }
+.dark .material-type { background: var(--navy-800); color: var(--gold-400); }
+.dark .material-grid p { color: #94a3b8; }
+.dark .material-grid a,.dark .material-grid small { color: var(--gold-400); }
+.dark .faq-list details { border-color: rgba(221,181,91,.16); }
+.dark .faq-list details p { color: #94a3b8; }
+.dark .review-card { border-color: rgba(221,181,91,.16); }
+.dark .review-card small { color: var(--gold-400); }
+.dark .review-card p,.dark .review-card pre { color: #94a3b8; }
+.dark .review-card button { border-color: rgba(221,181,91,.16); background: rgba(8,25,52,.6); color: #e2e8f0; }
+.dark .review-card button.danger { color: #fca5a5; }
+.dark .admin-tools form { border-color: rgba(221,181,91,.16); }
+.dark .admin-tools input,.dark .admin-tools textarea,.dark .admin-tools select { border-color: rgba(255,255,255,.12); background: #06152f; color: white; }
+.dark .admin-tools button { background: var(--gold-500); color: var(--navy-950); }
 
 @media (max-width: 640px) { .zitouna-page { padding-top: 34px; } .zitouna-hero { min-height: 370px; padding: 36px 25px; align-items: flex-start; flex-direction: column; } .zitouna-hero__mark { width: 92px; height: 92px; border-radius: 28px; } .zitouna-tabs { border-radius: 18px; } .zitouna-global-filters { padding: 18px; } .zitouna-global-filters__heading { align-items: flex-start; } .tag-filter-fields { grid-template-columns: 1fr; gap: 12px; } .area-toolbar,.materials-heading { align-items: stretch; flex-direction: column; } .post-button { width: 100%; } .material-form { grid-template-columns: 1fr; } .material-form__wide { grid-column: auto; } .material-grid { grid-template-columns: 1fr; } }
