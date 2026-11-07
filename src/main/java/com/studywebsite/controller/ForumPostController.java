@@ -85,9 +85,10 @@ public class ForumPostController {
         }
 
         if (tagIds != null && !tagIds.isEmpty()) {
+            java.util.Set<Long> requested = java.util.Set.copyOf(tagIds);
             posts = posts.stream()
                     .filter(p -> p.getTags() != null && p.getTags().stream()
-                            .anyMatch(t -> tagIds.contains(t.getId())))
+                            .map(t -> t.getId()).collect(java.util.stream.Collectors.toSet()).containsAll(requested))
                     .collect(Collectors.toList());
         }
 

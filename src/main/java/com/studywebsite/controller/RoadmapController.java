@@ -71,9 +71,10 @@ public class RoadmapController {
         }
 
         if (tagIds != null && !tagIds.isEmpty()) {
+            java.util.Set<Long> requested = java.util.Set.copyOf(tagIds);
             roadmaps = roadmaps.stream()
                     .filter(r -> r.getTags() != null && r.getTags().stream()
-                            .anyMatch(t -> tagIds.contains(t.getId())))
+                            .map(t -> t.getId()).collect(java.util.stream.Collectors.toSet()).containsAll(requested))
                     .collect(Collectors.toList());
         }
 
