@@ -11,9 +11,14 @@ import { updatePost } from '../features/forum/api/forumApi'
 
 const post: ForumPostResponseDto = { id: 7, title: 'Local discussion', content: 'Original content', authorId: 1,
   authorUsername: 'author', tags: [], moderationStatus: 'APPROVED', moderationNote: null,
-  attachments: [], createdAt: null, updatedAt: null }
+  attachments: [], createdAt: null, updatedAt: null, replyCount: 2 }
 const onDelete = vi.fn()
 beforeEach(() => { auth.session = null; auth.role = null })
+
+it.each([[0, '0 replies'], [1, '1 reply'], [2, '2 replies']] as const)('displays %s replies', (replyCount, label) => {
+  render(<PostCard post={{ ...post, replyCount }} onOpenPost={vi.fn()} />)
+  expect(screen.getByText(label, { exact: false })).toBeInTheDocument()
+})
 
 it.each(['anonymous', 'viewer', 'other contributor'])('hides edit/delete for %s', (kind) => {
   if (kind !== 'anonymous') auth.session = { user: { id: kind === 'viewer' ? 1 : 2 } }

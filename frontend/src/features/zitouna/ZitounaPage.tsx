@@ -6,7 +6,7 @@ import {useFaqMutations} from './hooks/useFaqMutations'
 import {useAuth} from '../../auth/AuthContext'
 import {getApiErrorMessage, resolveApiUrl} from '../../lib/apiClient'
 import {PostFeed} from '../forum/components/PostFeed'
-import { RoadmapPage } from '../roadmap/RoadmapPage'
+import {RoadmapFeedPage} from '../roadmap/RoadmapFeedPage'
 
 import {
     // createFaq,
@@ -45,6 +45,7 @@ type ZitounaTab = 'discover' | 'materials' | 'faq' | 'admin' | 'roadmaps' | 'for
 const validTabs: ZitounaTab[] = ['discover', 'materials', 'faq', 'admin', 'roadmaps', 'forum']
 
 function getZitounaTabFromHash(hash: string): ZitounaTab | undefined {
+    if (hash === '#zitouna') return 'discover'
     if (!hash.startsWith('#zitouna/')) return undefined
     const sub = hash.slice('#zitouna/'.length)
     return validTabs.includes(sub as ZitounaTab) ? (sub as ZitounaTab) : undefined
@@ -275,11 +276,17 @@ export function ZitounaPage({onCreatePost, onRequireLogin, onOpenPost}: ZitounaP
     const openFeedItem = (item: FeedItem) => {
         if (item.area === 'FORUM') {
             if (onOpenPost) onOpenPost(item.id)
-            else setTab('forum')
+            else navigateToTab('forum')
         }
         else if (item.area === 'ROADMAP') window.location.hash = `#roadmaps/${item.id}`
         else if (item.area === 'LEARNING_MATERIAL' && item.contentUrl) window.open(resolveApiUrl(item.contentUrl), '_blank', 'noopener,noreferrer')
-        else setTab('faq')
+        else navigateToTab('faq')
+    }
+
+    const navigateToTab = (nextTab: ZitounaTab) => {
+        const nextHash = nextTab === 'discover' ? '#zitouna/discover' : `#zitouna/${nextTab}`
+        if (window.location.hash !== nextHash) window.location.hash = nextHash
+        setTab(nextTab)
     }
 
     return (
@@ -334,12 +341,12 @@ export function ZitounaPage({onCreatePost, onRequireLogin, onOpenPost}: ZitounaP
             <nav className="zitouna-tabs section-shell" aria-label="Zitouna sections">
                 {(['discover', 'materials', 'roadmaps', 'forum', 'faq'] as ZitounaTab[]).map((name) => (
                     <button key={name} className={tab === name ? 'is-active' : ''} type="button"
-                            onClick={() => setTab(name)}>
+                            onClick={() => navigateToTab(name)}>
                         {name === 'discover' ? 'Discover' : name === 'materials' ? 'Learning materials' : name === 'roadmaps' ? 'Roadmaps' : name === 'forum' ? 'Forum' : 'FAQ'}
                     </button>
                 ))}
                 {isAdmin ? <button className={tab === 'admin' ? 'is-active' : ''} type="button"
-                                   onClick={() => setTab('admin')}>Admin queue</button> : null}
+                                   onClick={() => navigateToTab('admin')}>Admin queue</button> : null}
             </nav>
 
             {notice ? (
@@ -434,8 +441,13 @@ export function ZitounaPage({onCreatePost, onRequireLogin, onOpenPost}: ZitounaP
 
             {tab === 'roadmaps' ? (
                 <section className="section-shell">
-                    <RoadmapPage
-                        onBackToFeed={() => setTab('roadmaps')}
+                    <RoadmapFeedPage
+                        onOpenRoadmap={(roadmapId) => {
+                            window.location.hash = `#roadmaps/${roadmapId}`
+                        }}
+                        onOpenCreate={() => {
+                            window.location.hash = '#roadmaps/create'
+                        }}
                         sharedFilters={{query: query || undefined, tagIds: selectedTags}}
                         page={roadmapsPage}
                         size={PAGE_SIZE}
