@@ -75,6 +75,8 @@ const allAreas = Object.keys(areaLabels) as FeedArea[]
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, {dateStyle: 'medium', timeStyle: 'short'})
 
+const MATERIAL_DESCRIPTION_PREVIEW = 200
+
 export function ZitounaPage({onCreatePost, onRequireLogin, onOpenPost}: ZitounaPageProps) {
     const {session} = useAuth()
     const isAdmin = Boolean(session?.user.roles?.includes('ADMIN'))
@@ -549,6 +551,7 @@ function MaterialsPanel({
     const [file, setFile] = useState<File | null>(null)
     const [formTags, setFormTags] = useState<TagItem[]>([])
     const [tagProposals, setTagProposals] = useState<TagProposalItem[]>([])
+    const [expandedDescriptions, setExpandedDescriptions] = useState<Set<number>>(new Set())
     const [form, setForm] = useState({
         title: '',
         description: '',
@@ -667,7 +670,34 @@ function MaterialsPanel({
                         <article key={material.id}>
                             <span className="material-type">{material.type}</span>
                             <h3>{material.title}</h3>
-                            <p>{material.description || 'Shared learning material'}</p>
+                            {(() => {
+                                const desc = material.description || 'Shared learning material'
+                                const isLong = desc.length > MATERIAL_DESCRIPTION_PREVIEW
+                                const isExpanded = expandedDescriptions.has(material.id)
+                                return (
+                                    <div className="min-w-0 overflow-hidden">
+                                        <p className="break-all flex-none text-sm leading-6" style={{maxWidth: '100%', wordBreak: 'break-word'}}>
+                                            {isLong && !isExpanded ? `${desc.slice(0, MATERIAL_DESCRIPTION_PREVIEW).trimEnd()}…` : desc}
+                                        </p>
+                                        {isLong ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setExpandedDescriptions((prev) => {
+                                                        const next = new Set(prev)
+                                                        if (next.has(material.id)) next.delete(material.id)
+                                                        else next.add(material.id)
+                                                        return next
+                                                    })
+                                                }}
+                                                className="mt-1 text-sm font-semibold text-amber-700 underline dark:text-amber-200"
+                                            >
+                                                {isExpanded ? 'Show less' : 'Show more'}
+                                            </button>
+                                        ) : null}
+                                    </div>
+                                )
+                            })()}
                             <div className="tag-row">{material.tags.map((tag) => <span key={tag.id}>#{tag.name}</span>)}</div>
                             {material.authorUsername ? (
                                 <small className="text-slate-500 dark:text-zinc-400">{material.authorUsername}</small>
@@ -741,6 +771,7 @@ function AdminPanel({
     const {createMutation, updateMutation, deleteMutation} = useFaqMutations();
     const [editingId, setEditingId] = useState<number | null>(null);
     const [tagForm, setTagForm] = useState<TagCreatePayload>({name: '', typeId: tagTypes[0]?.id ?? 0})
+    const [expandedDetails, setExpandedDetails] = useState<Set<string>>(new Set())
 
     useEffect(() => {
         if (!tagForm.typeId && tagTypes.length > 0) setTagForm((current) => ({...current, typeId: tagTypes[0].id}))
@@ -752,18 +783,44 @@ function AdminPanel({
                 admin has reviewed it. Comments remain immediate and can be removed separately.</p></header>
             {loading ? <p className="empty-state">Loading queue…</p> : null}
             <div className="admin-grid">
-                <div><h3>Content awaiting review <span>{queue.length}</span></h3>{queue.map((item) => (
-                    <article className="review-card" key={`${item.area}-${item.id}`}>
-                        <small>{areaLabels[item.area]} · {item.authorUsername || 'Unknown author'}</small>
-                        <h4>{item.title}</h4>
-                        <pre>{JSON.stringify(item.details, null, 2)}</pre>
-                        <div>
-                            <button onClick={() => void onModerate(item, 'approve')}>Accept</button>
-                            <button onClick={() => void onModerate(item, 'needs-fixing')}>Needs fixing</button>
-                            <button className="danger" onClick={() => void onModerate(item, 'reject')}>Reject</button>
-                        </div>
-                    </article>
-                ))}{!loading && queue.length === 0 ? <p className="empty-state">The content queue is clear.</p> : null}
+                <div><h3>Content awaiting review <span>{queue.length}</span></h3>{queue.map((item) => {
+                    const key = `${item.area}-${item.id}`
+                    const detailsJson = JSON.stringify(item.details, null, 2)
+                    const isLong = detailsJson.length > MATERIAL_DESCRIPTION_PREVIEW
+                    const isExpanded = expandedDetails.has(key)
+                    return (
+                        <article className="review-card" key={key}>
+                            <small>{areaLabels[item.area]} · {item.authorUsername || 'Unknown author'}</small>
+                            <h4>{item.title}</h4>
+                            <div className="min-w-0 overflow-hidden">
+                                <pre className="break-all flex-none text-sm leading-6" style={{maxWidth: '100%', wordBreak: 'break-word'}}>
+                                    {isLong && !isExpanded ? `${detailsJson.slice(0, MATERIAL_DESCRIPTION_PREVIEW).trimEnd()}…` : detailsJson}
+                                </pre>
+                                {isLong ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setExpandedDetails((prev) => {
+                                                const next = new Set(prev)
+                                                if (next.has(key)) next.delete(key)
+                                                else next.add(key)
+                                                return next
+                                            })
+                                        }}
+                                        className="mt-1 text-sm font-semibold text-amber-700 underline dark:text-amber-200"
+                                    >
+                                        {isExpanded ? 'Show less' : 'Show more'}
+                                    </button>
+                                ) : null}
+                            </div>
+                            <div>
+                                <button onClick={() => void onModerate(item, 'approve')}>Accept</button>
+                                <button onClick={() => void onModerate(item, 'needs-fixing')}>Needs fixing</button>
+                                <button className="danger" onClick={() => void onModerate(item, 'reject')}>Reject</button>
+                            </div>
+                        </article>
+                    )
+                })}{!loading && queue.length === 0 ? <p className="empty-state">The content queue is clear.</p> : null}
                 </div>
                 <div><h3>Proposed tags <span>{proposals.length}</span></h3>{proposals.map((tag) => (
                     <article className="review-card" key={tag.id}><small>{fieldLabels[tag.field]}</small>
