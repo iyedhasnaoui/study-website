@@ -237,6 +237,7 @@ public class ZitounaService {
         if (status != ModerationStatus.APPROVED && status != ModerationStatus.REJECTED && status != ModerationStatus.NEEDS_FIXING) {
             throw new IllegalArgumentException("Unsupported moderation decision");
         }
+        Set<ZitounaTag> entityTags = null;
         switch (area.toUpperCase(Locale.ROOT)) {
             case "FORUM" -> {
                 ForumPost post = forumPostRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("Forum post not found"));
@@ -260,20 +261,32 @@ public class ZitounaService {
                     post.setModerationNote(clean(note));
                 }
                 forumPostRepository.save(post);
+                entityTags = post.getTags();
             }
             case "ROADMAP" -> {
                 Roadmap roadmap = roadmapRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("Roadmap not found"));
                 roadmap.setModerationStatus(status);
                 roadmap.setModerationNote(clean(note));
                 roadmapRepository.save(roadmap);
+                entityTags = roadmap.getTags();
             }
             case "LEARNING_MATERIAL" -> {
                 Resource resource = resourceRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("Learning material not found"));
                 resource.setModerationStatus(status);
                 resource.setModerationNote(clean(note));
                 resourceRepository.save(resource);
+                entityTags = resource.getTags();
             }
             default -> throw new IllegalArgumentException("Unknown moderation area");
+        }
+        // Auto-approve any proposed tags when content is accepted
+        if (status == ModerationStatus.APPROVED && entityTags != null) {
+            for (ZitounaTag tag : entityTags) {
+                if (tag.getStatus() == TagStatus.PROPOSED) {
+                    tag.setStatus(TagStatus.APPROVED);
+                    zitounaTagRepository.save(tag);
+                }
+            }
         }
     }
 
