@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useState, type FormEvent} from 'react'
+import {useEffect, useMemo, useState, type FormEvent, type ReactNode} from 'react'
 import {TagAutocomplete, type TagItem, type TagProposalItem} from '../../components/TagAutocomplete'
 import {TagFilterFields} from '../../components/TagFilterFields'
 import {Pagination} from '../../components/Pagination'
@@ -75,7 +75,134 @@ const allAreas = Object.keys(areaLabels) as FeedArea[]
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, {dateStyle: 'medium', timeStyle: 'short'})
 
-const MATERIAL_DESCRIPTION_PREVIEW = 200
+const DETAILS_PREVIEW = 300
+
+function QueueItemDetails({area, details}: {area: string; details: Record<string, unknown>}): ReactNode {
+    const str = (v: unknown): string => (v == null || v === '' ? '' : String(v))
+    const tags = (v: unknown): string[] => {
+        if (Array.isArray(v)) return v.filter((t) => typeof t === 'string').map(String)
+        return []
+    }
+
+    const renderTextBlock = (text: string, label: string): ReactNode => {
+        if (!text) return null
+        const isLong = text.length > DETAILS_PREVIEW
+        return (
+            <div className="min-w-0 overflow-hidden">
+                <div className="text-xs font-bold uppercase tracking-widest text-amber-700 dark:text-amber-200 mb-1">{label}</div>
+                <p className="break-all flex-none text-sm leading-6" style={{maxWidth: '100%', wordBreak: 'break-word'}}>
+                    {isLong ? `${text.slice(0, DETAILS_PREVIEW).trimEnd()}…` : text}
+                </p>
+                {isLong ? <span className="mt-1 text-xs text-slate-500 dark:text-zinc-400 italic">(truncated — {text.length} chars)</span> : null}
+            </div>
+        )
+    }
+
+    const renderMetaField = (label: string, value: string): ReactNode => {
+        if (!value) return null
+        return (
+            <div className="min-w-0">
+                <div className="text-xs font-bold uppercase tracking-widest text-amber-700 dark:text-amber-200">{label}</div>
+                <div className="text-sm leading-6 break-all flex-none" style={{maxWidth: '100%', wordBreak: 'break-word'}}>{value}</div>
+            </div>
+        )
+    }
+
+    if (area === 'FORUM') {
+        const reviewKind = str(details.reviewKind)
+        const content = str(details.content)
+        const publishedTitle = str(details.publishedTitle)
+        const publishedContent = str(details.publishedContent)
+        const version = details.version
+
+        return (
+            <div className="space-y-3">
+                {version != null ? <div className="text-xs text-slate-500 dark:text-zinc-400">Version {String(version)}</div> : null}
+                {reviewKind ? <div className="text-sm font-semibold text-amber-700 dark:text-amber-200">{reviewKind}</div> : null}
+                {publishedContent ? (
+                    <div className="space-y-2 border-l-2 border-slate-300 dark:border-slate-600 pl-3">
+                        {publishedTitle ? renderMetaField('Published title', publishedTitle) : null}
+                        {renderTextBlock(publishedContent, 'Published content')}
+                    </div>
+                ) : null}
+                {renderTextBlock(content, reviewKind ? 'Pending content' : 'Content')}
+            </div>
+        )
+    }
+
+    if (area === 'LEARNING_MATERIAL') {
+        const type = str(details.type)
+        const description = str(details.description)
+        const tagList = tags(details.tags)
+        const grade = str(details.grade)
+        const solutionApproach = str(details.solutionApproach)
+        const method = str(details.method)
+        const roadmap = str(details.roadmap)
+        const filename = str(details.filename)
+
+        return (
+            <div className="space-y-3">
+                <div className="flex flex-wrap gap-2 items-center">
+                    {type ? (
+                        <span className="inline-block px-2 py-0.5 text-xs font-bold uppercase tracking-widest rounded-md bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                            {type}
+                        </span>
+                    ) : null}
+                    {filename ? (
+                        <span className="text-xs text-slate-500 dark:text-zinc-400 italic">📎 {filename}</span>
+                    ) : null}
+                </div>
+                {renderTextBlock(description, 'Description')}
+                {tagList.length > 0 ? (
+                    <div className="min-w-0">
+                        <div className="text-xs font-bold uppercase tracking-widest text-amber-700 dark:text-amber-200 mb-1">Tags</div>
+                        <div className="flex flex-wrap gap-1">
+                            {tagList.map((tag) => (
+                                <span key={tag} className="inline-block px-2 py-0.5 text-xs font-semibold rounded-md bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200">
+                                    #{tag}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                ) : null}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {renderMetaField('Grade', grade)}
+                    {renderMetaField('Solution approach', solutionApproach)}
+                    {renderMetaField('Method used', method)}
+                    {renderMetaField('Roadmap followed', roadmap)}
+                </div>
+            </div>
+        )
+    }
+
+    if (area === 'ROADMAP') {
+        const description = str(details.description)
+        return renderTextBlock(description, 'Description')
+    }
+
+    // Fallback: render unknown keys
+    return (
+        <div className="space-y-2">
+            {Object.entries(details).map(([key, value]) => {
+                if (Array.isArray(value)) {
+                    return (
+                        <div key={key} className="min-w-0">
+                            <div className="text-xs font-bold uppercase tracking-widest text-amber-700 dark:text-amber-200">{key}</div>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                                {value.map((v, i) => (
+                                    <span key={i} className="inline-block px-2 py-0.5 text-xs font-semibold rounded-md bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200">
+                                        {String(v)}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    )
+                }
+                return renderMetaField(key, String(value))
+            })}
+        </div>
+    )
+}
 
 export function ZitounaPage({onCreatePost, onRequireLogin, onOpenPost}: ZitounaPageProps) {
     const {session} = useAuth()
@@ -672,12 +799,12 @@ function MaterialsPanel({
                             <h3>{material.title}</h3>
                             {(() => {
                                 const desc = material.description || 'Shared learning material'
-                                const isLong = desc.length > MATERIAL_DESCRIPTION_PREVIEW
+                                const isLong = desc.length > DETAILS_PREVIEW
                                 const isExpanded = expandedDescriptions.has(material.id)
                                 return (
                                     <div className="min-w-0 overflow-hidden">
                                         <p className="break-all flex-none text-sm leading-6" style={{maxWidth: '100%', wordBreak: 'break-word'}}>
-                                            {isLong && !isExpanded ? `${desc.slice(0, MATERIAL_DESCRIPTION_PREVIEW).trimEnd()}…` : desc}
+                                            {isLong && !isExpanded ? `${desc.slice(0, DETAILS_PREVIEW).trimEnd()}…` : desc}
                                         </p>
                                         {isLong ? (
                                             <button
@@ -771,8 +898,6 @@ function AdminPanel({
     const {createMutation, updateMutation, deleteMutation} = useFaqMutations();
     const [editingId, setEditingId] = useState<number | null>(null);
     const [tagForm, setTagForm] = useState<TagCreatePayload>({name: '', typeId: tagTypes[0]?.id ?? 0})
-    const [expandedDetails, setExpandedDetails] = useState<Set<string>>(new Set())
-
     useEffect(() => {
         if (!tagForm.typeId && tagTypes.length > 0) setTagForm((current) => ({...current, typeId: tagTypes[0].id}))
     }, [tagForm.typeId, tagTypes])
@@ -785,33 +910,12 @@ function AdminPanel({
             <div className="admin-grid">
                 <div><h3>Content awaiting review <span>{queue.length}</span></h3>{queue.map((item) => {
                     const key = `${item.area}-${item.id}`
-                    const detailsJson = JSON.stringify(item.details, null, 2)
-                    const isLong = detailsJson.length > MATERIAL_DESCRIPTION_PREVIEW
-                    const isExpanded = expandedDetails.has(key)
                     return (
                         <article className="review-card" key={key}>
                             <small>{areaLabels[item.area]} · {item.authorUsername || 'Unknown author'}</small>
                             <h4>{item.title}</h4>
-                            <div className="min-w-0 overflow-hidden">
-                                <pre className="break-all flex-none text-sm leading-6" style={{maxWidth: '100%', wordBreak: 'break-word'}}>
-                                    {isLong && !isExpanded ? `${detailsJson.slice(0, MATERIAL_DESCRIPTION_PREVIEW).trimEnd()}…` : detailsJson}
-                                </pre>
-                                {isLong ? (
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setExpandedDetails((prev) => {
-                                                const next = new Set(prev)
-                                                if (next.has(key)) next.delete(key)
-                                                else next.add(key)
-                                                return next
-                                            })
-                                        }}
-                                        className="mt-1 text-sm font-semibold text-amber-700 underline dark:text-amber-200"
-                                    >
-                                        {isExpanded ? 'Show less' : 'Show more'}
-                                    </button>
-                                ) : null}
+                            <div className="mt-3">
+                                <QueueItemDetails area={item.area} details={item.details} />
                             </div>
                             <div>
                                 <button onClick={() => void onModerate(item, 'approve')}>Accept</button>
