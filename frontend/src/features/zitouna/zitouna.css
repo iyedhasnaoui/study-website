@@ -86,7 +86,7 @@
 .faq-list details { border: 1px solid var(--line); border-radius: 17px; background: var(--paper); box-shadow: 0 10px 30px rgba(6,25,54,.04); }
 .faq-list summary { padding: 18px 21px; color: var(--navy-900); cursor: pointer; font-weight: 800; }
 .faq-list details p { margin: 0; padding: 0 21px 21px; color: var(--muted); line-height: 1.75; }
-.admin-grid { display: grid; grid-template-columns: 1.2fr .8fr; gap: 22px; }
+.admin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; max-width: 1400px; }
 .admin-grid > div > h3 { display: flex; justify-content: space-between; color: var(--navy-900); font: 400 1.55rem Georgia,serif; }
 .admin-grid h3 span { min-width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: var(--gold-500); color: var(--navy-950); font: 800 .7rem Inter,sans-serif; }
 .review-card { margin-bottom: 12px; padding: 19px; border: 1px solid var(--line); border-radius: 17px; background: var(--paper); }

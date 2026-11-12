@@ -78,22 +78,42 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {dateStyle: 'medium', t
 const DETAILS_PREVIEW = 300
 
 function QueueItemDetails({area, details}: {area: string; details: Record<string, unknown>}): ReactNode {
+    const [expandedBlocks, setExpandedBlocks] = useState<Set<string>>(new Set())
     const str = (v: unknown): string => (v == null || v === '' ? '' : String(v))
     const tags = (v: unknown): string[] => {
         if (Array.isArray(v)) return v.filter((t) => typeof t === 'string').map(String)
         return []
     }
 
-    const renderTextBlock = (text: string, label: string): ReactNode => {
+    const toggleBlock = (id: string) => {
+        setExpandedBlocks((prev) => {
+            const next = new Set(prev)
+            if (next.has(id)) next.delete(id)
+            else next.add(id)
+            return next
+        })
+    }
+
+    const renderTextBlock = (text: string, label: string, blockId?: string): ReactNode => {
         if (!text) return null
+        const id = blockId ?? label
         const isLong = text.length > DETAILS_PREVIEW
+        const isExpanded = expandedBlocks.has(id)
         return (
             <div className="min-w-0 overflow-hidden">
                 <div className="text-xs font-bold uppercase tracking-widest text-amber-700 dark:text-amber-200 mb-1">{label}</div>
-                <p className="break-all flex-none text-sm leading-6" style={{maxWidth: '100%', wordBreak: 'break-word'}}>
-                    {isLong ? `${text.slice(0, DETAILS_PREVIEW).trimEnd()}…` : text}
+                <p className="break-words flex-none text-sm leading-6 overflow-hidden" style={{maxWidth: '100%', wordBreak: 'break-word', overflowWrap: 'break-word'}}>
+                    {isLong && !isExpanded ? `${text.slice(0, DETAILS_PREVIEW).trimEnd()}…` : text}
                 </p>
-                {isLong ? <span className="mt-1 text-xs text-slate-500 dark:text-zinc-400 italic">(truncated — {text.length} chars)</span> : null}
+                {isLong ? (
+                    <button
+                        type="button"
+                        onClick={() => toggleBlock(id)}
+                        className="mt-1 text-sm font-semibold text-amber-700 underline dark:text-amber-200"
+                    >
+                        {isExpanded ? 'Show less' : 'Show more'}
+                    </button>
+                ) : null}
             </div>
         )
     }
@@ -103,7 +123,7 @@ function QueueItemDetails({area, details}: {area: string; details: Record<string
         return (
             <div className="min-w-0">
                 <div className="text-xs font-bold uppercase tracking-widest text-amber-700 dark:text-amber-200">{label}</div>
-                <div className="text-sm leading-6 break-all flex-none" style={{maxWidth: '100%', wordBreak: 'break-word'}}>{value}</div>
+                <div className="text-sm leading-6 break-words flex-none" style={{maxWidth: '100%', wordBreak: 'break-word', overflowWrap: 'break-word'}}>{value}</div>
             </div>
         )
     }
@@ -114,18 +134,31 @@ function QueueItemDetails({area, details}: {area: string; details: Record<string
         const publishedTitle = str(details.publishedTitle)
         const publishedContent = str(details.publishedContent)
         const version = details.version
+        const tagList = tags(details.tags)
 
         return (
             <div className="space-y-3">
                 {version != null ? <div className="text-xs text-slate-500 dark:text-zinc-400">Version {String(version)}</div> : null}
                 {reviewKind ? <div className="text-sm font-semibold text-amber-700 dark:text-amber-200">{reviewKind}</div> : null}
+                {tagList.length > 0 ? (
+                    <div className="min-w-0">
+                        <div className="text-xs font-bold uppercase tracking-widest text-amber-700 dark:text-amber-200 mb-1">Tags</div>
+                        <div className="flex flex-wrap gap-1">
+                            {tagList.map((tag) => (
+                                <span key={tag} className="inline-block px-2 py-0.5 text-xs font-semibold rounded-md bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200">
+                                    #{tag}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                ) : null}
                 {publishedContent ? (
                     <div className="space-y-2 border-l-2 border-slate-300 dark:border-slate-600 pl-3">
                         {publishedTitle ? renderMetaField('Published title', publishedTitle) : null}
-                        {renderTextBlock(publishedContent, 'Published content')}
+                        {renderTextBlock(publishedContent, 'Published content', 'forum-published-content')}
                     </div>
                 ) : null}
-                {renderTextBlock(content, reviewKind ? 'Pending content' : 'Content')}
+                {renderTextBlock(content, reviewKind ? 'Pending content' : 'Content', 'forum-content')}
             </div>
         )
     }
@@ -152,7 +185,7 @@ function QueueItemDetails({area, details}: {area: string; details: Record<string
                         <span className="text-xs text-slate-500 dark:text-zinc-400 italic">📎 {filename}</span>
                     ) : null}
                 </div>
-                {renderTextBlock(description, 'Description')}
+                {renderTextBlock(description, 'Description', 'lm-description')}
                 {tagList.length > 0 ? (
                     <div className="min-w-0">
                         <div className="text-xs font-bold uppercase tracking-widest text-amber-700 dark:text-amber-200 mb-1">Tags</div>
@@ -177,7 +210,7 @@ function QueueItemDetails({area, details}: {area: string; details: Record<string
 
     if (area === 'ROADMAP') {
         const description = str(details.description)
-        return renderTextBlock(description, 'Description')
+        return renderTextBlock(description, 'Description', 'roadmap-description')
     }
 
     // Fallback: render unknown keys
