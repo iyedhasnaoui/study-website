@@ -40,6 +40,7 @@ export function TagAutocomplete({
                                     label = 'Tags',
                                 }: TagAutocompleteProps) {
     const [loadedTags, setLoadedTags] = useState<TagItem[]>([])
+    const [hasLoadedTags, setHasLoadedTags] = useState(false)
     const [tagInput, setTagInput] = useState('')
     const [isDropdownOpen, setIsDropdownOpen] = useState(false)
     const [proposalField, setProposalField] = useState<TagField>('TOPIC')
@@ -57,6 +58,9 @@ export function TagAutocomplete({
                     if (active) setLoadedTags(data)
                 })
                 .catch((err) => console.error('Failed to load tags', err))
+                .finally(() => {
+                    if (active) setHasLoadedTags(true)
+                })
         }
 
         loadTags()
@@ -88,6 +92,9 @@ export function TagAutocomplete({
     const proposalAlreadyExists = tags.some((tag) => tag.name.trim().toLocaleLowerCase() === tagInput.trim().toLocaleLowerCase()
         && tag.field === proposalField
         && (proposalField !== 'SUBTOPIC' || tag.parentId === Number(proposalParentId)))
+    // Only offer a proposal when the autocomplete has no suggestions for the input (and tags have finished loading)
+    const showProposalPanel = allowProposals && !!onProposalsChange && !!tagInput.trim()
+        && (availableTags !== undefined || hasLoadedTags) && filteredTags.length === 0
 
     const addTag = (tagToAdd: TagItem) => {
         onChange([...selectedTags, tagToAdd])
@@ -217,7 +224,7 @@ export function TagAutocomplete({
                     ))}
                 </ul>
             )}
-            {allowProposals && onProposalsChange && tagInput.trim() ? (
+            {showProposalPanel ? (
                 <div className="space-y-2 rounded-xl border border-sky-200 bg-sky-50 p-3 dark:border-sky-900/60 dark:bg-sky-950/30">
                     <p className="text-xs text-slate-600 dark:text-zinc-300">Can’t find this tag? Propose it with your submission.</p>
                     <div className="flex flex-wrap gap-2">

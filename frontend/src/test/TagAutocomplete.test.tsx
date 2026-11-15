@@ -79,3 +79,31 @@ it('limits autocomplete choices to the requested tag field', async () => {
   fireEvent.click(screen.getByRole('button', {name: 'Remove tag Calculus'}))
   expect(onChange).toHaveBeenLastCalledWith([])
 })
+it('hides the proposal panel while the autocomplete has suggestions and shows it once there are none', async () => {
+  render(<TagAutocomplete selectedTags={[]} onChange={vi.fn()} proposals={[]} onProposalsChange={vi.fn()} allowProposals />)
+  const input = await screen.findByPlaceholderText('Type to search existing tags...')
+
+  fireEvent.change(input, { target: { value: 'Calc' } })
+  expect(await screen.findByRole('option', { name: '#Calculus' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /Propose/ })).not.toBeInTheDocument()
+
+  fireEvent.change(input, { target: { value: 'Calcx' } })
+  expect(screen.queryByRole('option', { name: '#Calculus' })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Propose “Calcx”' })).toBeInTheDocument()
+
+  fireEvent.change(input, { target: { value: 'Calc' } })
+  expect(screen.queryByRole('button', { name: /Propose/ })).not.toBeInTheDocument()
+})
+
+it('does not show the proposal panel before tags have loaded', async () => {
+  let resolveTags: (tags: Awaited<ReturnType<typeof getTags>>) => void = () => {}
+  vi.mocked(getTags).mockReturnValueOnce(new Promise((resolve) => { resolveTags = resolve }))
+  render(<TagAutocomplete selectedTags={[]} onChange={vi.fn()} proposals={[]} onProposalsChange={vi.fn()} allowProposals />)
+
+  fireEvent.change(screen.getByPlaceholderText('Type to search existing tags...'), { target: { value: 'Calc' } })
+  expect(screen.queryByRole('button', { name: /Propose/ })).not.toBeInTheDocument()
+
+  resolveTags([{ id: 1, name: 'Calculus', field: 'TOPIC', type: 'Course', parentId: null }] as Awaited<ReturnType<typeof getTags>>)
+  expect(await screen.findByRole('option', { name: '#Calculus' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /Propose/ })).not.toBeInTheDocument()
+})
