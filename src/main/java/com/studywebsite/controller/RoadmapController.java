@@ -93,6 +93,14 @@ public class RoadmapController {
         return ResponseEntity.ok(dtos);
     }
 
+    /** Approved roadmaps only (id + title), used for autocomplete suggestions. */
+    @GetMapping("/approved-titles")
+    public List<java.util.Map<String, Object>> approvedTitles() {
+        return roadmapService.getApprovedRoadmaps().stream()
+                .map(r -> java.util.Map.<String, Object>of("id", r.getId(), "title", r.getTitle()))
+                .toList();
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<RoadmapResponseDto> getById(@PathVariable Long id) {
         Roadmap roadmap = roadmapService.getByIdWithTags(id);

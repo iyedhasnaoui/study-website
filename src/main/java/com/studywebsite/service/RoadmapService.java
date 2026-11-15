@@ -47,6 +47,11 @@ public class RoadmapService {
         return roadmapRepository.findVisibleRoadmaps(viewerId, isAdmin);
     }
 
+    @Transactional(readOnly = true)
+    public List<Roadmap> getApprovedRoadmaps() {
+        return roadmapRepository.findByModerationStatusOrderByTitleAsc(com.studywebsite.model.ModerationStatus.APPROVED);
+    }
+
     public List<Roadmap> getAll() {
         return roadmapRepository.findAll();
     }

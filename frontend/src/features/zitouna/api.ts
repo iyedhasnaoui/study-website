@@ -23,6 +23,16 @@ export async function getTags(field?: TagField): Promise<ZitounaTag[]> {
     return response.data
 }
 
+export interface ApprovedRoadmapItem {
+    id: number
+    title: string
+}
+
+export async function getApprovedRoadmapTitles(): Promise<ApprovedRoadmapItem[]> {
+    const response = await apiClient.get<ApprovedRoadmapItem[]>('/api/roadmaps/approved-titles')
+    return response.data
+}
+
 export async function getTagTypes(): Promise<TagTypeDefinition[]> {
     const response = await apiClient.get<TagTypeDefinition[]>('/api/tag-types')
     return response.data

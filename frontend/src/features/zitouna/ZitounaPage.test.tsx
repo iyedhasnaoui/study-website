@@ -15,6 +15,7 @@ const apiMocks = vi.hoisted(() => ({
     getModerationQueue: vi.fn(),
     getTagProposals: vi.fn(),
     getTags: vi.fn(),
+    getApprovedRoadmapTitles: vi.fn().mockResolvedValue([{id: 1, title: 'Math basics'}]),
     getTagTypes: vi.fn(),
     getZitounaFeed: vi.fn(),
     moderate: vi.fn(),
@@ -56,6 +57,7 @@ beforeEach(() => {
     authState.session = null
     window.history.replaceState(null, '', '/#zitouna')
     apiMocks.getTags.mockResolvedValue(tags)
+    apiMocks.getApprovedRoadmapTitles.mockResolvedValue([{id: 1, title: 'Math basics'}])
     apiMocks.getZitounaFeed.mockResolvedValue([])
     apiMocks.getLearningMaterials.mockResolvedValue([])
     apiMocks.getFaq.mockResolvedValue([])

@@ -1,5 +1,6 @@
 import {useEffect, useMemo, useState, type FormEvent, type ReactNode} from 'react'
 import {TagAutocomplete, type TagItem, type TagProposalItem} from '../../components/TagAutocomplete'
+import {RoadmapAutocomplete} from '../../components/RoadmapAutocomplete'
 import {TagFilterFields} from '../../components/TagFilterFields'
 import {Pagination} from '../../components/Pagination'
 import {useFaqMutations} from './hooks/useFaqMutations'
@@ -833,7 +834,7 @@ function MaterialsPanel({
                         <label>Your grade in the subject<input inputMode="decimal" value={form.gradeNote} onChange={(event) => setForm({ ...form, gradeNote: event.target.value })} placeholder="Optional — 1.0 to 4.0, e.g. 1.7" /></label>
                         <label>How you got to the solution<input value={form.solutionApproach} onChange={(event) => setForm({ ...form, solutionApproach: event.target.value })} /></label>
                         <label>Method used<input value={form.methodUsed} onChange={(event) => setForm({ ...form, methodUsed: event.target.value })} /></label>
-                        <label>Roadmap followed<input value={form.roadmapFollowed} onChange={(event) => setForm({ ...form, roadmapFollowed: event.target.value })} /></label>
+                        <RoadmapAutocomplete value={form.roadmapFollowed} onChange={(roadmapFollowed) => setForm({ ...form, roadmapFollowed })} />
 
                         <div className="material-form__wide">
                             <TagAutocomplete
