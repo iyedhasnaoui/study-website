@@ -138,13 +138,15 @@ export function TagAutocomplete({
                 {selectedTags.map((tag) => (
                     <span
                         key={tag.id}
-                        className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
+                        className={tag.status === 'PROPOSED'
+                            ? 'inline-flex items-center gap-1 rounded-full bg-sky-100 px-3 py-1 text-xs font-medium text-sky-800 dark:bg-sky-900/40 dark:text-sky-300'
+                            : 'inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'}
                     >
             #{tag.name}
                         <button
                             type="button"
                             onClick={() => removeTag(tag.id)}
-                            className="hover:text-amber-600 dark:hover:text-amber-100"
+                            className={tag.status === 'PROPOSED' ? 'hover:text-sky-600 dark:hover:text-sky-100' : 'hover:text-amber-600 dark:hover:text-amber-100'}
                             aria-label={`Remove tag ${tag.name}`}
                         >
               ×
