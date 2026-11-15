@@ -269,6 +269,9 @@ export function ZitounaPage({onCreatePost, onRequireLogin, onOpenPost}: ZitounaP
     const [forumTotalPages, setForumTotalPages] = useState(0)
     const [roadmapsPage, setRoadmapsPage] = useState(0)
     const [roadmapsTotalPages, setRoadmapsTotalPages] = useState(0)
+    const [adminPage, setAdminPage] = useState(0)
+    const [adminTotalPages, setAdminTotalPages] = useState(0)
+    const [adminTotalCount, setAdminTotalCount] = useState(0)
     // ZitounaPage stays mounted while a roadmap is created/viewed, so bump this on re-entry to refetch the feed.
     const [roadmapsRefreshKey, setRoadmapsRefreshKey] = useState(0)
 
@@ -403,14 +406,29 @@ export function ZitounaPage({onCreatePost, onRequireLogin, onOpenPost}: ZitounaP
         }
     }, [tab, query, selectedTags])
 
-    const loadAdmin = async () => {
+    const loadAdmin = async (requestedPage = adminPage) => {
         if (!isAdmin) return
         setLoading(true)
         try {
-            const [nextQueue, nextProposals, nextTypes] = await Promise.all([
-                getModerationQueue(), getTagProposals(), getTagTypes(),
+            let pageToLoad = requestedPage
+            let [nextQueue, nextProposals, nextTypes] = await Promise.all([
+                getModerationQueue({page: pageToLoad, size: PAGE_SIZE}), getTagProposals(), getTagTypes(),
             ])
-            setQueue(nextQueue)
+            // The last item of the last page may have just been removed: step back to the last valid page.
+            if ('content' in nextQueue && nextQueue.content.length === 0 && pageToLoad > 0) {
+                pageToLoad = Math.max(0, nextQueue.totalPages - 1)
+                nextQueue = await getModerationQueue({page: pageToLoad, size: PAGE_SIZE})
+            }
+            if ('content' in nextQueue) {
+                setQueue(nextQueue.content)
+                setAdminTotalPages(nextQueue.totalPages)
+                setAdminTotalCount(nextQueue.total)
+            } else {
+                setQueue(nextQueue)
+                setAdminTotalPages(0)
+                setAdminTotalCount(nextQueue.length)
+            }
+            setAdminPage(pageToLoad)
             setProposals(nextProposals)
             setTagTypes(nextTypes)
         } catch (reason) {
@@ -421,7 +439,7 @@ export function ZitounaPage({onCreatePost, onRequireLogin, onOpenPost}: ZitounaP
     }
 
     useEffect(() => {
-        if (tab === 'admin') void loadAdmin()
+        if (tab === 'admin') void loadAdmin(0)
     }, [tab, isAdmin])
 
     const tagSelection = useMemo(() => {
@@ -665,6 +683,10 @@ export function ZitounaPage({onCreatePost, onRequireLogin, onOpenPost}: ZitounaP
                 <AdminPanel
                     loading={loading}
                     queue={queue}
+                    queueTotal={adminTotalCount}
+                    queuePage={adminPage}
+                    queueTotalPages={adminTotalPages}
+                    onQueuePageChange={(p) => void loadAdmin(p)}
                     proposals={proposals}
                     tagTypes={tagTypes}
                     faqs={faq}
@@ -941,6 +963,10 @@ function MaterialsPanel({
 function AdminPanel({
                         loading,
                         queue,
+                        queueTotal,
+                        queuePage,
+                        queueTotalPages,
+                        onQueuePageChange,
                         proposals,
                         tagTypes,
                         faqs,
@@ -952,6 +978,10 @@ function AdminPanel({
                     }: {
     loading: boolean
     queue: ModerationQueueItem[]
+    queueTotal: number
+    queuePage: number
+    queueTotalPages: number
+    onQueuePageChange: (page: number) => void
     proposals: ZitounaTag[]
     tagTypes: TagTypeDefinition[]
     faqs: FaqEntry[]
@@ -983,7 +1013,7 @@ function AdminPanel({
                 admin has reviewed it. Comments remain immediate and can be removed separately.</p></header>
             {loading ? <p className="empty-state">Loading queue…</p> : null}
             <div className="admin-grid">
-                <div><h3>Content awaiting review <span>{queue.length}</span></h3>{queue.map((item) => {
+                <div><h3>Content awaiting review <span>{queueTotal}</span></h3>{queue.map((item) => {
                     const key = `${item.area}-${item.id}`
                     return (
                         <article className="review-card" key={key}>
@@ -1000,6 +1030,7 @@ function AdminPanel({
                         </article>
                     )
                 })}{!loading && queue.length === 0 ? <p className="empty-state">The content queue is clear.</p> : null}
+                    <Pagination currentPage={queuePage} totalPages={queueTotalPages} onPageChange={onQueuePageChange} />
                 </div>
                 <div><h3>Proposed tags <span>{proposals.length}</span></h3>{proposals.map((tag) => (
                     <article className="review-card" key={tag.id}><small>{fieldLabels[tag.field]}</small>

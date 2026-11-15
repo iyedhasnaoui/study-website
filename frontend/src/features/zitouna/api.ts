@@ -194,8 +194,13 @@ export async function createTag(payload: TagCreatePayload): Promise<ZitounaTag> 
     return response.data
 }
 
-export async function getModerationQueue(): Promise<ModerationQueueItem[]> {
-    const response = await apiClient.get<ModerationQueueItem[]>('/api/admin/moderation')
+export async function getModerationQueue(params?: {
+    page?: number
+    size?: number
+}): Promise<PaginatedResponse<ModerationQueueItem> | ModerationQueueItem[]> {
+    const response = await apiClient.get<PaginatedResponse<ModerationQueueItem> | ModerationQueueItem[]>('/api/admin/moderation', {
+        params: {page: params?.page ?? undefined, size: params?.size ?? undefined},
+    })
     return response.data
 }
 

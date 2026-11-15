@@ -146,12 +146,18 @@ public class ZitounaController {
 
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/api/admin/moderation")
-    public List<ZitounaDtos.ModerationQueueItem> moderationQueue(
-            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
+    public Object moderationQueue(
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size
     ) {
 //        adminGuard.requireAdmin(principal.userId());
         /// TODO:  ^FOR SECURITY REASONS WE MIGHT WANT TO BRING THIS BACK !!!
-        return zitounaService.moderationQueue();
+        List<ZitounaDtos.ModerationQueueItem> all = zitounaService.moderationQueue();
+        if (page != null && size != null) {
+            return paginate(all, page, size);
+        }
+        return all;
     }
 
     @PreAuthorize("hasRole('ADMIN')")

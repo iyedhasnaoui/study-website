@@ -28,3 +28,31 @@ it('shows material descriptions and submits the version of the forum revision re
   await userEvent.click(within(card).getByRole('button', { name: 'Accept' }))
   await waitFor(() => expect(post).toHaveBeenCalledWith('/api/admin/moderation/FORUM/2/approve', { note: '', version: 5 }))
 })
+
+it('paginates the queue and steps back a page when the last item on the last page is moderated', async () => {
+  const item = (id: number) => ({ area: 'ROADMAP', id, title: `Item ${id}`, authorUsername: 'a', submittedAt: null, details: {} })
+  let removed = false
+  const get = vi.spyOn(apiClient, 'get').mockImplementation((url, config) => {
+    if (url !== '/api/admin/moderation') return Promise.resolve({ data: [] })
+    const page = (config?.params as { page: number }).page
+    if (!removed) {
+      return Promise.resolve({ data: page === 0
+        ? { content: [item(1)], page: 0, size: 10, total: 11, totalPages: 2 }
+        : { content: [item(11)], page: 1, size: 10, total: 11, totalPages: 2 } })
+    }
+    return Promise.resolve({ data: page === 0
+      ? { content: [item(1)], page: 0, size: 10, total: 10, totalPages: 1 }
+      : { content: [], page: 1, size: 10, total: 10, totalPages: 1 } })
+  })
+  vi.spyOn(apiClient, 'post').mockImplementation(() => { removed = true; return Promise.resolve({ data: undefined }) })
+  render(<QueryClientProvider client={new QueryClient()}><ZitounaPage onCreatePost={vi.fn()} onRequireLogin={vi.fn()} /></QueryClientProvider>)
+  await userEvent.click(screen.getByRole('button', { name: 'Admin queue' }))
+  expect(await screen.findByText('Item 1')).toBeVisible()
+  expect(screen.getAllByRole('navigation', { name: 'Pagination' })).toHaveLength(1)
+  await userEvent.click(screen.getByRole('button', { name: 'Next ›' }))
+  const card = (await screen.findByText('Item 11')).closest('article')!
+  await userEvent.click(within(card).getByRole('button', { name: 'Accept' }))
+  expect(await screen.findByText('Item 1')).toBeVisible()
+  expect(screen.queryByRole('navigation', { name: 'Pagination' })).toBeNull()
+  expect(get).toHaveBeenCalledWith('/api/admin/moderation', { params: { page: 1, size: 10 } })
+})
