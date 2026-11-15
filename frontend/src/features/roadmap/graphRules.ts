@@ -20,7 +20,7 @@ const quote = (nodes: FlowNode[], ids: Set<string>): string =>
     .join(', ')
 
 /**
- * Mirrors the structural rules the backend enforces on save, so the editor can explain a
+ * Mirrors the rules the backend enforces on save, so the editor can explain a
  * problem while it is still fixable instead of after a rejected request.
  */
 export function checkGraph(nodes: FlowNode[], edges: Edge[]): GraphCheck {
@@ -106,6 +106,15 @@ export function checkGraph(nodes: FlowNode[], edges: Edge[]): GraphCheck {
     errors.push(
       `A step may only lead to several next steps when it is marked as a gate. ` +
         `Mark as a gate or remove connections: ${quote(nodes, ungated)}.`,
+    )
+  }
+
+  const deadLinks = new Set(
+    nodes.filter((node) => node.data.links?.some((link) => !link.available)).map((node) => node.id),
+  )
+  if (deadLinks.size > 0) {
+    errors.push(
+      `Some links point at content that is no longer on Zitun. Remove them from: ${quote(nodes, deadLinks)}.`,
     )
   }
 

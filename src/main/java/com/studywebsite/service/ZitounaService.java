@@ -3,6 +3,7 @@ package com.studywebsite.service;
 import com.studywebsite.dto.zitouna.ZitounaDtos;
 import com.studywebsite.model.*;
 import com.studywebsite.repository.*;
+import com.studywebsite.service.roadmap.RoadmapVouchService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -27,6 +28,7 @@ public class ZitounaService {
     private final UserRepository userRepository;
     private final TagService tagService;
     private final LearningMaterialStorageService materialStorageService;
+    private final RoadmapVouchService roadmapVouchService;
 
     @Transactional(readOnly = true)
     public List<ZitounaDtos.FeedItemResponse> feed(String query, Set<String> requestedAreas, Set<Long> tagIds) {
@@ -226,7 +228,8 @@ public class ZitounaService {
                                 "method", safe(material.getMethodUsed()),
                                 "roadmap", safe(material.getRoadmapFollowed()),
                                 "filename", safe(material.getOriginalFilename()))));
-        return Stream.of(forum, roadmaps, materials).flatMap(stream -> stream)
+        Stream<ZitounaDtos.ModerationQueueItem> vouches = roadmapVouchService.queueItems().stream();
+        return Stream.of(forum, roadmaps, materials, vouches).flatMap(stream -> stream)
                 .sorted(Comparator.comparing(ZitounaDtos.ModerationQueueItem::submittedAt,
                         Comparator.nullsLast(Comparator.naturalOrder())))
                 .toList();
@@ -277,6 +280,7 @@ public class ZitounaService {
                 resourceRepository.save(resource);
                 entityTags = resource.getTags();
             }
+            case RoadmapVouchService.QUEUE_AREA -> roadmapVouchService.decide(id, status);
             default -> throw new IllegalArgumentException("Unknown moderation area");
         }
         // Auto-approve any proposed tags when content is accepted

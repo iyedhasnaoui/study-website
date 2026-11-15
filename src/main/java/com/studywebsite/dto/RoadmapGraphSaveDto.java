@@ -1,5 +1,7 @@
 package com.studywebsite.dto;
 
+import com.studywebsite.model.RoadmapLinkKind;
+import com.studywebsite.model.RoadmapLinkTarget;
 import com.studywebsite.model.RoadmapNodeType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -57,6 +59,54 @@ public class RoadmapGraphSaveDto {
         private Boolean gate;
 
         private Long linkedRoadmapId;
+
+        /** Replaces the node's links; when left out (null) the stored links are kept as they are. */
+        @Valid
+        private List<LinkInput> links;
+
+        /**
+         * Replaces the node's vouches; when left out (null) they are kept as they are. A vouch sent
+         * back unchanged keeps the admin's decision.
+         */
+        @Valid
+        private List<VouchInput> vouches;
+    }
+
+    @Data
+    @NoArgsConstructor
+    public static class LinkInput {
+
+        @NotNull
+        private RoadmapLinkKind kind;
+
+        /** Internal links only. */
+        private RoadmapLinkTarget targetType;
+
+        /** Internal links only. */
+        private Long targetId;
+
+        /** External links only: an http or https address. */
+        @Size(max = 2000)
+        private String url;
+
+        /** External links only; the server names internal links after their target. */
+        @Size(max = 200)
+        private String label;
+    }
+
+    @Data
+    @NoArgsConstructor
+    public static class VouchInput {
+
+        /** Existing vouch id, or null for a person added in this editing session. */
+        private Long id;
+
+        @NotBlank
+        @Size(max = 120)
+        private String personName;
+
+        @Size(max = 300)
+        private String note;
     }
 
     @Data

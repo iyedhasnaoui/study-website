@@ -4,6 +4,7 @@ import type {
   RoadmapCreateDto,
   RoadmapGraphResponseDto,
   RoadmapGraphSaveDto,
+  RoadmapLinkSuggestion,
   RoadmapNodeCreateDto,
   RoadmapNodeResponseDto,
   RoadmapNodeUpdateDto,
@@ -100,6 +101,15 @@ export async function saveRoadmapGraph(
   const response = await roadmapApiClient.put<RoadmapGraphResponseDto>(
     `/api/roadmaps/${roadmapId}/graph`,
     payload,
+  )
+  return response.data
+}
+
+/** Published forum threads, learning materials, FAQ entries and roadmaps with the roadmap's tags. */
+export async function getRoadmapLinkSuggestions(roadmapId: number): Promise<RoadmapLinkSuggestion[]> {
+  requireAuthenticatedUser()
+  const response = await roadmapApiClient.get<RoadmapLinkSuggestion[]>(
+    `/api/roadmaps/${roadmapId}/link-suggestions`,
   )
   return response.data
 }

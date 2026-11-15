@@ -2,12 +2,14 @@ import type { Node } from '@xyflow/react'
 
 import { MarkdownViewer } from './MarkdownViewer'
 import { NODE_TYPE_LABELS, type RoadmapFlowNodeData } from './RoadmapFlowNode'
-import type { RoadmapNodeType } from '../types'
+import { NodeLinksEditor, NodeLinksReader } from './RoadmapNodeLinks'
+import type { RoadmapLinkSuggestion, RoadmapNodeType } from '../types'
 import { MIN_NODES } from '../graphRules'
 
 const EDITABLE_TYPES: RoadmapNodeType[] = ['PRIMARY', 'SECONDARY', 'OPTIONAL', 'NOTE']
 
 interface RoadmapNodeInspectorProps {
+  roadmapId: number
   node: Node<RoadmapFlowNodeData>
   canEdit: boolean
   outgoingCount: number
@@ -16,9 +18,17 @@ interface RoadmapNodeInspectorProps {
   isDirty: boolean
   canExtract: boolean
   isExtracting: boolean
+  /** Same-tag content offered for links; null while loading. */
+  suggestions: RoadmapLinkSuggestion[] | null
+  suggestionsError: string | null
+  roadmapHasTags: boolean
+  isSaving: boolean
+  /** Why the graph cannot be saved right now, if it cannot. */
+  saveBlockedReason: string | null
   onChange: (patch: Partial<RoadmapFlowNodeData>) => void
   onDelete: () => void
   onExtract: () => void
+  onSave: () => void
   onClose: () => void
 }
 
@@ -26,6 +36,7 @@ const fieldClass =
   'w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-amber-400 dark:focus:ring-amber-500/20'
 
 export function RoadmapNodeInspector({
+  roadmapId,
   node,
   canEdit,
   outgoingCount,
@@ -34,9 +45,15 @@ export function RoadmapNodeInspector({
   isDirty,
   canExtract,
   isExtracting,
+  suggestions,
+  suggestionsError,
+  roadmapHasTags,
+  isSaving,
+  saveBlockedReason,
   onChange,
   onDelete,
   onExtract,
+  onSave,
   onClose,
 }: RoadmapNodeInspectorProps) {
   const isRoot = node.data.nodeType === 'ROOT'
@@ -57,21 +74,20 @@ export function RoadmapNodeInspector({
 
   return (
     <aside className="flex h-full w-full flex-col gap-4 overflow-y-auto rounded-2xl border border-gray-200 bg-white/95 p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-950/80">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-600 dark:text-amber-300">
-            {NODE_TYPE_LABELS[node.data.nodeType]}
-          </p>
-          <p className="mt-1 text-xs text-slate-400 dark:text-zinc-500">
-            {node.data.dbId ? `Node #${node.data.dbId}` : 'Not saved yet'}
-          </p>
-        </div>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-600 dark:text-amber-300">
+          {NODE_TYPE_LABELS[node.data.nodeType]}
+          <span className="font-normal normal-case tracking-normal text-slate-400 dark:text-zinc-500">
+            {' · '}
+            {node.data.dbId ? `Node #${node.data.dbId}` : 'not saved yet'}
+          </span>
+        </p>
         <button
           type="button"
           onClick={onClose}
           className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
         >
-          Close
+          Close ✕
         </button>
       </div>
 
@@ -98,23 +114,6 @@ export function RoadmapNodeInspector({
             />
           </label>
 
-          {!isRoot ? (
-            <label className="block space-y-1">
-              <span className="text-xs font-semibold text-slate-600 dark:text-zinc-300">Category</span>
-              <select
-                value={node.data.nodeType}
-                onChange={(event) => onChange({ nodeType: event.target.value as RoadmapNodeType })}
-                className={fieldClass}
-              >
-                {EDITABLE_TYPES.map((type) => (
-                  <option key={type} value={type}>
-                    {NODE_TYPE_LABELS[type]}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-
           <label className="block space-y-1">
             <span className="text-xs font-semibold text-slate-600 dark:text-zinc-300">
               Notes <span className="font-normal text-slate-400">(markdown)</span>
@@ -122,11 +121,63 @@ export function RoadmapNodeInspector({
             <textarea
               value={node.data.content ?? ''}
               onChange={(event) => onChange({ content: event.target.value })}
-              rows={10}
+              rows={6}
               placeholder="Resources, exercises, what to know before moving on…"
-              className={`${fieldClass} min-h-44 resize-y`}
+              className={`${fieldClass} min-h-32 resize-y`}
             />
           </label>
+
+          {!isRoot ? (
+            <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Type">
+              <span className="mr-1 text-xs font-semibold text-slate-600 dark:text-zinc-300">Type</span>
+              {EDITABLE_TYPES.map((type) => {
+                const active = node.data.nodeType === type
+                return (
+                  <button
+                    key={type}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => onChange({ nodeType: type })}
+                    className={[
+                      'rounded-full border px-3 py-1 text-xs font-semibold transition',
+                      active
+                        ? 'border-slate-900 bg-slate-900 text-white dark:border-amber-400 dark:bg-amber-400 dark:text-slate-900'
+                        : 'border-slate-300 text-slate-700 hover:border-amber-400 dark:border-zinc-700 dark:text-zinc-200',
+                    ].join(' ')}
+                  >
+                    {NODE_TYPE_LABELS[type]}
+                  </button>
+                )
+              })}
+            </div>
+          ) : null}
+
+          <NodeLinksEditor
+            roadmapId={roadmapId}
+            nodeType={node.data.nodeType}
+            links={node.data.links}
+            vouches={node.data.vouches}
+            suggestions={suggestions}
+            suggestionsError={suggestionsError}
+            roadmapHasTags={roadmapHasTags}
+            onLinksChange={(links) => onChange({ links })}
+            onVouchesChange={(vouches) => onChange({ vouches })}
+          />
+
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <button
+              type="button"
+              onClick={onSave}
+              disabled={isSaving || !isDirty || saveBlockedReason !== null}
+              title={saveBlockedReason ?? undefined}
+              className="rounded-full bg-amber-600 px-4 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isSaving ? 'Saving…' : isDirty ? 'Save graph' : 'Saved'}
+            </button>
+            <span className="text-xs italic text-slate-400 dark:text-zinc-500">
+              {saveBlockedReason ?? 'unsaved changes stay until you press save'}
+            </span>
+          </div>
 
           <label
             className={[
@@ -213,6 +264,7 @@ export function RoadmapNodeInspector({
               <p className="text-sm text-slate-400 dark:text-zinc-500">No notes for this step yet.</p>
             )}
           </div>
+          <NodeLinksReader links={node.data.links} vouches={node.data.vouches} />
         </div>
       )}
     </aside>

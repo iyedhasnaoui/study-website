@@ -6,6 +6,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -21,4 +24,12 @@ public class RoadmapNodeResponseDto {
     private Double positionY;
     private Boolean gate;
     private Long linkedRoadmapId;
+
+    /** Only filled when the whole graph is read; list endpoints leave it empty. */
+    @Builder.Default
+    private List<RoadmapNodeLinkDto> links = new ArrayList<>();
+
+    /** Readers only receive accepted vouches; the roadmap's editors see every one with its status. */
+    @Builder.Default
+    private List<RoadmapNodeVouchDto> vouches = new ArrayList<>();
 }

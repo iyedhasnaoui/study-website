@@ -4,6 +4,7 @@ import com.studywebsite.dto.RoadmapGraphSaveDto;
 import com.studywebsite.model.Roadmap;
 import com.studywebsite.model.RoadmapEdge;
 import com.studywebsite.model.RoadmapNode;
+import com.studywebsite.model.RoadmapNodeLink;
 import com.studywebsite.model.RoadmapNodeType;
 import com.studywebsite.model.User;
 import com.studywebsite.repository.RoadmapRepository;
@@ -38,6 +39,8 @@ public class RoadmapGraphService {
     private final RoadmapEdgeRepository edgeRepository;
     private final RoadmapGraphValidator validator;
     private final RoadmapRepository roadmapRepository;
+    private final RoadmapNodeLinkService linkService;
+    private final RoadmapVouchService vouchService;
 
     @Transactional(readOnly = true)
     public List<RoadmapNode> findNodes(Long roadmapId) {
@@ -98,6 +101,8 @@ public class RoadmapGraphService {
         }
         edgeRepository.deleteBySourceNode_IdOrTargetNode_Id(nodeId, nodeId);
         edgeRepository.flush();
+        linkService.deleteForNodes(List.of(nodeId));
+        vouchService.deleteForNodes(List.of(nodeId));
         nodeRepository.delete(node);
     }
 
@@ -111,6 +116,11 @@ public class RoadmapGraphService {
     public void deleteGraph(Long roadmapId) {
         edgeRepository.deleteByRoadmap_Id(roadmapId);
         edgeRepository.flush();
+        List<Long> nodeIds = nodeRepository.findByRoadmap_IdOrderByIdAsc(roadmapId).stream()
+                .map(RoadmapNode::getId)
+                .toList();
+        linkService.deleteForNodes(nodeIds);
+        vouchService.deleteForNodes(nodeIds);
         nodeRepository.deleteByRoadmap_Id(roadmapId);
         nodeRepository.flush();
     }
@@ -165,6 +175,13 @@ public class RoadmapGraphService {
         nodeRepository.saveAll(copies.values());
         nodeRepository.flush();
 
+        // Links travel with every copied node. The split step stays behind with its vouches, so
+        // only the steps that actually move take theirs along.
+        copies.forEach((sourceId, copy) -> {
+            linkService.copy(sourceId, copy);
+            if (!sourceId.equals(origin.getId())) vouchService.copy(sourceId, copy);
+        });
+
         List<RoadmapEdge> copiedEdges = new ArrayList<>();
         for (RoadmapEdge edge : edges) {
             RoadmapNode source = copies.get(edge.getSourceNode().getId());
@@ -188,6 +205,8 @@ public class RoadmapGraphService {
         edgeRepository.deleteAll(staleEdges);
         edgeRepository.flush();
 
+        linkService.deleteForNodes(moving);
+        vouchService.deleteForNodes(moving);
         nodeRepository.deleteAll(nodes.stream().filter(node -> moving.contains(node.getId())).toList());
         nodeRepository.flush();
 
@@ -279,12 +298,23 @@ public class RoadmapGraphService {
      * payload are removed, so the editor can persist adds, moves, edits and deletions together.
      */
     @Transactional
-    public void saveGraph(Roadmap roadmap, RoadmapGraphSaveDto payload) {
+    public void saveGraph(Roadmap roadmap, RoadmapGraphSaveDto payload, Long editorId) {
         List<RoadmapGraphSaveDto.NodeInput> nodeInputs = payload.getNodes() == null ? List.of() : payload.getNodes();
         List<RoadmapGraphSaveDto.EdgeInput> edgeInputs = payload.getEdges() == null ? List.of() : payload.getEdges();
 
         String rootRef = validateNodeInputs(nodeInputs);
         validator.validate(toShape(nodeInputs, edgeInputs, rootRef));
+
+        // Links and vouches are checked before anything is written, so one bad link rejects the save.
+        // A node sent without a links list keeps its stored links (no entry in the map).
+        Map<String, List<RoadmapNodeLink>> linksByRef = new HashMap<>();
+        for (RoadmapGraphSaveDto.NodeInput input : nodeInputs) {
+            String title = input.getTitle().trim();
+            if (input.getLinks() != null) {
+                linksByRef.put(input.getRef(), linkService.prepare(roadmap.getId(), title, input.getLinks()));
+            }
+            vouchService.checkCount(title, input.getVouches());
+        }
 
         Map<Long, RoadmapNode> existingById = nodeRepository.findByRoadmap_IdOrderByIdAsc(roadmap.getId())
                 .stream()
@@ -328,8 +358,21 @@ public class RoadmapGraphService {
         edgeRepository.flush();
 
         if (!removedNodes.isEmpty()) {
+            List<Long> removedIds = removedNodes.stream().map(RoadmapNode::getId).toList();
+            linkService.deleteForNodes(removedIds);
+            vouchService.deleteForNodes(removedIds);
             nodeRepository.deleteAll(removedNodes);
             nodeRepository.flush();
+        }
+
+        for (RoadmapGraphSaveDto.NodeInput input : nodeInputs) {
+            RoadmapNode node = nodesByRef.get(input.getRef());
+            if (linksByRef.containsKey(input.getRef())) {
+                linkService.replace(node, linksByRef.get(input.getRef()));
+            }
+            if (input.getVouches() != null || !RoadmapVouchService.acceptsVouches(node.getNodeType())) {
+                vouchService.replace(node, input.getVouches(), editorId);
+            }
         }
 
         List<RoadmapEdge> edges = new ArrayList<>();

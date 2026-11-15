@@ -85,7 +85,8 @@ export interface FaqEntry {
 }
 
 export interface ModerationQueueItem {
-  area: Exclude<FeedArea, 'FAQ'>
+  /** ROADMAP_VOUCH: a person named as having done a roadmap step, waiting to be shown. */
+  area: Exclude<FeedArea, 'FAQ'> | 'ROADMAP_VOUCH'
   id: number
   title: string
   authorId: number | null

@@ -24,10 +24,17 @@ import {
   extractErrorMessage,
   extractRoadmapNode,
   getRoadmapGraph,
+  getRoadmapLinkSuggestions,
   saveRoadmapGraph,
 } from '../api/roadmapApi'
 import { checkGraph, exclusiveBranchSize, MAX_NODES, MIN_NODES } from '../graphRules'
-import type { RoadmapGraphResponseDto, RoadmapGraphSaveDto, RoadmapNodeType } from '../types'
+import { acceptsVouches } from '../nodeLinks'
+import type {
+  RoadmapGraphResponseDto,
+  RoadmapGraphSaveDto,
+  RoadmapLinkSuggestion,
+  RoadmapNodeType,
+} from '../types'
 import { NODE_TYPE_LABELS, RoadmapFlowNode, type RoadmapFlowNodeData } from './RoadmapFlowNode'
 import { RoadmapFloatingEdge } from './RoadmapFloatingEdge'
 import { RoadmapNodeInspector } from './RoadmapNodeInspector'
@@ -62,8 +69,24 @@ function toFlowNodes(graph: RoadmapGraphResponseDto): FlowNode[] {
       nodeType: node.nodeType,
       gate: node.gate,
       linkedRoadmapId: node.linkedRoadmapId,
+      links: node.links ?? [],
+      vouches: node.vouches ?? [],
     },
   }))
+}
+
+/** What the server needs to store a node's links and vouches; everything else it works out itself. */
+function toSavePanel(data: RoadmapFlowNodeData): Pick<RoadmapGraphSaveDto['nodes'][number], 'links' | 'vouches'> {
+  return {
+    links: data.links.map((link) =>
+      link.kind === 'INTERNAL'
+        ? { kind: 'INTERNAL', targetType: link.targetType, targetId: link.targetId }
+        : { kind: 'EXTERNAL', url: link.url, label: link.label },
+    ),
+    vouches: acceptsVouches(data.nodeType)
+      ? data.vouches.map((vouch) => ({ id: vouch.id, personName: vouch.personName, note: vouch.note }))
+      : [],
+  }
 }
 
 function toFlowEdges(graph: RoadmapGraphResponseDto): Edge[] {
@@ -112,6 +135,15 @@ function GraphCanvas({
   const [savedAt, setSavedAt] = useState<string | null>(null)
   const [isExtracting, setIsExtracting] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
+  const [loadedSuggestions, setLoadedSuggestions] = useState<{
+    roadmapId: number
+    items: RoadmapLinkSuggestion[]
+    error: string | null
+  } | null>(null)
+  // Results for another roadmap count as still loading.
+  const suggestionsHere = loadedSuggestions?.roadmapId === roadmapId ? loadedSuggestions : null
+  const suggestions = suggestionsHere?.items ?? null
+  const suggestionsError = suggestionsHere?.error ?? null
 
   const nextTempId = useRef(0)
   const canvasRef = useRef<HTMLDivElement>(null)
@@ -143,6 +175,28 @@ function GraphCanvas({
   useEffect(() => {
     onDirtyChange?.(isDirty)
   }, [isDirty, onDirtyChange])
+
+  // The same-tag content is the same for every node, so it is fetched once per roadmap.
+  useEffect(() => {
+    if (!canEdit) return
+    let active = true
+    getRoadmapLinkSuggestions(roadmapId)
+      .then((items) => {
+        if (active) setLoadedSuggestions({ roadmapId, items, error: null })
+      })
+      .catch((loadError) => {
+        if (active) {
+          setLoadedSuggestions({
+            roadmapId,
+            items: [],
+            error: extractErrorMessage(loadError, 'Could not load suggestions.'),
+          })
+        }
+      })
+    return () => {
+      active = false
+    }
+  }, [canEdit, roadmapId])
 
   useEffect(() => {
     if (!isDirty) return
@@ -226,6 +280,8 @@ function GraphCanvas({
           nodeType: type,
           gate: false,
           linkedRoadmapId: null,
+          links: [],
+          vouches: [],
         },
       }
 
@@ -286,6 +342,7 @@ function GraphCanvas({
         positionX: Math.round(node.position.x),
         positionY: Math.round(node.position.y),
         gate: node.data.gate,
+        ...toSavePanel(node.data),
       })),
       edges: edges.map((edge) => ({ sourceRef: edge.source, targetRef: edge.target })),
     }
@@ -472,6 +529,7 @@ function GraphCanvas({
 
         {selectedNode ? (
           <RoadmapNodeInspector
+            roadmapId={roadmapId}
             node={selectedNode}
             canEdit={canEdit}
             outgoingCount={outgoingCount}
@@ -485,9 +543,15 @@ function GraphCanvas({
             nodeCount={nodes.length}
             isDirty={isDirty}
             isExtracting={isExtracting}
+            suggestions={suggestions}
+            suggestionsError={suggestionsError}
+            roadmapHasTags={graph.tags.length > 0}
+            isSaving={isSaving}
+            saveBlockedReason={errors.length > 0 ? 'Fix the listed problems before saving' : null}
             onChange={patchSelectedNode}
             onDelete={() => removeNode(selectedNode.id)}
             onExtract={handleExtract}
+            onSave={handleSave}
             onClose={() => setSelectedId(null)}
           />
         ) : (

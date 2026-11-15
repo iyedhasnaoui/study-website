@@ -213,6 +213,26 @@ function QueueItemDetails({area, details}: {area: string; details: Record<string
         return renderTextBlock(description, 'Description', 'roadmap-description')
     }
 
+    if (area === 'ROADMAP_VOUCH') {
+        const roadmapId = Number(details.roadmapId)
+        const nodeId = Number(details.nodeId)
+        return (
+            <div className="space-y-3">
+                <p className="text-sm">Readers will see this name as having done the step once you accept it.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {renderMetaField('Roadmap', str(details.roadmap))}
+                    {renderMetaField('Step', str(details.step))}
+                    {renderMetaField('Person', str(details.person))}
+                    {renderMetaField('What they did', str(details.note))}
+                </div>
+                {roadmapId > 0 && nodeId > 0 ? (
+                    <a className="text-sm font-semibold text-amber-700 underline dark:text-amber-200"
+                       href={`#roadmaps/${roadmapId}/nodes/${nodeId}`}>Open the step</a>
+                ) : null}
+            </div>
+        )
+    }
+
     // Fallback: render unknown keys
     return (
         <div className="space-y-2">
@@ -945,14 +965,16 @@ function AdminPanel({
                     const key = `${item.area}-${item.id}`
                     return (
                         <article className="review-card" key={key}>
-                            <small>{areaLabels[item.area]} · {item.authorUsername || 'Unknown author'}</small>
+                            <small>{item.area === 'ROADMAP_VOUCH' ? 'Roadmaps · vouched by' : areaLabels[item.area]} · {item.authorUsername || 'Unknown author'}</small>
                             <h4>{item.title}</h4>
                             <div className="mt-3">
                                 <QueueItemDetails area={item.area} details={item.details} />
                             </div>
                             <div>
                                 <button onClick={() => void onModerate(item, 'approve')}>Accept</button>
-                                <button onClick={() => void onModerate(item, 'needs-fixing')}>Needs fixing</button>
+                                {item.area !== 'ROADMAP_VOUCH' ? (
+                                    <button onClick={() => void onModerate(item, 'needs-fixing')}>Needs fixing</button>
+                                ) : null}
                                 <button className="danger" onClick={() => void onModerate(item, 'reject')}>Reject</button>
                             </div>
                         </article>

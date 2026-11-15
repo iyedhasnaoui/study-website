@@ -2,6 +2,42 @@ import type {TagItem, TagProposalItem} from "../../components/TagAutocomplete"
 
 export type RoadmapNodeType = 'ROOT' | 'PRIMARY' | 'SECONDARY' | 'OPTIONAL' | 'NOTE'
 
+/** INTERNAL points at content on Zitun, EXTERNAL at a page somewhere else on the web. */
+export type RoadmapLinkKind = 'INTERNAL' | 'EXTERNAL'
+export type RoadmapLinkTarget = 'FORUM' | 'LEARNING_MATERIAL' | 'FAQ' | 'ROADMAP'
+export type VouchStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'NEEDS_FIXING'
+
+export interface RoadmapNodeLink {
+    id?: number | null
+    kind: RoadmapLinkKind
+    targetType: RoadmapLinkTarget | null
+    targetId: number | null
+    url: string | null
+    /** The target's current title, or the page title of an external link. */
+    label: string
+    /** Zitun content carrying every tag of the roadmap. */
+    insideTag: boolean
+    /** False once the target was deleted or unpublished; readers never receive such links. */
+    available: boolean
+    replyCount: number | null
+}
+
+/** A person who actually did a step. Readers only ever receive accepted ones. */
+export interface RoadmapNodeVouch {
+    id: number | null
+    personName: string
+    note: string | null
+    status: VouchStatus
+}
+
+/** Published content with the roadmap's tags, offered for linking. */
+export interface RoadmapLinkSuggestion {
+    targetType: RoadmapLinkTarget
+    targetId: number
+    title: string
+    replyCount: number | null
+}
+
 export interface RoadmapNodeResponseDto {
     id: number
     roadmapId: number | null
@@ -13,6 +49,9 @@ export interface RoadmapNodeResponseDto {
     positionY: number
     gate: boolean
     linkedRoadmapId: number | null
+    /** Filled when the whole graph is read. */
+    links?: RoadmapNodeLink[]
+    vouches?: RoadmapNodeVouch[]
 }
 
 export interface RoadmapEdgeResponseDto {
@@ -64,6 +103,18 @@ export interface RoadmapGraphSaveDto {
         positionX: number
         positionY: number
         gate: boolean
+        links: {
+            kind: RoadmapLinkKind
+            targetType?: RoadmapLinkTarget | null
+            targetId?: number | null
+            url?: string | null
+            label?: string | null
+        }[]
+        vouches: {
+            id: number | null
+            personName: string
+            note: string | null
+        }[]
     }[]
     edges: {
         id?: number | null

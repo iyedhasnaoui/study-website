@@ -1,7 +1,7 @@
 import { memo } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 
-import type { RoadmapNodeType } from '../types'
+import type { RoadmapNodeLink, RoadmapNodeType, RoadmapNodeVouch } from '../types'
 
 export interface RoadmapFlowNodeData extends Record<string, unknown> {
   dbId: number | null
@@ -11,6 +11,8 @@ export interface RoadmapFlowNodeData extends Record<string, unknown> {
   nodeType: RoadmapNodeType
   gate: boolean
   linkedRoadmapId: number | null
+  links: RoadmapNodeLink[]
+  vouches: RoadmapNodeVouch[]
 }
 
 const TYPE_STYLES: Record<RoadmapNodeType, string> = {
@@ -34,10 +36,10 @@ export const NODE_TYPE_LABELS: Record<RoadmapNodeType, string> = {
 }
 
 function RoadmapFlowNodeComponent({ data, selected }: NodeProps) {
-  const { title, description, content, nodeType, gate, linkedRoadmapId } =
+  const { title, description, content, nodeType, gate, linkedRoadmapId, links } =
     data as RoadmapFlowNodeData
   const isNote = nodeType === 'NOTE'
-  const hasContent = Boolean(content && content.trim())
+  const hasContent = Boolean(content && content.trim()) || (links?.length ?? 0) > 0
 
   return (
     <div
@@ -80,7 +82,7 @@ function RoadmapFlowNodeComponent({ data, selected }: NodeProps) {
       {hasContent && !isNote ? (
         <span
           className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-sky-600 text-[9px] font-bold text-white"
-          title="This node has notes"
+          title="This node has notes or links"
         >
           i
         </span>
