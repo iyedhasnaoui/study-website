@@ -23,7 +23,8 @@ const apiMocks = vi.hoisted(() => ({
 }))
 
 vi.mock('./api', () => ({...apiMocks, TAGS_UPDATED_EVENT: 'zitouna-tags-updated'}))
-vi.mock('../../auth/AuthContext', () => ({useAuth: () => ({session: null, isAdmin: false})}))
+const authState = vi.hoisted(() => ({session: null as unknown, isAdmin: false}))
+vi.mock('../../auth/AuthContext', () => ({useAuth: () => authState}))
 vi.mock('../forum/components/PostFeed', () => ({
     PostFeed: ({query, tagIds, page, onTotalPages}: {query?: string; tagIds?: number[]; page?: number; onTotalPages?: (totalPages: number) => void}) => (
         <>
@@ -52,6 +53,7 @@ const tags = [
 
 beforeEach(() => {
     vi.clearAllMocks()
+    authState.session = null
     window.history.replaceState(null, '', '/#zitouna')
     apiMocks.getTags.mockResolvedValue(tags)
     apiMocks.getZitounaFeed.mockResolvedValue([])
@@ -192,4 +194,60 @@ it('opens an FAQ resource from Discover through its tab history entry', async ()
     await waitFor(() => expect(window.location.hash).toBe('#zitouna'))
     expect(within(screen.getByRole('navigation', {name: 'Zitouna sections'}))
         .getByRole('button', {name: 'Discover'})).toHaveClass('is-active')
+})
+
+const material = (overrides = {}) => ({
+    id: 1, title: 'Calculus notes', description: 'Notes', type: 'PDF', originalFilename: 'a.pdf', contentType: 'application/pdf',
+    sizeBytes: 1, gradeNote: null, solutionApproach: null, methodUsed: null, roadmapFollowed: null, authorId: 1,
+    authorUsername: 'sam', moderationStatus: 'APPROVED', moderationNote: null, tags: [], contentUrl: '/api/learning-materials/1/content',
+    createdAt: null, updatedAt: null, ...overrides,
+})
+
+it('paginates learning materials from page 1 with a single set of controls', async () => {
+    window.history.replaceState(null, '', '/#zitouna/materials')
+    apiMocks.getLearningMaterials.mockResolvedValue({content: [material()], page: 0, size: 10, total: 25, totalPages: 3})
+    render(<ZitounaPage onCreatePost={vi.fn()} onRequireLogin={vi.fn()}/>)
+
+    await screen.findByText('Calculus notes')
+    expect(apiMocks.getLearningMaterials).toHaveBeenCalledWith(expect.objectContaining({page: 0, size: 10}))
+    expect(screen.getAllByRole('navigation', {name: 'Pagination'})).toHaveLength(1)
+
+    fireEvent.click(screen.getByRole('button', {name: '3'}))
+    await waitFor(() => expect(apiMocks.getLearningMaterials).toHaveBeenLastCalledWith(expect.objectContaining({page: 2})))
+})
+
+it('shows optional learning material fields only when they have a value', async () => {
+    window.history.replaceState(null, '', '/#zitouna/materials')
+    apiMocks.getLearningMaterials.mockResolvedValue([
+        material({id: 1, title: 'Full', gradeNote: '1.7', solutionApproach: 'Induction', methodUsed: 'Flashcards', roadmapFollowed: 'Math basics'}),
+        material({id: 2, title: 'Bare'}),
+    ])
+    render(<ZitounaPage onCreatePost={vi.fn()} onRequireLogin={vi.fn()}/>)
+
+    await screen.findByText('Full')
+    for (const text of ['1.7', 'Induction', 'Flashcards', 'Math basics']) expect(screen.getByText(text)).toBeInTheDocument()
+    expect(screen.getAllByText('Grade')).toHaveLength(1)
+    expect(screen.getAllByText('Method used')).toHaveLength(1)
+})
+
+it.each([
+    ['0.9', false], ['1.0', true], ['1', true], ['2.5', true], ['4.0', true], ['4.1', false], ['abc', false], ['', true], ['2.55', false],
+])('validates grade %j (valid: %s)', async (grade, valid) => {
+    authState.session = {user: {}}
+    window.history.replaceState(null, '', '/#zitouna/materials')
+    apiMocks.submitLearningMaterial.mockResolvedValue(material())
+    const {container} = render(<ZitounaPage onCreatePost={vi.fn()} onRequireLogin={vi.fn()}/>)
+    await waitFor(() => expect(apiMocks.getLearningMaterials).toHaveBeenCalled())
+
+    fireEvent.click(screen.getByRole('button', {name: 'Upload material'}))
+    fireEvent.change(container.querySelector('.material-form input[required]')!, {target: {value: 'T'}})
+    fireEvent.change(screen.getByLabelText(/Your grade/), {target: {value: grade}})
+    fireEvent.change(container.querySelector('input[type=file]')!, {target: {files: [new File(['x'], 'a.pdf', {type: 'application/pdf'})]}})
+    fireEvent.submit(container.querySelector('form.material-form')!)
+
+    if (valid) await waitFor(() => expect(apiMocks.submitLearningMaterial).toHaveBeenCalled())
+    else {
+        expect(await screen.findByText(/between 1\.0 and 4\.0/)).toBeInTheDocument()
+        expect(apiMocks.submitLearningMaterial).not.toHaveBeenCalled()
+    }
 })

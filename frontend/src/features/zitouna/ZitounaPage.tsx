@@ -700,6 +700,15 @@ export function ZitounaPage({onCreatePost, onRequireLogin, onOpenPost}: ZitounaP
     )
 }
 
+// Grade: optional, 1.0–4.0 inclusive, at most one decimal place (mirrors the server-side pattern).
+const GRADE_PATTERN = /^(?:[1-3](?:\.\d)?|4(?:\.0)?)$/
+
+function getGradeError(value: string): string | null {
+    const grade = value.trim()
+    if (grade === '') return null
+    return GRADE_PATTERN.test(grade) ? null : 'Grade must be a number between 1.0 and 4.0 with at most one decimal place.'
+}
+
 function MaterialsPanel({
                             materials,
                             selectedTags,
@@ -737,6 +746,11 @@ function MaterialsPanel({
 
     const submit = async (event: FormEvent) => {
         event.preventDefault()
+        const gradeError = getGradeError(form.gradeNote)
+        if (gradeError) {
+            setError(gradeError)
+            return
+        }
         if (!file) {
             setError('Choose a PDF, audio, or video file.')
             return
@@ -767,7 +781,7 @@ function MaterialsPanel({
         }
 
         try {
-            const material = await submitLearningMaterial({ ...form, type, tags: tagPayload }, file)
+            const material = await submitLearningMaterial({ ...form, gradeNote: form.gradeNote.trim(), type, tags: tagPayload }, file)
             onSubmitted(material)
             setOpen(false)
             setFile(null)
@@ -816,7 +830,7 @@ function MaterialsPanel({
                     <form className="material-form" onSubmit={submit}>
                         <label>Title<input required maxLength={200} value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} /></label>
                         <label className="material-form__wide">Description<textarea rows={4} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></label>
-                        <label>Your grade in the subject<input value={form.gradeNote} onChange={(event) => setForm({ ...form, gradeNote: event.target.value })} placeholder="Optional — e.g. 1.7" /></label>
+                        <label>Your grade in the subject<input inputMode="decimal" value={form.gradeNote} onChange={(event) => setForm({ ...form, gradeNote: event.target.value })} placeholder="Optional — 1.0 to 4.0, e.g. 1.7" /></label>
                         <label>How you got to the solution<input value={form.solutionApproach} onChange={(event) => setForm({ ...form, solutionApproach: event.target.value })} /></label>
                         <label>Method used<input value={form.methodUsed} onChange={(event) => setForm({ ...form, methodUsed: event.target.value })} /></label>
                         <label>Roadmap followed<input value={form.roadmapFollowed} onChange={(event) => setForm({ ...form, roadmapFollowed: event.target.value })} /></label>
@@ -871,6 +885,19 @@ function MaterialsPanel({
                                         ) : null}
                                     </div>
                                 )
+                            })()}
+                            {(() => {
+                                const fields = ([
+                                    ['Grade', material.gradeNote],
+                                    ['Solution approach', material.solutionApproach],
+                                    ['Method used', material.methodUsed],
+                                    ['Roadmap followed', material.roadmapFollowed],
+                                ] as const).filter(([, value]) => value?.trim())
+                                return fields.length > 0 ? (
+                                    <dl className="material-meta">
+                                        {fields.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
+                                    </dl>
+                                ) : null
                             })()}
                             <div className="tag-row">{material.tags.map((tag) => <span key={tag.id}>#{tag.name}</span>)}</div>
                             {material.authorUsername ? (

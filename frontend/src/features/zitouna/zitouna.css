@@ -81,6 +81,11 @@
 .material-type { align-self: flex-start; padding: 5px 8px; border-radius: 8px; background: var(--navy-900); color: var(--gold-400); font-size: .62rem; font-weight: 900; }
 .material-grid h3 { margin: 16px 0 9px; color: var(--navy-900); font: 400 1.35rem Georgia,serif; }
 .material-grid p { margin: 0; flex: 1; color: var(--muted); font-size: .78rem; line-height: 1.6; }
+.material-meta { margin: 12px 0 0; display: grid; gap: 6px; }
+.material-meta dt { color: var(--navy-900); font-size: .62rem; font-weight: 850; text-transform: uppercase; }
+.material-meta dd { margin: 0; color: var(--muted); font-size: .78rem; line-height: 1.5; overflow-wrap: anywhere; }
+.dark .material-meta dt { color: #f7f1e2; }
+.dark .material-meta dd { color: #94a3b8; }
 .material-grid a,.material-grid small { margin-top: 18px; color: var(--gold-600); font-size: .7rem; font-weight: 850; }
 .faq-list { display: grid; gap: 10px; }
 .faq-list details { border: 1px solid var(--line); border-radius: 17px; background: var(--paper); box-shadow: 0 10px 30px rgba(6,25,54,.04); }

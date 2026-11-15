@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalDateTime;
@@ -90,7 +91,9 @@ public final class ZitounaDtos {
             @NotBlank @Size(max = 200) String title,
             @Size(max = 5000) String description,
             @NotNull ResourceType type,
-            @Size(max = 120) String gradeNote,
+            @Size(max = 120)
+            @Pattern(regexp = "^$|^(?:[1-3](?:\\.\\d)?|4(?:\\.0)?)$", message = "Grade must be between 1.0 and 4.0 with at most one decimal place")
+            String gradeNote,
             @Size(max = 3000) String solutionApproach,
             @Size(max = 3000) String methodUsed,
             @Size(max = 3000) String roadmapFollowed,
