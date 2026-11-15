@@ -268,6 +268,8 @@ export function ZitounaPage({onCreatePost, onRequireLogin, onOpenPost}: ZitounaP
     const [forumTotalPages, setForumTotalPages] = useState(0)
     const [roadmapsPage, setRoadmapsPage] = useState(0)
     const [roadmapsTotalPages, setRoadmapsTotalPages] = useState(0)
+    // ZitounaPage stays mounted while a roadmap is created/viewed, so bump this on re-entry to refetch the feed.
+    const [roadmapsRefreshKey, setRoadmapsRefreshKey] = useState(0)
 
 
     useEffect(() => {
@@ -284,6 +286,7 @@ export function ZitounaPage({onCreatePost, onRequireLogin, onOpenPost}: ZitounaP
         const onHashChange = () => {
             const tabFromHash = getZitounaTabFromHash(window.location.hash)
             if (tabFromHash) setTab(tabFromHash)
+            if (tabFromHash === 'roadmaps') setRoadmapsRefreshKey((key) => key + 1)
         }
         window.addEventListener('hashchange', onHashChange)
         return () => window.removeEventListener('hashchange', onHashChange)
@@ -614,11 +617,12 @@ export function ZitounaPage({onCreatePost, onRequireLogin, onOpenPost}: ZitounaP
             {tab === 'roadmaps' ? (
                 <section className="section-shell">
                     <RoadmapFeedPage
+                        key={roadmapsRefreshKey}
                         onOpenRoadmap={(roadmapId) => {
                             window.location.hash = `#roadmaps/${roadmapId}`
                         }}
                         onOpenCreate={() => {
-                            window.location.hash = '#roadmaps/create'
+                            window.location.hash = '#roadmaps/new'
                         }}
                         sharedFilters={{query: query || undefined, tagIds: selectedTags}}
                         page={roadmapsPage}
