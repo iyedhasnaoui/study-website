@@ -96,6 +96,12 @@ public class TagController {
     }
 
     @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/api/admin/tags/merge")
+    public ZitounaDtos.TagResponse merge(@Valid @RequestBody ZitounaDtos.TagMergeRequest request) {
+        return zitounaService.mergeTags(request);
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/api/admin/tags/{id}/reject")
     public ZitounaDtos.TagResponse reject(
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
@@ -104,6 +110,6 @@ public class TagController {
     ) {
 //        adminGuard.requireAdmin(principal.userId());
         ///TODO:  ^FOR SECURITY REASONS WE MIGHT WANT TO BRING THIS BACK !!!
-        return tagService.reject(id, request);
+        return zitounaService.rejectTag(id, request);
     }
 }

@@ -5,7 +5,12 @@ import com.studywebsite.model.Roadmap;
 import com.studywebsite.model.User;
 import com.studywebsite.repository.RoadmapRepository;
 import com.studywebsite.repository.UserRepository;
+import com.studywebsite.dto.zitouna.ZitounaDtos;
+import com.studywebsite.model.TagField;
+import com.studywebsite.model.TagStatus;
+import com.studywebsite.model.ZitounaTag;
 import com.studywebsite.repository.ZitounaTagRepository;
+import com.studywebsite.service.TagService;
 import com.studywebsite.service.admin.KeycloakAdminClient;
 import com.studywebsite.support.TestAuth;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,6 +25,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -40,6 +46,7 @@ class AdminQueueEditTest {
     @Autowired private UserRepository userRepository;
     @Autowired private RoadmapRepository roadmapRepository;
     @Autowired private ZitounaTagRepository tagRepository;
+    @Autowired private TagService tagService;
     @MockitoBean private JwtDecoder jwtDecoder;
     @MockitoBean private KeycloakAdminClient keycloakAdminClient;
 
@@ -97,6 +104,56 @@ class AdminQueueEditTest {
                         .with(TestAuth.admin(adminId))
                         .contentType(MediaType.APPLICATION_JSON).content(body(tagId("TUM"))))
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    void rejectingAProposedTagRemovesItFromQueuedContentAndBlocksAcceptingInvalidTags() throws Exception {
+        Long proposed = tagService.propose(new ZitounaDtos.TagProposalRequest("Test Institute", TagField.INSTITUTION, null), authorId).id();
+        Roadmap roadmap = roadmapRepository.findById(roadmapId).orElseThrow();
+        // "Exchange program" needs two institutions: TUM + the proposed one satisfy it, until the proposal is rejected
+        roadmap.getTags().addAll(java.util.List.of(tagRepository.findById(tagId("TUM")).orElseThrow(),
+                tagRepository.findById(tagId("Exchange program")).orElseThrow(), tagRepository.findById(proposed).orElseThrow()));
+        roadmapRepository.saveAndFlush(roadmap);
+
+        mockMvc.perform(post("/api/admin/tags/{id}/reject", proposed).with(TestAuth.admin(adminId)))
+                .andExpect(status().isOk());
+        assertEquals(2, roadmapRepository.findByIdWithTags(roadmapId).orElseThrow().getTags().size());
+        mockMvc.perform(post("/api/admin/moderation/ROADMAP/{id}/approve", roadmapId)
+                        .with(TestAuth.admin(adminId)).contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void mergingTagsRepointsQueuedAndPublishedContentWithoutDuplicates() throws Exception {
+        Long a = tagService.propose(new ZitounaDtos.TagProposalRequest("Java Script", TagField.TOPIC, null), authorId).id();
+        Long b = tagService.propose(new ZitounaDtos.TagProposalRequest("Javascript", TagField.TOPIC, null), authorId).id();
+        Roadmap queued = roadmapRepository.findById(roadmapId).orElseThrow();
+        queued.getTags().add(tagRepository.findById(a).orElseThrow());
+        queued.getTags().add(tagRepository.findById(b).orElseThrow());
+        Roadmap published = new Roadmap();
+        published.setTitle("Published");
+        published.setAuthor(queued.getAuthor());
+        published.setModerationStatus(ModerationStatus.APPROVED);
+        published.getTags().add(tagRepository.findById(b).orElseThrow());
+        roadmapRepository.saveAndFlush(queued);
+        Long publishedId = roadmapRepository.saveAndFlush(published).getId();
+
+        Long typeId = tagRepository.findById(a).orElseThrow().getType().getId();
+        String mergeBody = "{\"ids\":[" + a + "," + b + "],\"name\":\"JavaScript\",\"typeId\":" + typeId + ",\"field\":\"TOPIC\"}";
+        mockMvc.perform(post("/api/admin/tags/merge").with(TestAuth.contributor(authorId))
+                        .contentType(MediaType.APPLICATION_JSON).content(mergeBody))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/admin/tags/merge").with(TestAuth.admin(adminId))
+                        .contentType(MediaType.APPLICATION_JSON).content(mergeBody))
+                .andExpect(status().isOk());
+
+        for (Long id : java.util.List.of(roadmapId, publishedId)) {
+            var tags = roadmapRepository.findByIdWithTags(id).orElseThrow().getTags();
+            assertEquals(1, tags.size());
+            assertEquals("JavaScript", tags.iterator().next().getName());
+        }
+        ZitounaTag away = tagRepository.findById(a).orElseThrow();
+        assertEquals(TagStatus.REJECTED, away.getStatus());
     }
 
     private String body(Long tagId) {

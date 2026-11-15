@@ -222,6 +222,10 @@ export async function getTagProposals(): Promise<ZitounaTag[]> {
     return response.data
 }
 
+export async function mergeTags(ids: number[], name: string, typeId: number, field: string): Promise<void> {
+    await apiClient.post('/api/admin/tags/merge', {ids, name, typeId, field})
+}
+
 export async function decideTag(
     tag: ZitounaTag,
     decision: 'approve' | 'reject',

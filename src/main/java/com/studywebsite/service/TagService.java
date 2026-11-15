@@ -285,6 +285,71 @@ public class TagService {
         }
     }
 
+    /** Same rules a user's selection must satisfy; used when stored content is accepted. */
+    public void requireValidTagSet(Set<ZitounaTag> tags) {
+        if (tags == null || tags.isEmpty()) throw new IllegalArgumentException("At least one tag is required");
+        validateRules(tags);
+    }
+
+    /** Merges the given tags into one named {@code name}; returns the surviving tag. Callers must repoint content. */
+    @Transactional
+    public ZitounaTag mergeTags(List<Long> ids, String name, Long typeId, TagField field) {
+        Set<Long> distinct = new LinkedHashSet<>(safe(ids));
+        if (distinct.size() < 2) throw new IllegalArgumentException("Select at least two tags to merge");
+        if (name == null || name.isBlank()) throw new IllegalArgumentException("A name for the merged tag is required");
+        String cleanName = name.trim();
+        List<ZitounaTag> tags = distinct.stream().map(this::requireTag).toList();
+        ZitounaTag first = tags.get(0);
+        for (ZitounaTag tag : tags) {
+            if (tag.getStatus() == TagStatus.REJECTED) throw new IllegalArgumentException(tag.getName() + " is rejected and cannot be merged");
+            if (tag.getType().getField() != first.getType().getField()) {
+                throw new IllegalArgumentException("Only tags of the same field can be merged");
+            }
+            if (!Objects.equals(tag.getParent() == null ? null : tag.getParent().getId(),
+                    first.getParent() == null ? null : first.getParent().getId())) {
+                throw new IllegalArgumentException("Only tags with the same parent can be merged");
+            }
+        }
+        TagTypeDefinition type = typeRepository.findById(typeId)
+                .orElseThrow(() -> new EntityNotFoundException("Tag type not found"));
+        if (!Boolean.TRUE.equals(type.getActive()) || type.getField() != field) {
+            throw new IllegalArgumentException("The merged tag needs an active type in the chosen field");
+        }
+        if (field != first.getType().getField() && (field == TagField.SUBTOPIC || first.getType().getField() == TagField.SUBTOPIC)) {
+            throw new IllegalArgumentException("Tags cannot be moved into or out of the subtopic field");
+        }
+        if (tagRepository.existsByParent_IdIn(distinct)) {
+            throw new IllegalArgumentException("Tags that have subtopics cannot be merged");
+        }
+        String normalized = normalize(cleanName);
+        // Never demote an approved tag: prefer approved candidates, then a tag already named like the result
+        List<ZitounaTag> candidates = tags.stream().filter(tag -> tag.getStatus() == TagStatus.APPROVED).toList();
+        if (candidates.isEmpty()) candidates = tags;
+        ZitounaTag target = candidates.stream().filter(tag -> tag.getNormalizedName().equals(normalized))
+                .findFirst().orElse(candidates.get(0));
+        findExisting(cleanName, target.getParent()).filter(existing -> !distinct.contains(existing.getId())).ifPresent(existing -> {
+            throw new IllegalArgumentException("A tag with this name already exists; include it in the merge");
+        });
+
+        List<String> aliases = new ArrayList<>();
+        for (ZitounaTag tag : tags) {
+            aliases.add(tag.getName());
+            aliases.addAll(splitAliases(tag.getAliases()));
+        }
+        aliases.removeIf(alias -> normalize(alias).equals(normalized));
+        for (ZitounaTag tag : tags) {
+            if (tag == target) continue;
+            tag.setStatus(TagStatus.REJECTED);
+            tag.setDecisionReason("Merged into " + cleanName);
+            tagRepository.save(tag);
+        }
+        target.setName(cleanName);
+        target.setNormalizedName(normalized);
+        target.setType(type);
+        target.setAliases(joinAliases(aliases));
+        return tagRepository.save(target);
+    }
+
     private ZitounaTag requireValidParent(TagField field, Long parentId) {
         if (field != TagField.SUBTOPIC) {
             if (parentId != null) throw new IllegalArgumentException("Only subtopics can have a parent tag");

@@ -73,6 +73,14 @@ public final class ZitounaDtos {
     ) {
     }
 
+    public record TagMergeRequest(
+            @NotNull @Size(min = 2) List<Long> ids,
+            @NotBlank @Size(max = 120) String name,
+            @NotNull Long typeId,
+            @NotNull TagField field
+    ) {
+    }
+
     public record FeedItemResponse(
             String area,
             Long id,

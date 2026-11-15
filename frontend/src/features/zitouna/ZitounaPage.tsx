@@ -24,6 +24,7 @@ import {
     getZitounaFeed,
     moderate,
     editQueuedItem,
+    mergeTags,
     notifyTagsUpdated,
     submitLearningMaterial,
     TAGS_UPDATED_EVENT,
@@ -212,7 +213,24 @@ function QueueItemDetails({area, details}: {area: string; details: Record<string
 
     if (area === 'ROADMAP') {
         const description = str(details.description)
-        return renderTextBlock(description, 'Description', 'roadmap-description')
+        const tagList = tags(details.tags)
+        return (
+            <div className="space-y-3">
+                {renderTextBlock(description, 'Description', 'roadmap-description')}
+                {tagList.length > 0 ? (
+                    <div className="min-w-0">
+                        <div className="text-xs font-bold uppercase tracking-widest text-amber-700 dark:text-amber-200 mb-1">Tags</div>
+                        <div className="flex flex-wrap gap-1">
+                            {tagList.map((tag) => (
+                                <span key={tag} className="inline-block px-2 py-0.5 text-xs font-semibold rounded-md bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200">
+                                    #{tag}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                ) : null}
+            </div>
+        )
     }
 
     // Fallback: render unknown keys
@@ -701,6 +719,11 @@ export function ZitounaPage({onCreatePost, onRequireLogin, onOpenPost}: ZitounaP
                         notifyTagsUpdated()
                         await loadAdmin(adminPage)
                     }}
+                    onMergeTags={async (ids, name, typeId, field) => {
+                        await mergeTags(ids, name, typeId, field)
+                        notifyTagsUpdated()
+                        await loadAdmin(adminPage)
+                    }}
                     onTagDecision={async (tag, decision) => {
                         const type = tagTypes.find((candidate) => candidate.field === tag.field)
                         await decideTag(tag, decision, type?.id)
@@ -1019,7 +1042,7 @@ function QueueEditForm({item, onSave, onCancel}: {
     }
 
     return (
-        <form className="material-form" onSubmit={submit}>
+        <form className="material-form w-full" onSubmit={submit}>
             <label>Title<input required value={form.title} onChange={(event) => setForm({...form, title: event.target.value})} /></label>
             <label className="material-form__wide">{item.area === 'FORUM' ? 'Content' : 'Description'}<textarea rows={4} value={form.text} onChange={(event) => setForm({...form, text: event.target.value})} /></label>
             {item.area === 'LEARNING_MATERIAL' ? (
@@ -1035,7 +1058,7 @@ function QueueEditForm({item, onSave, onCancel}: {
                                  onProposalsChange={setProposals} allowProposals placeholder="Add relevant tags..." />
             </div>
             {error ? <p className="form-error material-form__wide">{error}</p> : null}
-            <div className="material-form__wide">
+            <div className="material-form__wide flex flex-wrap gap-1.5">
                 <button disabled={saving} type="submit">{saving ? 'Saving…' : 'Save changes'}</button>
                 <button type="button" onClick={onCancel}>Cancel</button>
             </div>
@@ -1056,6 +1079,7 @@ function AdminPanel({
                         availableTags,
                         onModerate,
                         onEdit,
+                        onMergeTags,
                         onTagDecision,
                         onCreateType,
                         onCreateTag,
@@ -1072,6 +1096,7 @@ function AdminPanel({
     availableTags: ZitounaTag[]
     onModerate: (item: ModerationQueueItem, decision: 'approve' | 'reject' | 'needs-fixing') => Promise<void>
     onEdit: (item: ModerationQueueItem, payload: Record<string, unknown>) => Promise<void>
+    onMergeTags: (ids: number[], name: string, typeId: number, field: string) => Promise<void>
     onTagDecision: (tag: ZitounaTag, decision: 'approve' | 'reject') => Promise<void>
     onCreateType: (payload: TagTypePayload) => Promise<void>
     onCreateTag: (payload: TagCreatePayload) => Promise<void>
@@ -1088,6 +1113,22 @@ function AdminPanel({
     const {createMutation, updateMutation, deleteMutation} = useFaqMutations();
     const [editingId, setEditingId] = useState<number | null>(null);
     const [editingQueueKey, setEditingQueueKey] = useState<string | null>(null)
+    const [mergeIds, setMergeIds] = useState<number[]>([])
+    const [mergeName, setMergeName] = useState('')
+    const [mergeTypeId, setMergeTypeId] = useState('')
+    const [mergeTargetField, setMergeTargetField] = useState('')
+    const [mergeError, setMergeError] = useState<string | null>(null)
+    const mergeCandidates = [...proposals, ...availableTags].filter((tag, index, all) => all.findIndex((other) => other.id === tag.id) === index)
+    const mergeField = mergeCandidates.find((tag) => tag.id === mergeIds[0])?.field
+    const mergeConflict = mergeCandidates.find((tag) => tag.status !== 'REJECTED' && !mergeIds.includes(tag.id)
+        && tag.name.trim().toLowerCase() === mergeName.trim().toLowerCase())
+    const cancelMerge = () => {
+        setMergeIds([])
+        setMergeName('')
+        setMergeTypeId('')
+        setMergeTargetField('')
+        setMergeError(null)
+    }
     const [tagForm, setTagForm] = useState<TagCreatePayload>({name: '', typeId: tagTypes[0]?.id ?? 0})
     useEffect(() => {
         if (!tagForm.typeId && tagTypes.length > 0) setTagForm((current) => ({...current, typeId: tagTypes[0].id}))
@@ -1106,19 +1147,26 @@ function AdminPanel({
                             <small>{areaLabels[item.area]} · {item.authorUsername || 'Unknown author'}</small>
                             <h4>{item.title}</h4>
                             {editingQueueKey === key ? (
-                                <QueueEditForm item={item} onCancel={() => setEditingQueueKey(null)}
-                                               onSave={async (payload) => {
-                                                   await onEdit(item, payload)
-                                                   setEditingQueueKey(null)
-                                               }} />
+                                <div className="mt-3">
+                                    <QueueEditForm item={item} onCancel={() => setEditingQueueKey(null)}
+                                                   onSave={async (payload) => {
+                                                       await onEdit(item, payload)
+                                                       setEditingQueueKey(null)
+                                                   }} />
+                                </div>
                             ) : (
                                 <div className="mt-3">
                                     <QueueItemDetails area={item.area} details={item.details} />
                                 </div>
                             )}
+                            {item.details.tagProblem ? (
+                                <div className="my-3">
+                                    <p className="form-error">Needs a new tag selection: {String(item.details.tagProblem)}. Use Edit to choose valid tags before accepting.</p>
+                                </div>
+                            ) : null}
                             <div>
                                 <button onClick={() => setEditingQueueKey(editingQueueKey === key ? null : key)}>Edit</button>
-                                <button onClick={() => void onModerate(item, 'approve')}>Accept</button>
+                                <button disabled={Boolean(item.details.tagProblem)} onClick={() => void onModerate(item, 'approve')}>Accept</button>
                                 <button onClick={() => void onModerate(item, 'needs-fixing')}>Needs fixing</button>
                                 <button className="danger" onClick={() => void onModerate(item, 'reject')}>Reject</button>
                             </div>
@@ -1129,6 +1177,14 @@ function AdminPanel({
                 </div>
                 <div><h3>Proposed tags <span>{proposals.length}</span></h3>{proposals.map((tag) => (
                     <article className="review-card" key={tag.id}><small>{fieldLabels[tag.field]}</small>
+                        <label className="flex items-center gap-1.5"><input type="checkbox" checked={mergeIds.includes(tag.id)} onChange={(event) => {
+                            setMergeIds(event.target.checked ? [...mergeIds, tag.id] : mergeIds.filter((id) => id !== tag.id))
+                            if (event.target.checked && mergeIds.length === 0) {
+                                setMergeName(tag.name)
+                                setMergeTargetField(tag.field)
+                                setMergeTypeId(String(tagTypes.find((type) => type.name === tag.type && type.field === tag.field)?.id ?? ''))
+                            }
+                        }} /> Select to merge</label>
                         <h4>{tag.name}</h4><p>Will
                             inherit: {tagTypes.find((type) => type.field === tag.field)?.name ?? 'matching type'}</p>
                         <div>
@@ -1136,7 +1192,62 @@ function AdminPanel({
                             <button className="danger" onClick={() => void onTagDecision(tag, 'reject')}>Reject</button>
                         </div>
                     </article>
-                ))}{!loading && proposals.length === 0 ?
+                ))}{mergeIds.length >= 1 ? (
+                    <form className="review-card grid gap-3" onSubmit={async (event) => {
+                        event.preventDefault()
+                        setMergeError(null)
+                        try {
+                            await onMergeTags(mergeIds, mergeName.trim(), Number(mergeTypeId), mergeTargetField)
+                            cancelMerge()
+                        } catch (reason) {
+                            setMergeError(getApiErrorMessage(reason, 'Unable to merge the tags.'))
+                        }
+                    }}>
+                        <h3>Merge tags</h3>
+                        <div>
+                            {mergeIds.map((id) => (
+                                <button type="button" key={id} aria-label={`Remove ${mergeCandidates.find((tag) => tag.id === id)?.name ?? id} from the merge`}
+                                        onClick={() => {
+                                            const rest = mergeIds.filter((other) => other !== id)
+                                            if (rest.length === 0) cancelMerge()
+                                            else setMergeIds(rest)
+                                        }}>{mergeCandidates.find((tag) => tag.id === id)?.name ?? id} ✕</button>
+                            ))}
+                        </div>
+                        <label className="grid gap-1.5">Add a tag to the merge
+                            <select value="" onChange={(event) => event.target.value && setMergeIds([...mergeIds, Number(event.target.value)])}>
+                                <option value="">Choose a tag</option>
+                                {mergeCandidates.filter((tag) => tag.field === mergeField && tag.status !== 'REJECTED' && !mergeIds.includes(tag.id))
+                                    .map((tag) => <option key={tag.id} value={tag.id}>{tag.name}</option>)}
+                            </select>
+                        </label>
+                        <label className="grid gap-1.5">Final tag name<input required maxLength={120} value={mergeName} onChange={(event) => setMergeName(event.target.value)} /></label>
+                        <label className="grid gap-1.5">Tag field
+                            <select required value={mergeTargetField} onChange={(event) => {
+                                setMergeTargetField(event.target.value)
+                                setMergeTypeId('')
+                            }}>
+                                {Object.entries(fieldLabels).map(([field, label]) => <option key={field} value={field}>{label}</option>)}
+                            </select>
+                        </label>
+                        <label className="grid gap-1.5">Tag type
+                            <select required value={mergeTypeId} onChange={(event) => setMergeTypeId(event.target.value)}>
+                                <option value="" disabled>Choose a tag type</option>
+                                {tagTypes.filter((type) => type.active && type.field === mergeTargetField)
+                                    .map((type) => <option key={type.id} value={type.id}>{type.name} · {fieldLabels[type.field]}</option>)}
+                            </select>
+                        </label>
+                        {mergeConflict ? (
+                            <p className="form-error">A tag named “{mergeConflict.name}” already exists and is not part of this merge. Add it to the merge, or choose a different name.</p>
+                        ) : null}
+                        {mergeError ? <p className="form-error">{mergeError}</p> : null}
+                        <div>
+                            {mergeConflict ? <button type="button" onClick={() => setMergeIds([...mergeIds, mergeConflict.id])}>Add “{mergeConflict.name}” to the merge</button> : null}
+                            <button type="submit" disabled={mergeIds.length < 2 || !mergeName.trim() || !mergeTypeId || !mergeTargetField || Boolean(mergeConflict)}>Confirm</button>
+                            <button type="button" onClick={cancelMerge}>Cancel</button>
+                        </div>
+                    </form>
+                ) : null}{!loading && proposals.length === 0 ?
                     <p className="empty-state">No tag proposals are waiting.</p> : null}</div>
             </div>
             <div className="admin-tools">

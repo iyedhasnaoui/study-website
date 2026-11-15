@@ -215,7 +215,8 @@ public class ZitounaService {
         Stream<ZitounaDtos.ModerationQueueItem> roadmaps = roadmapRepository.findAll().stream()
                 .filter(roadmap -> needsReview(roadmap.getModerationStatus()))
                 .map(roadmap -> queueItem("ROADMAP", roadmap.getId(), roadmap.getTitle(), roadmap.getAuthor(),
-                        roadmap.getModerationStatus(), roadmap.getCreatedAt(), Map.of("description", safe(roadmap.getDescription())),
+                        roadmap.getModerationStatus(), roadmap.getCreatedAt(), Map.of("description", safe(roadmap.getDescription()),
+                                "tags", roadmap.getTags().stream().map(ZitounaTag::getName).sorted().toList()),
                         roadmap.getTags()));
         Stream<ZitounaDtos.ModerationQueueItem> materials = resourceRepository.findAll().stream()
                 .filter(material -> needsReview(material.getModerationStatus()))
@@ -289,6 +290,63 @@ public class ZitounaService {
         if (!queued) throw new ResponseStatusException(HttpStatus.CONFLICT, "Only submissions in the moderation queue can be edited");
     }
 
+    /** Rejects a tag and removes it from queued content, which must then be re-tagged before it can be accepted. */
+    @Transactional
+    public ZitounaDtos.TagResponse rejectTag(Long tagId, ZitounaDtos.ModerationDecisionRequest request) {
+        replaceTag(Set.of(tagId), null, true);
+        return tagService.reject(tagId, request);
+    }
+
+    /**
+     * Merges tags and repoints ALL content that used a merged-away tag (queued and published, plus FAQ entries)
+     * to the surviving tag, so nothing is left on a dead tag. Published content that no longer satisfies the
+     * tag rules is flagged "needs fixing" by the existing rule check.
+     */
+    @Transactional
+    public ZitounaDtos.TagResponse mergeTags(ZitounaDtos.TagMergeRequest request) {
+        ZitounaTag target = tagService.mergeTags(request.ids(), request.name(), request.typeId(), request.field());
+        Set<Long> mergedAway = new HashSet<>(request.ids());
+        mergedAway.remove(target.getId());
+        replaceTag(mergedAway, target, false);
+        markContentThatBreaksCurrentTagRules();
+        return tagService.toResponse(target);
+    }
+
+    /** Swaps {@code fromIds} for {@code to} (or just removes them when null); a content item never gets a tag twice. */
+    private void replaceTag(Set<Long> fromIds, ZitounaTag to, boolean queuedOnly) {
+        for (ForumPost post : forumPostRepository.findAll()) {
+            if (queuedOnly && !(needsReview(post.getModerationStatus()) || needsReview(post.getRevisionStatus()))) continue;
+            if (swapTag(post.getTags(), fromIds, to)) {
+                if (post.getHomeInstitution() != null && fromIds.contains(post.getHomeInstitution().getId())) post.setHomeInstitution(to);
+                if (post.getPartnerInstitution() != null && fromIds.contains(post.getPartnerInstitution().getId())) post.setPartnerInstitution(to);
+                forumPostRepository.save(post);
+            }
+        }
+        for (Roadmap roadmap : roadmapRepository.findAll()) {
+            if (queuedOnly && !needsReview(roadmap.getModerationStatus())) continue;
+            if (swapTag(roadmap.getTags(), fromIds, to)) roadmapRepository.save(roadmap);
+        }
+        for (Resource material : resourceRepository.findAll()) {
+            if (queuedOnly && !needsReview(material.getModerationStatus())) continue;
+            if (swapTag(material.getTags(), fromIds, to)) resourceRepository.save(material);
+        }
+        if (!queuedOnly) {
+            for (FaqEntry faq : faqEntryRepository.findAll()) {
+                if (swapTag(faq.getTags(), fromIds, to)) faqEntryRepository.save(faq);
+            }
+        }
+    }
+
+    private boolean swapTag(Set<ZitounaTag> tags, Set<Long> fromIds, ZitounaTag to) {
+        if (tags == null || tags.stream().noneMatch(tag -> fromIds.contains(tag.getId()))) return false;
+        Set<ZitounaTag> next = new HashSet<>();
+        tags.stream().filter(tag -> !fromIds.contains(tag.getId())).forEach(next::add);
+        if (to != null) next.add(to);
+        tags.clear();
+        tags.addAll(next);
+        return true;
+    }
+
     @Transactional
     public void moderate(String area, Long id, ModerationStatus status, String note, Long expectedVersion) {
         if (status != ModerationStatus.APPROVED && status != ModerationStatus.REJECTED && status != ModerationStatus.NEEDS_FIXING) {
@@ -338,6 +396,8 @@ public class ZitounaService {
         }
         // Auto-approve any proposed tags when content is accepted
         if (status == ModerationStatus.APPROVED && entityTags != null) {
+            // Rolls the whole decision back when the stored tags break the rules (e.g. after a tag was rejected)
+            tagService.requireValidTagSet(entityTags);
             for (ZitounaTag tag : entityTags) {
                 if (tag.getStatus() == TagStatus.PROPOSED) {
                     tag.setStatus(TagStatus.APPROVED);
@@ -410,6 +470,7 @@ public class ZitounaService {
     private Map<String, Object> forumReviewDetails(ForumPost post) {
         Map<String, Object> details = new LinkedHashMap<>();
         details.put("version", post.getVersion());
+        details.put("tags", post.getTags().stream().map(ZitounaTag::getName).sorted().toList());
         if (post.getRevisionStatus() != null) {
             details.put("reviewKind", "Edited post awaiting approval");
             details.put("content", safe(post.getPendingContent()));
@@ -426,6 +487,11 @@ public class ZitounaService {
                                                       Map<String, Object> details, Set<ZitounaTag> tags) {
         Map<String, Object> withTags = new LinkedHashMap<>(details);
         withTags.put("tagItems", tags(tags));
+        try {
+            tagService.requireValidTagSet(tags);
+        } catch (IllegalArgumentException problem) {
+            withTags.put("tagProblem", problem.getMessage());
+        }
         return new ZitounaDtos.ModerationQueueItem(area, id, title, userId(author), username(author),
                 effectiveStatus(status), submittedAt, withTags);
     }
