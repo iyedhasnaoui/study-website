@@ -213,6 +213,10 @@ export async function moderate(
     await apiClient.post(`/api/admin/moderation/${item.area}/${item.id}/${decision}`, {note, version: item.details?.version})
 }
 
+export async function editQueuedItem(item: ModerationQueueItem, payload: Record<string, unknown>): Promise<void> {
+    await apiClient.put(`/api/admin/moderation/${item.area}/${item.id}`, payload)
+}
+
 export async function getTagProposals(): Promise<ZitounaTag[]> {
     const response = await apiClient.get<ZitounaTag[]>('/api/admin/tags/proposals')
     return response.data

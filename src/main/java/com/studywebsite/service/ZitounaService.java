@@ -1,5 +1,7 @@
 package com.studywebsite.service;
 
+import com.studywebsite.dto.ForumPostCreateDto;
+import com.studywebsite.dto.RoadmapCreateDto;
 import com.studywebsite.dto.zitouna.ZitounaDtos;
 import com.studywebsite.model.*;
 import com.studywebsite.repository.*;
@@ -209,11 +211,12 @@ public class ZitounaService {
                 .map(post -> queueItem("FORUM", post.getId(),
                         post.getRevisionStatus() == null ? post.getTitle() : post.getPendingTitle(), post.getAuthor(),
                         post.getRevisionStatus() == null ? post.getModerationStatus() : post.getRevisionStatus(),
-                        post.getUpdatedAt(), forumReviewDetails(post)));
+                        post.getUpdatedAt(), forumReviewDetails(post), post.getTags()));
         Stream<ZitounaDtos.ModerationQueueItem> roadmaps = roadmapRepository.findAll().stream()
                 .filter(roadmap -> needsReview(roadmap.getModerationStatus()))
                 .map(roadmap -> queueItem("ROADMAP", roadmap.getId(), roadmap.getTitle(), roadmap.getAuthor(),
-                        roadmap.getModerationStatus(), roadmap.getCreatedAt(), Map.of("description", safe(roadmap.getDescription()))));
+                        roadmap.getModerationStatus(), roadmap.getCreatedAt(), Map.of("description", safe(roadmap.getDescription())),
+                        roadmap.getTags()));
         Stream<ZitounaDtos.ModerationQueueItem> materials = resourceRepository.findAll().stream()
                 .filter(material -> needsReview(material.getModerationStatus()))
                 .map(material -> queueItem("LEARNING_MATERIAL", material.getId(), material.getTitle(), material.getAuthor(),
@@ -225,11 +228,65 @@ public class ZitounaService {
                                 "solutionApproach", safe(material.getSolutionApproach()),
                                 "method", safe(material.getMethodUsed()),
                                 "roadmap", safe(material.getRoadmapFollowed()),
-                                "filename", safe(material.getOriginalFilename()))));
+                                "filename", safe(material.getOriginalFilename())), material.getTags()));
         return Stream.of(forum, roadmaps, materials).flatMap(stream -> stream)
                 .sorted(Comparator.comparing(ZitounaDtos.ModerationQueueItem::submittedAt,
                         Comparator.nullsLast(Comparator.naturalOrder())))
                 .toList();
+    }
+
+    /** Admin edit of a queued forum post; the moderation status is left untouched. */
+    @Transactional
+    public void editQueuedForumPost(Long id, ForumPostCreateDto dto) {
+        ForumPost post = forumPostRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("Forum post not found"));
+        requireQueued(needsReview(post.getModerationStatus()) || needsReview(post.getRevisionStatus()));
+        String content = dto.getContent() == null ? "" : dto.getContent().strip();
+        if (content.isBlank() && post.getAttachments().isEmpty()) {
+            throw new IllegalArgumentException("Write a message or attach a PDF, audio, or video file");
+        }
+        TagService.AppliedTags selected = tagService.resolveSelection(dto.getTagSelection(), dto.getTags(), userId(post.getAuthor()));
+        if (post.getRevisionStatus() != null) {
+            post.setPendingTitle(dto.getTitle().strip());
+            post.setPendingContent(content);
+        } else {
+            post.setTitle(dto.getTitle().strip());
+            post.setContent(content);
+        }
+        post.setTags(selected.tags());
+        post.setHomeInstitution(selected.homeInstitution());
+        post.setPartnerInstitution(selected.partnerInstitution());
+        forumPostRepository.save(post);
+    }
+
+    @Transactional
+    public void editQueuedRoadmap(Long id, RoadmapCreateDto dto) {
+        Roadmap roadmap = roadmapRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("Roadmap not found"));
+        requireQueued(needsReview(roadmap.getModerationStatus()));
+        TagService.AppliedTags selected = tagService.resolveSelection(dto.getTagSelection(), List.of(), userId(roadmap.getAuthor()));
+        roadmap.setTitle(dto.getTitle().strip());
+        roadmap.setDescription(dto.getDescription());
+        roadmap.setTags(selected.tags());
+        roadmapRepository.save(roadmap);
+    }
+
+    /** The uploaded file (and therefore the type) cannot be replaced here. */
+    @Transactional
+    public void editQueuedMaterial(Long id, ZitounaDtos.LearningMaterialRequest request) {
+        Resource material = resourceRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("Learning material not found"));
+        requireQueued(needsReview(material.getModerationStatus()));
+        TagService.AppliedTags selected = tagService.resolveSelection(request.tags(), List.of(), userId(material.getAuthor()));
+        material.setTitle(request.title().trim());
+        material.setDescription(clean(request.description()));
+        material.setGradeNote(clean(request.gradeNote()));
+        material.setSolutionApproach(clean(request.solutionApproach()));
+        material.setMethodUsed(clean(request.methodUsed()));
+        material.setRoadmapFollowed(clean(request.roadmapFollowed()));
+        material.setTags(selected.tags());
+        resourceRepository.save(material);
+    }
+
+    private void requireQueued(boolean queued) {
+        if (!queued) throw new ResponseStatusException(HttpStatus.CONFLICT, "Only submissions in the moderation queue can be edited");
     }
 
     @Transactional
@@ -366,9 +423,11 @@ public class ZitounaService {
 
     private ZitounaDtos.ModerationQueueItem queueItem(String area, Long id, String title, User author,
                                                       ModerationStatus status, LocalDateTime submittedAt,
-                                                      Map<String, Object> details) {
+                                                      Map<String, Object> details, Set<ZitounaTag> tags) {
+        Map<String, Object> withTags = new LinkedHashMap<>(details);
+        withTags.put("tagItems", tags(tags));
         return new ZitounaDtos.ModerationQueueItem(area, id, title, userId(author), username(author),
-                effectiveStatus(status), submittedAt, details);
+                effectiveStatus(status), submittedAt, withTags);
     }
 
     private List<ZitounaDtos.TagResponse> tags(Set<ZitounaTag> tags) {

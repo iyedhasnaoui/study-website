@@ -1,5 +1,7 @@
 package com.studywebsite.controller;
 
+import com.studywebsite.dto.ForumPostCreateDto;
+import com.studywebsite.dto.RoadmapCreateDto;
 import com.studywebsite.dto.zitouna.ZitounaDtos;
 import com.studywebsite.model.ModerationStatus;
 import com.studywebsite.model.Resource;
@@ -158,6 +160,28 @@ public class ZitounaController {
             return paginate(all, page, size);
         }
         return all;
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/api/admin/moderation/FORUM/{id}")
+    public ResponseEntity<Void> editQueuedForumPost(@PathVariable Long id, @Valid @RequestBody ForumPostCreateDto dto) {
+        zitounaService.editQueuedForumPost(id, dto);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/api/admin/moderation/ROADMAP/{id}")
+    public ResponseEntity<Void> editQueuedRoadmap(@PathVariable Long id, @Valid @RequestBody RoadmapCreateDto dto) {
+        zitounaService.editQueuedRoadmap(id, dto);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/api/admin/moderation/LEARNING_MATERIAL/{id}")
+    public ResponseEntity<Void> editQueuedMaterial(@PathVariable Long id,
+                                                   @Valid @RequestBody ZitounaDtos.LearningMaterialRequest request) {
+        zitounaService.editQueuedMaterial(id, request);
+        return ResponseEntity.noContent().build();
     }
 
     @PreAuthorize("hasRole('ADMIN')")

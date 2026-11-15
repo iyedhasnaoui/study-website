@@ -23,6 +23,7 @@ import {
     getTagTypes,
     getZitounaFeed,
     moderate,
+    editQueuedItem,
     notifyTagsUpdated,
     submitLearningMaterial,
     TAGS_UPDATED_EVENT,
@@ -695,6 +696,11 @@ export function ZitounaPage({onCreatePost, onRequireLogin, onOpenPost}: ZitounaP
                         await moderate(item, decision);
                         await loadAdmin()
                     }}
+                    onEdit={async (item, payload) => {
+                        await editQueuedItem(item, payload)
+                        notifyTagsUpdated()
+                        await loadAdmin(adminPage)
+                    }}
                     onTagDecision={async (tag, decision) => {
                         const type = tagTypes.find((candidate) => candidate.field === tag.field)
                         await decideTag(tag, decision, type?.id)
@@ -960,6 +966,83 @@ function MaterialsPanel({
     )
 }
 
+function QueueEditForm({item, onSave, onCancel}: {
+    item: ModerationQueueItem
+    onSave: (payload: Record<string, unknown>) => Promise<void>
+    onCancel: () => void
+}) {
+    const d = item.details
+    const str = (v: unknown): string => (v == null ? '' : String(v))
+    const [form, setForm] = useState({
+        title: item.title,
+        text: str(item.area === 'FORUM' ? d.content : d.description),
+        gradeNote: str(d.grade),
+        solutionApproach: str(d.solutionApproach),
+        methodUsed: str(d.method),
+        roadmapFollowed: str(d.roadmap),
+    })
+    const [tags, setTags] = useState<TagItem[]>(Array.isArray(d.tagItems) ? (d.tagItems as TagItem[]) : [])
+    const [proposals, setProposals] = useState<TagProposalItem[]>([])
+    const [error, setError] = useState<string | null>(null)
+    const [saving, setSaving] = useState(false)
+
+    const submit = async (event: FormEvent) => {
+        event.preventDefault()
+        setSaving(true)
+        setError(null)
+        const ids = (field: TagField) => tags.filter((t) => t.field === field).map((t) => t.id)
+        const institutions = ids('INSTITUTION')
+        const tagSelection = {
+            homeInstitutionId: institutions[0] ?? null,
+            partnerInstitutionId: institutions[1] ?? null,
+            institutionIds: institutions,
+            programIds: ids('PROGRAM'),
+            topicIds: ids('TOPIC'),
+            subtopicIds: ids('SUBTOPIC'),
+            proposals,
+        }
+        const payload = item.area === 'FORUM'
+            ? {title: form.title, content: form.text, tagSelection}
+            : item.area === 'ROADMAP'
+                ? {title: form.title, description: form.text, tagSelection}
+                : {
+                    title: form.title, description: form.text, type: d.type, gradeNote: form.gradeNote.trim(),
+                    solutionApproach: form.solutionApproach, methodUsed: form.methodUsed,
+                    roadmapFollowed: form.roadmapFollowed, tags: tagSelection,
+                }
+        try {
+            await onSave(payload)
+        } catch (reason) {
+            setError(getApiErrorMessage(reason, 'Unable to save the changes.'))
+            setSaving(false)
+        }
+    }
+
+    return (
+        <form className="material-form" onSubmit={submit}>
+            <label>Title<input required value={form.title} onChange={(event) => setForm({...form, title: event.target.value})} /></label>
+            <label className="material-form__wide">{item.area === 'FORUM' ? 'Content' : 'Description'}<textarea rows={4} value={form.text} onChange={(event) => setForm({...form, text: event.target.value})} /></label>
+            {item.area === 'LEARNING_MATERIAL' ? (
+                <>
+                    <label>Grade<input inputMode="decimal" value={form.gradeNote} onChange={(event) => setForm({...form, gradeNote: event.target.value})} /></label>
+                    <label>How the solution was reached<input value={form.solutionApproach} onChange={(event) => setForm({...form, solutionApproach: event.target.value})} /></label>
+                    <label>Method used<input value={form.methodUsed} onChange={(event) => setForm({...form, methodUsed: event.target.value})} /></label>
+                    <RoadmapAutocomplete value={form.roadmapFollowed} onChange={(roadmapFollowed) => setForm({...form, roadmapFollowed})} />
+                </>
+            ) : null}
+            <div className="material-form__wide">
+                <TagAutocomplete selectedTags={tags} onChange={setTags} proposals={proposals}
+                                 onProposalsChange={setProposals} allowProposals placeholder="Add relevant tags..." />
+            </div>
+            {error ? <p className="form-error material-form__wide">{error}</p> : null}
+            <div className="material-form__wide">
+                <button disabled={saving} type="submit">{saving ? 'Saving…' : 'Save changes'}</button>
+                <button type="button" onClick={onCancel}>Cancel</button>
+            </div>
+        </form>
+    )
+}
+
 function AdminPanel({
                         loading,
                         queue,
@@ -972,6 +1055,7 @@ function AdminPanel({
                         faqs,
                         availableTags,
                         onModerate,
+                        onEdit,
                         onTagDecision,
                         onCreateType,
                         onCreateTag,
@@ -987,6 +1071,7 @@ function AdminPanel({
     faqs: FaqEntry[]
     availableTags: ZitounaTag[]
     onModerate: (item: ModerationQueueItem, decision: 'approve' | 'reject' | 'needs-fixing') => Promise<void>
+    onEdit: (item: ModerationQueueItem, payload: Record<string, unknown>) => Promise<void>
     onTagDecision: (tag: ZitounaTag, decision: 'approve' | 'reject') => Promise<void>
     onCreateType: (payload: TagTypePayload) => Promise<void>
     onCreateTag: (payload: TagCreatePayload) => Promise<void>
@@ -1002,6 +1087,7 @@ function AdminPanel({
     const [saving, setSaving] = useState(false)
     const {createMutation, updateMutation, deleteMutation} = useFaqMutations();
     const [editingId, setEditingId] = useState<number | null>(null);
+    const [editingQueueKey, setEditingQueueKey] = useState<string | null>(null)
     const [tagForm, setTagForm] = useState<TagCreatePayload>({name: '', typeId: tagTypes[0]?.id ?? 0})
     useEffect(() => {
         if (!tagForm.typeId && tagTypes.length > 0) setTagForm((current) => ({...current, typeId: tagTypes[0].id}))
@@ -1019,10 +1105,19 @@ function AdminPanel({
                         <article className="review-card" key={key}>
                             <small>{areaLabels[item.area]} · {item.authorUsername || 'Unknown author'}</small>
                             <h4>{item.title}</h4>
-                            <div className="mt-3">
-                                <QueueItemDetails area={item.area} details={item.details} />
-                            </div>
+                            {editingQueueKey === key ? (
+                                <QueueEditForm item={item} onCancel={() => setEditingQueueKey(null)}
+                                               onSave={async (payload) => {
+                                                   await onEdit(item, payload)
+                                                   setEditingQueueKey(null)
+                                               }} />
+                            ) : (
+                                <div className="mt-3">
+                                    <QueueItemDetails area={item.area} details={item.details} />
+                                </div>
+                            )}
                             <div>
+                                <button onClick={() => setEditingQueueKey(editingQueueKey === key ? null : key)}>Edit</button>
                                 <button onClick={() => void onModerate(item, 'approve')}>Accept</button>
                                 <button onClick={() => void onModerate(item, 'needs-fixing')}>Needs fixing</button>
                                 <button className="danger" onClick={() => void onModerate(item, 'reject')}>Reject</button>
