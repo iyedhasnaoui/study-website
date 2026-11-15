@@ -290,9 +290,11 @@ export function ZitounaPage({onCreatePost, onRequireLogin, onOpenPost}: ZitounaP
     }, [])
 
     useEffect(() => {
-        setFeedPage(0)
-        setFeedTotalPages(0)
-    }, [query, selectedTags, areas])
+        if (tab === 'discover') {
+            setFeedPage(0)
+            setFeedTotalPages(0)
+        }
+    }, [tab, query, selectedTags, areas])
 
     useEffect(() => {
         if (tab !== 'discover') return
@@ -318,9 +320,11 @@ export function ZitounaPage({onCreatePost, onRequireLogin, onOpenPost}: ZitounaP
     }, [areas, query, selectedTags, tab, feedPage])
 
     useEffect(() => {
-        setMaterialsPage(0)
-        setMaterialsTotalPages(0)
-    }, [query, selectedTags])
+        if (tab === 'materials') {
+            setMaterialsPage(0)
+            setMaterialsTotalPages(0)
+        }
+    }, [tab, query, selectedTags])
 
     useEffect(() => {
         if (tab !== 'materials') return
@@ -352,9 +356,11 @@ export function ZitounaPage({onCreatePost, onRequireLogin, onOpenPost}: ZitounaP
     }, [session, tab, query, selectedTags, materialsPage])
 
     useEffect(() => {
-        setFaqPage(0)
-        setFaqTotalPages(0)
-    }, [query, selectedTags])
+        if (tab === 'faq') {
+            setFaqPage(0)
+            setFaqTotalPages(0)
+        }
+    }, [tab, query, selectedTags])
 
     useEffect(() => {
         if (tab !== 'faq') return
@@ -380,14 +386,18 @@ export function ZitounaPage({onCreatePost, onRequireLogin, onOpenPost}: ZitounaP
     }, [tab, query, selectedTags, faqPage])
 
     useEffect(() => {
-        setForumPage(0)
-        setForumTotalPages(0)
-    }, [query, selectedTags])
+        if (tab === 'forum') {
+            setForumPage(0)
+            setForumTotalPages(0)
+        }
+    }, [tab, query, selectedTags])
 
     useEffect(() => {
-        setRoadmapsPage(0)
-        setRoadmapsTotalPages(0)
-    }, [query, selectedTags])
+        if (tab === 'roadmaps') {
+            setRoadmapsPage(0)
+            setRoadmapsTotalPages(0)
+        }
+    }, [tab, query, selectedTags])
 
     const loadAdmin = async () => {
         if (!isAdmin) return

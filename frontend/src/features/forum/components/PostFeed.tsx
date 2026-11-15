@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 
+import { useAuth } from '../../../auth/AuthContext'
 import { deleteForumPost, getForumPosts } from '../api/forumApi'
 import type { ForumPostResponseDto } from '../types'
 import { PostCard } from './PostCard'
@@ -26,6 +27,11 @@ export function PostFeed({ reloadKey = 0, query, tagIds, tagFilter, page, size, 
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const usePagination = page !== undefined && size !== undefined
+  // The backend shows each viewer their own pending posts, so the feed (and its page count)
+  // depends on who is signed in. Keycloak restores the session asynchronously after a reload,
+  // which means the first fetch can go out anonymously; refetch once the viewer is known.
+  const { session } = useAuth()
+  const viewerId = session?.user.id ?? null
 
   useEffect(() => {
     let isMounted = true
@@ -62,7 +68,7 @@ export function PostFeed({ reloadKey = 0, query, tagIds, tagFilter, page, size, 
     return () => {
       isMounted = false
     }
-  }, [reloadKey, query, tagIds, tagFilter, page, size, usePagination, onTotalPages])
+  }, [reloadKey, query, tagIds, tagFilter, page, size, usePagination, onTotalPages, viewerId])
 
   const handleDelete = async (postId: number) => {
     setDeletingPostId(postId)
