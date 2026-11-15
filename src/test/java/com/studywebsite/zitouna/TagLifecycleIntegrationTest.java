@@ -186,6 +186,26 @@ class TagLifecycleIntegrationTest {
                 .andExpect(status().isCreated());
     }
 
+    @Test
+    void existingProposedTagIdCanBeSelectedButRejectedCannot() throws Exception {
+        User author = user("tag.select.proposed");
+        TagTypeDefinition topicType = type(TagField.TOPIC);
+        var proposed = tags.saveAndFlush(com.studywebsite.model.ZitounaTag.builder().name("Selectable proposed")
+                .normalizedName("selectable proposed").type(topicType).status(TagStatus.PROPOSED).build());
+        var rejected = tags.saveAndFlush(com.studywebsite.model.ZitounaTag.builder().name("Selectable rejected")
+                .normalizedName("selectable rejected").type(topicType).status(TagStatus.REJECTED).build());
+        String body = """
+                {"title":"Select by id","content":"Selecting an existing tag by id.","tagSelection":{"topicIds":[%d]}}
+                """;
+
+        mvc.perform(post("/api/forum/posts").with(TestAuth.contributor(author.getId()))
+                        .contentType("application/json").content(body.formatted(proposed.getId())))
+                .andExpect(status().isCreated());
+        mvc.perform(post("/api/forum/posts").with(TestAuth.contributor(author.getId()))
+                        .contentType("application/json").content(body.formatted(rejected.getId())))
+                .andExpect(status().isBadRequest());
+    }
+
     private User user(String username) {
         return users.saveAndFlush(User.builder()
                 .username(username)

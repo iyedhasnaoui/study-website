@@ -315,11 +315,8 @@ public class TagService {
             if (failWhenMissing) throw new EntityNotFoundException("Tag not found");
             return null;
         }
-        if (tag.getStatus() != TagStatus.APPROVED) {
-            if (failWhenMissing) {
-                String reason = tag.getStatus() == TagStatus.REJECTED ? "rejected" : "awaiting admin approval";
-                throw new IllegalArgumentException("Tag is " + reason);
-            }
+        if (tag.getStatus() == TagStatus.REJECTED) {
+            if (failWhenMissing) throw new IllegalArgumentException("Tag is rejected");
             return null;
         }
         if (tag.getType().getField() != field) {
