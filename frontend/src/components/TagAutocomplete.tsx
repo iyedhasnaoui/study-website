@@ -8,6 +8,7 @@ export interface TagItem {
     name: string
     field?: TagField
     parentId?: number | null
+    status?: 'PROPOSED' | 'APPROVED' | 'REJECTED'
 }
 
 export interface TagProposalItem {
@@ -53,8 +54,9 @@ export function TagAutocomplete({
         if (availableTags) return
         let active = true
         const loadTags = () => {
-            getTags()
-                .then((data) => {
+            Promise.all([getTags(), getTags(undefined, 'PROPOSED')])
+                .then(([approved, proposed]) => {
+                    const data = [...approved, ...proposed.filter((tag) => !approved.some((a) => a.id === tag.id))]
                     if (active) setLoadedTags(data)
                 })
                 .catch((err) => console.error('Failed to load tags', err))
@@ -219,7 +221,7 @@ export function TagAutocomplete({
                             }}
                             className="cursor-pointer px-4 py-2 text-sm text-slate-700 hover:bg-amber-50 dark:text-zinc-200 dark:hover:bg-zinc-800"
                         >
-                            #{tag.name}
+                            #{tag.name}{tag.status === 'PROPOSED' ? ' (proposed)' : ''}
                         </li>
                     ))}
                 </ul>

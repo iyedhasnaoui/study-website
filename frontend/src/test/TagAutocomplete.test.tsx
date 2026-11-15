@@ -107,3 +107,14 @@ it('does not show the proposal panel before tags have loaded', async () => {
   expect(await screen.findByRole('option', { name: '#Calculus' })).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: /Propose/ })).not.toBeInTheDocument()
 })
+
+it('lists proposed tags with a display-only suffix and selects the real tag', async () => {
+  const onChange = vi.fn()
+  const proposedTag = { id: 3, name: 'Topology', field: 'TOPIC' as const, status: 'PROPOSED' as const }
+  render(<TagAutocomplete selectedTags={[]} onChange={onChange} availableTags={[proposedTag]} />)
+
+  fireEvent.focus(screen.getByPlaceholderText('Type to search existing tags...'))
+  fireEvent.click(await screen.findByRole('option', { name: '#Topology (proposed)' }))
+
+  expect(onChange).toHaveBeenLastCalledWith([proposedTag])
+})

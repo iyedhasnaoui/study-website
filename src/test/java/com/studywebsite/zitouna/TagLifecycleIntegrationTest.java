@@ -170,6 +170,22 @@ class TagLifecycleIntegrationTest {
         assertThat(tags.findByNormalizedNameAndParentIsNull("should roll back")).isEmpty();
     }
 
+    @Test
+    void proposedProgramCountsTowardApprovedTagRequirements() throws Exception {
+        User author = user("tag.mixed.author");
+        long courseId = tags.findByNormalizedNameAndParentIsNull("analysis 1").orElseThrow().getId();
+        long homeId = tags.findByNormalizedNameAndParentIsNull("tum").orElseThrow().getId();
+
+        mvc.perform(post("/api/forum/posts").with(TestAuth.contributor(author.getId()))
+                        .contentType("application/json")
+                        .content("""
+                                {"title":"Mixed status tags","content":"Approved and proposed tags together.",
+                                 "tagSelection":{"institutionIds":[%d],"topicIds":[%d],
+                                   "proposals":[{"name":"Proposed program","field":"PROGRAM"}]}}
+                                """.formatted(homeId, courseId)))
+                .andExpect(status().isCreated());
+    }
+
     private User user(String username) {
         return users.saveAndFlush(User.builder()
                 .username(username)

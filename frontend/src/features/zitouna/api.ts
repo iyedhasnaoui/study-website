@@ -6,6 +6,7 @@ import type {
     LearningMaterial,
     ModerationQueueItem,
     TagField,
+    TagStatus,
     TagCreatePayload,
     TagTypeDefinition,
     TagTypePayload,
@@ -18,8 +19,8 @@ export function notifyTagsUpdated(): void {
     window.dispatchEvent(new Event(TAGS_UPDATED_EVENT))
 }
 
-export async function getTags(field?: TagField): Promise<ZitounaTag[]> {
-    const response = await apiClient.get<ZitounaTag[]>('/api/tags', {params: field ? {field} : undefined})
+export async function getTags(field?: TagField, status?: TagStatus): Promise<ZitounaTag[]> {
+    const response = await apiClient.get<ZitounaTag[]>('/api/tags', {params: field || status ? {field, status} : undefined})
     return response.data
 }
 

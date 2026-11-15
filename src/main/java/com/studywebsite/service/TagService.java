@@ -254,7 +254,7 @@ public class TagService {
         for (ZitounaTag selected : tags) {
             ZitounaTag current = selected;
             while (current != null) {
-                if (current.getStatus() == TagStatus.APPROVED) inherited.add(current);
+                inherited.add(current);
                 current = current.getParent();
             }
         }
@@ -262,6 +262,8 @@ public class TagService {
         long programs = inherited.stream().filter(tag -> tag.getType().getField() == TagField.PROGRAM).count();
 
         for (ZitounaTag tag : inherited) {
+            // Proposed tags count toward the totals above, but only approved tags carry enforceable type minimums
+            if (tag.getStatus() != TagStatus.APPROVED) continue;
             TagTypeDefinition type = tag.getType();
             if (institutions < orZero(type.getMinimumInstitutions())) {
                 throw new IllegalArgumentException(tag.getName() + " requires at least "
