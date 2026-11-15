@@ -167,15 +167,15 @@ export async function createFaq(payload: {
     question: string;
     answer: string;
     published: boolean;
-    tagIds?: number[]
+    tags?: Record<string, unknown>
 }): Promise<FaqEntry> {
     const response = await apiClient.post<FaqEntry>('/api/admin/faq', payload)
     return response.data
 }
 
-// Omit the 'tags' array from the Partial payload and replace it with an optional 'tagIds' array
+// Omit the 'tags' array from the Partial payload and replace it with an optional tag selection
 export async function updateFaq(id: number, payload: Partial<Omit<FaqEntry, 'tags'> & {
-    tagIds: number[]
+    tags: Record<string, unknown>
 }>): Promise<FaqEntry> {
     const response = await apiClient.patch<FaqEntry>(`/api/admin/faq/${id}`, payload)
     return response.data

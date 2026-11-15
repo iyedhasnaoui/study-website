@@ -111,7 +111,7 @@ public class ZitounaController {
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size
     ) {
-        List<ZitounaDtos.FaqResponse> all = zitounaService.listFaq();
+        List<ZitounaDtos.FaqResponse> all = zitounaService.listFaq(q, tagIds);
         if (page != null && size != null) {
             return paginate(all, page, size);
         }
@@ -126,17 +126,18 @@ public class ZitounaController {
     ) {
 //        adminGuard.requireAdmin(principal.userId());
         /// TODO :  ^FOR SECURITY REASONS WE MIGHT WANT TO BRING THIS BACK !!!
-        ZitounaDtos.FaqResponse created = zitounaService.createFaq(request);
+        ZitounaDtos.FaqResponse created = zitounaService.createFaq(request, principal.userId());
         return ResponseEntity.created(URI.create("/api/faq/" + created.id())).body(created);
     }
 
     @PreAuthorize("hasRole('ADMIN')")
     @RequestMapping(value = "/api/admin/faq/{id}", method = {RequestMethod.PUT, RequestMethod.PATCH})
     public ZitounaDtos.FaqResponse updateFaq(
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
             @PathVariable Long id,
             @RequestBody ZitounaDtos.FaqRequest request
     ) {
-        return zitounaService.updateFaq(id, request);
+        return zitounaService.updateFaq(id, request, principal.userId());
     }
 
     @PreAuthorize("hasRole('ADMIN')")

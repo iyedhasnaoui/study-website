@@ -644,7 +644,8 @@ export function ZitounaPage({onCreatePost, onRequireLogin, onOpenPost}: ZitounaP
                     {loading ? <p className="empty-state">Loading answers…</p> : null}
                     <div className="faq-list">{faq.map((entry) => <details key={entry.id}>
                         <summary>{entry.question}</summary>
-                        <p>{entry.answer}</p></details>)}</div>
+                        <p>{entry.answer}</p>
+                        <div className="tag-row">{entry.tags?.map((tag) => <span key={tag.id}>#{tag.name}</span>)}</div></details>)}</div>
                     {!loading && faq.length === 0 ?
                         <p className="empty-state">The FAQ is being curated. Useful forum questions will appear
                             here.</p> : null}
@@ -1387,7 +1388,7 @@ function AdminPanel({
 function FaqForm({initialData, availableTags: _availableTags, onSubmit}: {
     initialData?: FaqEntry;
     availableTags: ZitounaTag[];
-    onSubmit: (data: { question: string; answer: string; published: boolean; tagIds: number[] }) => void;
+    onSubmit: (data: { question: string; answer: string; published: boolean; tags: Record<string, unknown> }) => void;
 }) {
     const [question, setQuestion] = useState(initialData?.question || '');
     const [answer, setAnswer] = useState(initialData?.answer || '');
@@ -1395,8 +1396,12 @@ function FaqForm({initialData, availableTags: _availableTags, onSubmit}: {
 
     // Convert initial tag IDs into TagItem objects
     const [selectedTags, setSelectedTags] = useState<TagItem[]>(
-        initialData?.tags?.map((t) => ({id: t.id, name: t.name})) || []
+        initialData?.tags?.map((t) => ({id: t.id, name: t.name, field: t.field, parentId: t.parentId, status: t.status})) || []
     );
+    const [proposals, setProposals] = useState<TagProposalItem[]>([]);
+
+    const ids = (field: TagField) => selectedTags.filter((t) => t.field === field).map((t) => t.id);
+    const institutions = ids('INSTITUTION');
 
     return (
         <form onSubmit={(e) => {
@@ -1405,7 +1410,15 @@ function FaqForm({initialData, availableTags: _availableTags, onSubmit}: {
                 question,
                 answer,
                 published,
-                tagIds: selectedTags.map((t) => t.id),
+                tags: {
+                    homeInstitutionId: institutions[0] ?? null,
+                    partnerInstitutionId: institutions[1] ?? null,
+                    institutionIds: institutions,
+                    programIds: ids('PROGRAM'),
+                    topicIds: ids('TOPIC'),
+                    subtopicIds: ids('SUBTOPIC'),
+                    proposals,
+                },
             });
         }}>
             <label>Question
@@ -1420,6 +1433,10 @@ function FaqForm({initialData, availableTags: _availableTags, onSubmit}: {
             <TagAutocomplete
                 selectedTags={selectedTags}
                 onChange={setSelectedTags}
+                proposals={proposals}
+                onProposalsChange={setProposals}
+                allowProposals
+                placeholder="Add relevant tags..."
             />
 
             <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1rem'}}>

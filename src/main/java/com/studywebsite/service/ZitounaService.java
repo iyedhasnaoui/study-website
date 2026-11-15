@@ -62,10 +62,10 @@ public class ZitounaService {
                         "/api/learning-materials/" + resource.getId() + "/content"));
 
         Stream<ZitounaDtos.FeedItemResponse> faq = faqEntryRepository.findByPublishedTrueOrderByUpdatedAtDesc().stream()
-                .filter(entry -> requestedTags.isEmpty())
+                .filter(entry -> matchesTags(entry.getTags(), requestedTags))
                 .map(entry -> new ZitounaDtos.FeedItemResponse(
                         "FAQ", entry.getId(), entry.getQuestion(), excerpt(entry.getAnswer()), null, "IAC admins",
-                        latest(entry.getUpdatedAt(), entry.getCreatedAt()), ModerationStatus.APPROVED, List.of(), null));
+                        latest(entry.getUpdatedAt(), entry.getCreatedAt()), ModerationStatus.APPROVED, tags(entry.getTags()), null));
 
         Predicate<ZitounaDtos.FeedItemResponse> areaFilter = item -> areas.isEmpty() || areas.contains(item.area());
         Predicate<ZitounaDtos.FeedItemResponse> textFilter = item -> cleanQuery.isBlank()
@@ -154,17 +154,20 @@ public class ZitounaService {
     }
 
     @Transactional(readOnly = true)
-    public List<ZitounaDtos.FaqResponse> listFaq() {
-        return faqEntryRepository.findByPublishedTrueOrderByUpdatedAtDesc().stream().map(this::faqResponse).toList();
+    public List<ZitounaDtos.FaqResponse> listFaq(String query, Set<Long> tagIds) {
+        String cleanQuery = query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
+        Set<Long> requestedTags = tagIds == null ? Set.of() : tagIds;
+        return faqEntryRepository.findByPublishedTrueOrderByUpdatedAtDesc().stream()
+                .filter(entry -> matchesTags(entry.getTags(), requestedTags))
+                .filter(entry -> cleanQuery.isBlank() || contains(entry.getQuestion(), cleanQuery) || contains(entry.getAnswer(), cleanQuery)
+                        || tags(entry.getTags()).stream().anyMatch(tag -> contains(tag.name(), cleanQuery)
+                        || tag.aliases().stream().anyMatch(alias -> contains(alias, cleanQuery))))
+                .map(this::faqResponse).toList();
     }
 
     @Transactional
-    public ZitounaDtos.FaqResponse createFaq(ZitounaDtos.FaqRequest request) {
-        Set<ZitounaTag> resolvedTags = new HashSet<>();
-        if (request.tagIds() != null && !request.tagIds().isEmpty()) {
-            // Fix: Call findAllById on the injected instance, not statically
-            resolvedTags.addAll(zitounaTagRepository.findAllById(request.tagIds()));
-        }
+    public ZitounaDtos.FaqResponse createFaq(ZitounaDtos.FaqRequest request, Long userId) {
+        Set<ZitounaTag> resolvedTags = tagService.resolveSelection(request.tags(), List.of(), userId).tags();
 
         FaqEntry faq = FaqEntry.builder()
                 .question(request.question())
@@ -178,7 +181,7 @@ public class ZitounaService {
     }
 
     @Transactional
-    public ZitounaDtos.FaqResponse updateFaq(Long id, ZitounaDtos.FaqRequest request) {
+    public ZitounaDtos.FaqResponse updateFaq(Long id, ZitounaDtos.FaqRequest request, Long userId) {
         FaqEntry faq = faqEntryRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "FAQ entry not found"));
 
@@ -186,10 +189,8 @@ public class ZitounaService {
         if (request.answer() != null) faq.setAnswer(request.answer());
         if (request.published() != null) faq.setPublished(request.published());
 
-        if (request.tagIds() != null) {
-            // Fix: Call findAllById on the injected instance
-            Set<ZitounaTag> resolvedTags = new HashSet<>(zitounaTagRepository.findAllById(request.tagIds()));
-            faq.setTags(resolvedTags); // Replaces the old Set entirely
+        if (request.tags() != null) {
+            faq.setTags(tagService.resolveSelection(request.tags(), List.of(), userId).tags());
         }
 
         FaqEntry updatedFaq = faqEntryRepository.save(faq);

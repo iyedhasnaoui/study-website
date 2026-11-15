@@ -136,7 +136,7 @@ public final class ZitounaDtos {
             @NotBlank @Size(max = 300) String question,
             @NotBlank @Size(max = 10000) String answer,
             Boolean published,
-            Set<Long> tagIds
+            @Valid TagSelectionDto tags
     ) {
     }
 

@@ -14,7 +14,7 @@ export const useFaqMutations = () => {
 
     const createMutation = useMutation({
         // FIX: Explicitly define the payload types expected by the backend
-        mutationFn: (data: { question: string; answer: string; published: boolean; tagIds?: number[] }) => createFaq(data),
+        mutationFn: (data: { question: string; answer: string; published: boolean; tags?: Record<string, unknown> }) => createFaq(data),
         onSuccess: () => {
             invalidateAllFaqRelatedQueries();
             // void queryClient.invalidateQueries({ queryKey: ['faqs'] });
