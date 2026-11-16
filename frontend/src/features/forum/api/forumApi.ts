@@ -6,7 +6,7 @@ import type {
   ForumReplyResponseDto,
   ForumReplyUpdateDto,
 } from '../types'
-import { apiClient, requireAuthenticatedUser } from '../../../lib/apiClient'
+import { apiClient, requireAuthenticatedUser, resolveApiUrl } from '../../../lib/apiClient'
 
 export const forumApiClient = apiClient
 
@@ -174,7 +174,7 @@ export async function deleteReply(
 }
 
 export async function getTags(): Promise<string[]> {
-  const response = await fetch('http://localhost:8080/api/tags', {
+  const response = await fetch(resolveApiUrl('/api/tags'), {
     headers: {
       Accept: 'application/json',
     },

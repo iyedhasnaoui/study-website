@@ -37,12 +37,15 @@ services:
       # Console login for Keycloak itself, not for the application.
       KC_BOOTSTRAP_ADMIN_USERNAME: '${KEYCLOAK_ADMIN_USER:-admin}'
       KC_BOOTSTRAP_ADMIN_PASSWORD: '${KEYCLOAK_ADMIN_PASSWORD:-admin}'
+      KC_PROXY_HEADERS: '${KC_PROXY_HEADERS:-xforwarded}'
       KC_HEALTH_ENABLED: 'true'
       # Seeds the application's own ADMIN account on first import.
       IAC_ADMIN_USERNAME: '${IAC_ADMIN_USERNAME:-iac-admin}'
       IAC_ADMIN_EMAIL: '${IAC_ADMIN_EMAIL:-admin@iac.local}'
       IAC_ADMIN_PASSWORD: '${IAC_ADMIN_PASSWORD:-change-me}'
       IAC_BACKEND_SECRET: '${IAC_BACKEND_SECRET:-backend-dev-secret}'
+      # Frontend origin added to the iac-frontend client's redirect URIs / web origins on first import.
+      FRONTEND_URL: '${FRONTEND_URL:-http://localhost:5173}'
     ports:
       - '8081:8080'
     volumes:

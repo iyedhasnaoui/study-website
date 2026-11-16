@@ -50,13 +50,13 @@
       "directAccessGrantsEnabled": false,
       "implicitFlowEnabled": false,
       "serviceAccountsEnabled": false,
-      "rootUrl": "http://localhost:5173",
+      "rootUrl": "${env.FRONTEND_URL:http://localhost:5173}",
       "baseUrl": "/",
-      "redirectUris": ["http://localhost:5173/*", "http://127.0.0.1:5173/*"],
-      "webOrigins": ["http://localhost:5173", "http://127.0.0.1:5173"],
+      "redirectUris": ["${env.FRONTEND_URL:http://localhost:5173}/*", "http://localhost:5173/*", "http://127.0.0.1:5173/*"],
+      "webOrigins": ["${env.FRONTEND_URL:http://localhost:5173}", "http://localhost:5173", "http://127.0.0.1:5173"],
       "attributes": {
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "http://localhost:5173/*##http://127.0.0.1:5173/*"
+        "post.logout.redirect.uris": "${env.FRONTEND_URL:http://localhost:5173}/*##http://localhost:5173/*##http://127.0.0.1:5173/*"
       },
       "defaultClientScopes": [
         "web-origins",

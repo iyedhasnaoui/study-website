@@ -1,8 +1,6 @@
 import Keycloak from 'keycloak-js'
 
-const KEYCLOAK_URL = import.meta.env.VITE_KEYCLOAK_URL?.trim() || 'http://localhost:8081'
-const KEYCLOAK_REALM = import.meta.env.VITE_KEYCLOAK_REALM?.trim() || 'iac'
-const KEYCLOAK_CLIENT_ID = import.meta.env.VITE_KEYCLOAK_CLIENT_ID?.trim() || 'iac-frontend'
+import { KEYCLOAK_CLIENT_ID, KEYCLOAK_REALM, KEYCLOAK_URL } from '../config'
 
 export const keycloak = new Keycloak({
   url: KEYCLOAK_URL,

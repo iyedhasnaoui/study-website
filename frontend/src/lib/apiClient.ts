@@ -2,8 +2,8 @@ import axios from 'axios'
 
 import type { AppRole } from '../auth/types'
 import { currentToken, keycloak } from '../auth/keycloak'
+import { API_BASE_URL } from '../config'
 
-const DEFAULT_BASE_URL = 'http://localhost:8080'
 const DEV_ROLE_OVERRIDE_KEY = 'dev_role_override'
 const APP_ROLES = ['VIEWER', 'CONTRIBUTOR', 'ADMIN'] as const
 
@@ -13,15 +13,13 @@ if (typeof window !== 'undefined') {
   window.localStorage.removeItem(DEV_ROLE_OVERRIDE_KEY)
 }
 
-const normalizeBaseUrl = (value: string): string => value.replace(/\/+$/, '')
-
 export const apiClient = axios.create({
-  baseURL: normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL?.trim() ?? DEFAULT_BASE_URL),
+  baseURL: API_BASE_URL,
 })
 
 export function resolveApiUrl(path: string): string {
   if (/^https?:\/\//i.test(path)) return path
-  const baseUrl = String(apiClient.defaults.baseURL ?? DEFAULT_BASE_URL).replace(/\/$/, '')
+  const baseUrl = String(apiClient.defaults.baseURL ?? API_BASE_URL).replace(/\/$/, '')
   return `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`
 }
 

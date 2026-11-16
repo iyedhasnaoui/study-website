@@ -43,3 +43,53 @@ The backend uses Java 17. Frontend production verification is `npm run build`; l
 
 
 
+
+## Configuration
+
+All environment-specific values are read from environment variables. Every variable has a default that matches local development, so **running locally needs no setup**.
+
+### Backend (Spring Boot)
+
+| Variable | Purpose | Local default | Test deployment |
+| --- | --- | --- | --- |
+| `SPRING_PROFILES_ACTIVE` | Spring profile. `dev` registers `DevRoleOverrideFilter`, which the Dev Role Switcher needs | *(unset)* | `dev` |
+| `PORT` | HTTP port | `8080` | platform-provided |
+| `SPRING_DATASOURCE_URL` | JDBC URL | `jdbc:postgresql://localhost:5432/studydb` | your Postgres URL |
+| `SPRING_DATASOURCE_USERNAME` / `SPRING_DATASOURCE_PASSWORD` | DB credentials | `postgres` / `password` | your credentials |
+| `SPRING_DOCKER_COMPOSE_ENABLED` | Auto-start `docker-compose.yml` on boot (it also overrides the datasource URL) | `true` | `false` |
+| `CORS_ALLOWED_ORIGINS` | Comma-separated browser origins allowed to call the API, no trailing slash | `http://localhost:5173,http://127.0.0.1:5173` | the frontend origin, e.g. `https://app.example.com` |
+| `KEYCLOAK_ISSUER_URI` | Issuer of the JWTs the API accepts | `http://localhost:8081/realms/iac` | `https://<keycloak-host>/realms/iac` |
+| `KEYCLOAK_BASE_URL` | Keycloak URL for the backend's admin client | `http://localhost:8081` | `https://<keycloak-host>` |
+| `KEYCLOAK_REALM` | Realm for the admin client | `iac` | `iac` |
+| `KEYCLOAK_ADMIN_CLIENT_ID` | Admin client id | `iac-backend` | `iac-backend` |
+| `IAC_BACKEND_SECRET` | Admin client secret (also used by the Keycloak realm import) | `backend-dev-secret` | a real secret |
+| `APP_UPLOAD_FORUM_DIRECTORY` / `APP_UPLOAD_MATERIAL_DIRECTORY` | Upload folders | `uploads/forum` / `uploads/materials` | a persistent path |
+
+### Frontend (Vite, build-time)
+
+Vite inlines these when building, so rebuild after changing them. See `frontend/.env.example`; `frontend/.env.development` holds the local values.
+
+| Variable | Purpose | Local default | Test deployment |
+| --- | --- | --- | --- |
+| `VITE_API_BASE_URL` | Backend base URL, no trailing slash | `http://localhost:8080` | `https://<api-host>` |
+| `VITE_KEYCLOAK_URL` | Keycloak server | `http://localhost:8081` | `https://<keycloak-host>` |
+| `VITE_KEYCLOAK_REALM` | Keycloak realm | `iac` | `iac` |
+| `VITE_KEYCLOAK_CLIENT_ID` | Keycloak public client | `iac-frontend` | `iac-frontend` |
+
+### Keycloak container (docker-compose)
+
+| Variable | Purpose | Local default |
+| --- | --- | --- |
+| `FRONTEND_URL` | Frontend origin added to the `iac-frontend` client's redirect URIs/web origins on first realm import (the localhost entries are always kept) | `http://localhost:5173` |
+
+For an already-imported realm, add the deployed frontend origin to the `iac-frontend` client in the Keycloak admin console instead.
+
+### Dev Role Switcher in a deployed test build
+
+The switcher sends an `X-Dev-Role` header that the backend honours only under the `dev` profile, so the backend needs just `SPRING_PROFILES_ACTIVE=dev`. The frontend shows and uses the switcher only when `import.meta.env.DEV` is true, which a normal `vite build` makes false. To keep it in a test build without code changes, build with:
+
+```
+NODE_ENV=development npx vite build --mode development
+```
+
+Do not use the `dev` profile or this build mode for a public deployment: any signed-in user could then grant themselves ADMIN.
