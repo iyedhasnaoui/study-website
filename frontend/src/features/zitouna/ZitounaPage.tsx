@@ -430,8 +430,8 @@ export function ZitounaPage({onCreatePost, onRequireLogin, onOpenPost}: ZitounaP
         setLoading(true)
         try {
             let pageToLoad = requestedPage
-            let [nextQueue, nextProposals, nextTypes] = await Promise.all([
-                getModerationQueue({page: pageToLoad, size: PAGE_SIZE}), getTagProposals(), getTagTypes(),
+            let [nextQueue, nextProposals, nextTypes, nextFaq] = await Promise.all([
+                getModerationQueue({page: pageToLoad, size: PAGE_SIZE}), getTagProposals(), getTagTypes(), getFaq(),
             ])
             // The last item of the last page may have just been removed: step back to the last valid page.
             if ('content' in nextQueue && nextQueue.content.length === 0 && pageToLoad > 0) {
@@ -450,6 +450,7 @@ export function ZitounaPage({onCreatePost, onRequireLogin, onOpenPost}: ZitounaP
             setAdminPage(pageToLoad)
             setProposals(nextProposals)
             setTagTypes(nextTypes)
+            setFaq('content' in nextFaq ? nextFaq.content : nextFaq)
         } catch (reason) {
             setError(getApiErrorMessage(reason, 'Unable to load the admin queue.'))
         } finally {
@@ -710,6 +711,7 @@ export function ZitounaPage({onCreatePost, onRequireLogin, onOpenPost}: ZitounaP
                     proposals={proposals}
                     tagTypes={tagTypes}
                     faqs={faq}
+                    onFaqChanged={() => loadAdmin(adminPage)}
                     availableTags={tags}
                     onModerate={async (item, decision) => {
                         await moderate(item, decision);
@@ -1077,6 +1079,7 @@ function AdminPanel({
                         proposals,
                         tagTypes,
                         faqs,
+                        onFaqChanged,
                         availableTags,
                         onModerate,
                         onEdit,
@@ -1094,6 +1097,7 @@ function AdminPanel({
     proposals: ZitounaTag[]
     tagTypes: TagTypeDefinition[]
     faqs: FaqEntry[]
+    onFaqChanged: () => Promise<void>
     availableTags: ZitounaTag[]
     onModerate: (item: ModerationQueueItem, decision: 'approve' | 'reject' | 'needs-fixing') => Promise<void>
     onEdit: (item: ModerationQueueItem, payload: Record<string, unknown>) => Promise<void>
@@ -1292,7 +1296,7 @@ function AdminPanel({
                         <div className="review-card-header"><h4>Draft New FAQ</h4></div>
                         <div className="review-card-body">
                             <FaqForm availableTags={availableTags} onSubmit={(data) => {
-                                createMutation.mutate(data, {onSuccess: () => window.location.reload()});
+                                createMutation.mutate(data, {onSuccess: () => void onFaqChanged()});
                             }}/>
                         </div>
                     </div>
@@ -1308,7 +1312,7 @@ function AdminPanel({
                                             {editingId === faq.id ? 'Cancel' : 'Edit'}
                                         </button>
                                         <button className="danger" onClick={() => {
-                                            if (window.confirm('Delete this FAQ?')) deleteMutation.mutate(faq.id, {onSuccess: () => window.location.reload()});
+                                            if (window.confirm('Delete this FAQ?')) deleteMutation.mutate(faq.id, {onSuccess: () => void onFaqChanged()});
                                         }}>Delete
                                         </button>
                                     </div>
@@ -1326,7 +1330,7 @@ function AdminPanel({
                                         updateMutation.mutate({id: faq.id, data: data as any}, {
                                             onSuccess: () => {
                                                 setEditingId(null);
-                                                window.location.reload();
+                                                void onFaqChanged();
                                             }
                                         });
                                     }}/>
