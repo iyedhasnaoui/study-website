@@ -100,7 +100,7 @@ public class ForumPostController {
                     .collect(Collectors.toList());
         }
 
-        List<ForumPostResponseDto> dtos = posts.stream().map(this::toResponseDto).collect(Collectors.toList());
+        List<ForumPostResponseDto> dtos = posts.stream().map(post -> toResponseDto(post, isAuthor(post, viewerId))).collect(Collectors.toList());
         if (page != null && size != null) {
             return ResponseEntity.ok(paginate(dtos, page, size));
         }
@@ -117,7 +117,7 @@ public class ForumPostController {
         if (!isVisibleTo(post, viewerId)) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(toResponseDto(post));
+        return ResponseEntity.ok(toResponseDto(post, isAuthor(post, viewerId)));
     }
 
     /** Returns true when the post is published, or when the viewer is the author. */
@@ -126,12 +126,11 @@ public class ForumPostController {
                 || post.getModerationStatus() == com.studywebsite.model.ModerationStatus.APPROVED) {
             return true;
         }
-        // Show non-published posts to their author
-        if (viewerId != null && post.getAuthor() != null
-                && viewerId.equals(post.getAuthor().getId())) {
-            return true;
-        }
-        return false;
+        return isAuthor(post, viewerId);
+    }
+
+    private boolean isAuthor(ForumPost post, Long viewerId) {
+        return viewerId != null && post.getAuthor() != null && viewerId.equals(post.getAuthor().getId());
     }
 
     @PreAuthorize("hasAnyRole('VIEWER','CONTRIBUTOR','ADMIN')")
@@ -174,9 +173,9 @@ public class ForumPostController {
             existing.setModerationNote(null);
         }
 
-            ForumPost saved = forumPostService.create(existing);
-            return ResponseEntity.ok(toResponseDto(saved));
-        }
+        ForumPost saved = forumPostService.create(existing);
+        return ResponseEntity.ok(toResponseDto(saved, true));
+    }
 
     @PreAuthorize("hasAnyRole('CONTRIBUTOR','ADMIN')")
     @DeleteMapping("/{id}")
@@ -189,7 +188,7 @@ public class ForumPostController {
         return ResponseEntity.noContent().build();
     }
 
-    private ForumPostResponseDto toResponseDto(ForumPost p) {
+    private ForumPostResponseDto toResponseDto(ForumPost p, boolean includeRevision) {
         if (p == null) return null;
         Long authorId = null;
         String authorUsername = null;
@@ -198,22 +197,23 @@ public class ForumPostController {
             authorUsername = p.getAuthor().getUsername();
         }
 
+        boolean showRevision = includeRevision && p.getRevisionStatus() != null;
         return ForumPostResponseDto.builder()
                 .id(p.getId())
-                .title(p.getRevisionStatus() != null ? p.getPendingTitle() : p.getTitle())
-                .content(p.getRevisionStatus() != null ? p.getPendingContent() : p.getContent())
+                .title(showRevision ? p.getPendingTitle() : p.getTitle())
+                .content(showRevision ? p.getPendingContent() : p.getContent())
                 .authorId(authorId)
                 .authorUsername(authorUsername)
                 .tags(p.getTags() == null ? Collections.emptyList() : p.getTags().stream()
                         .map(com.studywebsite.model.ZitounaTag::getName)
                         .sorted()
                         .toList())
-                .moderationStatus(p.getRevisionStatus() != null
+                .moderationStatus(showRevision
                         ? p.getRevisionStatus()
                         : (p.getModerationStatus() == null
                                 ? com.studywebsite.model.ModerationStatus.APPROVED
                                 : p.getModerationStatus()))
-                .moderationNote(p.getRevisionStatus() != null ? p.getRevisionNote() : p.getModerationNote())
+                .moderationNote(showRevision ? p.getRevisionNote() : p.getModerationNote())
                 .attachments(p.getAttachments() == null ? List.of() : p.getAttachments().stream()
                         .map(ForumAttachmentResponseDto::from)
                         .toList())
@@ -245,7 +245,7 @@ public class ForumPostController {
 
         ForumPost saved = forumPostService.create(toSave);
         saved.getAttachments().addAll(forumAttachmentService.attachToPost(saved, files));
-        ForumPostResponseDto response = toResponseDto(saved);
+        ForumPostResponseDto response = toResponseDto(saved, false);
         return ResponseEntity.created(URI.create("/api/forum/posts/" + saved.getId())).body(response);
     }
 

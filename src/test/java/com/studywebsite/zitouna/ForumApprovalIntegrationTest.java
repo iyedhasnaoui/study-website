@@ -4,6 +4,8 @@ import com.studywebsite.model.*;
 import com.studywebsite.repository.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -46,7 +48,10 @@ class ForumApprovalIntegrationTest {
         account("viewer", "VIEWER");
         account("admin", "ADMIN");
         approved = posts.saveAndFlush(ForumPost.builder().author(owner).title("Published title")
-                .content("Published content").moderationStatus(ModerationStatus.APPROVED).build());
+                .content("Published content").moderationStatus(ModerationStatus.APPROVED)
+                .tags(new java.util.HashSet<>(Set.of(
+                        tags.findByNormalizedNameAndParentIsNull("tum").orElseThrow())))
+                .build());
     }
 
     private User account(String name, String role) {
@@ -66,7 +71,8 @@ class ForumApprovalIntegrationTest {
     private void edit(String token, String content) throws Exception {
         mvc.perform(put("/api/forum/posts/{id}", approved.getId()).with(as(token))
                 .contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"Edited title\",\"content\":\"" + content + "\"}"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.content").value("Published content"));
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content").value(content))
+                .andExpect(jsonPath("$.moderationStatus").value("PENDING"));
         posts.flush();
     }
 
@@ -85,6 +91,51 @@ class ForumApprovalIntegrationTest {
                 .andExpect(jsonPath("$[0].pendingContent").doesNotExist());
     }
 
+    @ParameterizedTest
+    @EnumSource(value = ModerationStatus.class, names = {"PENDING", "REJECTED", "NEEDS_FIXING"})
+    void unpublishedPostHidesRepliesAndRejectsWrites(ModerationStatus status) throws Exception {
+        Long id = approved.getId();
+        ForumReply reply = replies.saveAndFlush(ForumReply.builder()
+                .post(approved).author(owner).content("Existing reply").build());
+        approved.setModerationStatus(status);
+        posts.saveAndFlush(approved);
+
+        mvc.perform(get("/api/forum/posts/{id}", id)).andExpect(status().isNotFound());
+        mvc.perform(get("/api/forum/posts/{id}", id).with(as("contributor")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.moderationStatus").value(status.name()));
+        mvc.perform(get("/api/forum/posts/{id}/replies", id)).andExpect(status().isNotFound());
+        mvc.perform(get("/api/forum/posts/{id}/replies/{replyId}", id, reply.getId()))
+                .andExpect(status().isNotFound());
+        mvc.perform(post("/api/forum/posts/{id}/replies", id).with(as("contributor"))
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                        {"content":"Reply after rejection"}
+                        """)).andExpect(status().isNotFound());
+        mvc.perform(multipart("/api/forum/posts/{id}/replies", id).with(as("other"))
+                .file(new org.springframework.mock.web.MockMultipartFile(
+                        "payload", "", "application/json", "{\"content\":\"Multipart reply\"}".getBytes(java.nio.charset.StandardCharsets.UTF_8))))
+                .andExpect(status().isNotFound());
+        mvc.perform(put("/api/forum/posts/{id}/replies/{replyId}", id, reply.getId())
+                .with(as("contributor")).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"content\":\"Changed existing reply\"}"))
+                .andExpect(status().isNotFound());
+        assertThat(replies.findByPost_Id(id)).extracting(ForumReply::getId).containsExactly(reply.getId());
+        assertThat(replies.findById(reply.getId()).orElseThrow().getContent()).isEqualTo("Existing reply");
+        mvc.perform(delete("/api/forum/posts/{id}/replies/{replyId}", id, reply.getId()).with(as("admin")))
+                .andExpect(status().isNoContent());
+        assertThat(replies.existsById(reply.getId())).isFalse();
+    }
+
+    @Test void legacyPublishedPostStillAllowsReadingAndWritingReplies() throws Exception {
+        approved.setModerationStatus(null);
+        posts.saveAndFlush(approved);
+        Long id = approved.getId();
+        mvc.perform(post("/api/forum/posts/{id}/replies", id).with(as("contributor"))
+                .contentType(MediaType.APPLICATION_JSON).content("{\"content\":\"Legacy post reply\"}"))
+                .andExpect(status().isCreated());
+        mvc.perform(get("/api/forum/posts/{id}/replies", id))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].content").value("Legacy post reply"));
+    }
+
     @Test void anonymousWritesAndModerationAreRejected() throws Exception {
         mvc.perform(post("/api/forum/posts").contentType(MediaType.APPLICATION_JSON)
                 .content("{\"title\":\"Local post\",\"content\":\"Local content\"}")).andExpect(status().isUnauthorized());
@@ -95,7 +146,7 @@ class ForumApprovalIntegrationTest {
         mvc.perform(post("/api/admin/moderation/FORUM/{id}/approve", approved.getId())).andExpect(status().isUnauthorized());
     }
 
-    @Test void viewerCannotCreateEditOrDeleteEvenWithForgedOwnershipHeader() throws Exception {
+    @Test void viewerCannotCreateEditOthersOrDeleteEvenWithForgedOwnershipHeader() throws Exception {
         mvc.perform(post("/api/forum/posts").with(as("viewer")).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"title\":\"Local post\",\"content\":\"Local content\"}")).andExpect(status().isForbidden());
         mvc.perform(put("/api/forum/posts/{id}", approved.getId()).with(as("viewer"))
@@ -105,9 +156,22 @@ class ForumApprovalIntegrationTest {
         publicContent("Published content");
     }
 
+    @Test void viewerCanSubmitAnEditToTheirOwnApprovedPost() throws Exception {
+        approved.setAuthor(users.findByKeycloakId("approval-viewer").orElseThrow());
+        posts.saveAndFlush(approved);
+        edit("viewer", "Viewer proposed content");
+        publicContent("Published content");
+        mvc.perform(delete("/api/forum/posts/{id}", approved.getId()).with(as("viewer")))
+                .andExpect(status().isForbidden());
+    }
+
     @Test void contributorCanCreateButNewContentIsNotPublic() throws Exception {
+        long institution = tags.findByNormalizedNameAndParentIsNull("tum").orElseThrow().getId();
         mvc.perform(post("/api/forum/posts").with(as("contributor")).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"title\":\"Local new post\",\"content\":\"Submitted content\",\"moderationStatus\":\"APPROVED\"}"))
+                .content("""
+                        {"title":"Local new post","content":"Submitted content","moderationStatus":"APPROVED",
+                         "tagSelection":{"institutionIds":[%d]}}
+                        """.formatted(institution)))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.moderationStatus").value("PENDING"));
         ForumPost pending = posts.findAll().stream().filter(p -> p.getTitle().equals("Local new post")).findFirst().orElseThrow();
         mvc.perform(get("/api/forum/posts/{id}", pending.getId())).andExpect(status().isNotFound());
@@ -151,6 +215,14 @@ class ForumApprovalIntegrationTest {
                 .type(ForumAttachmentType.PDF).sizeBytes(10L).build()).getId();
         edit("contributor", "Private proposed content");
         publicContent("Published content");
+        mvc.perform(get("/api/forum/posts/{id}", approved.getId()).with(as("other")))
+                .andExpect(jsonPath("$.content").value("Published content"))
+                .andExpect(jsonPath("$.moderationStatus").value("APPROVED"));
+        mvc.perform(get("/api/forum/posts").with(as("other")))
+                .andExpect(jsonPath("$[0].content").value("Published content"));
+        mvc.perform(get("/api/forum/posts/{id}", approved.getId()).with(as("contributor")))
+                .andExpect(jsonPath("$.content").value("Private proposed content"))
+                .andExpect(jsonPath("$.moderationStatus").value("PENDING"));
         mvc.perform(get("/api/zitouna/feed")).andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.id == " + approved.getId() + ")].excerpt")
                         .value(org.hamcrest.Matchers.contains("Published content")));
@@ -204,7 +276,7 @@ class ForumApprovalIntegrationTest {
     }
 
     @Test void editingAnUnpublishedPostStillRequiresApproval() throws Exception {
-        approved.setModerationStatus(ModerationStatus.REJECTED);
+        approved.setModerationStatus(ModerationStatus.NEEDS_FIXING);
         posts.saveAndFlush(approved);
         mvc.perform(put("/api/forum/posts/{id}", approved.getId()).with(as("contributor"))
                 .contentType(MediaType.APPLICATION_JSON).content("{\"content\":\"Corrected first submission\"}"))

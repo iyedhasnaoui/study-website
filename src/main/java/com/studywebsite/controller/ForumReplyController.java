@@ -4,12 +4,16 @@ import com.studywebsite.dto.ForumReplyCreateDto;
 import com.studywebsite.dto.ForumAttachmentResponseDto;
 import com.studywebsite.dto.ForumReplyResponseDto;
 import com.studywebsite.dto.ForumReplyUpdateDto;
+import com.studywebsite.model.ForumPost;
 import com.studywebsite.model.ForumReply;
+import com.studywebsite.model.ModerationStatus;
 import com.studywebsite.model.User;
 import com.studywebsite.security.AuthenticatedUserPrincipal;
+import com.studywebsite.service.ForumPostService;
 import com.studywebsite.service.ForumReplyService;
 import com.studywebsite.service.media.ForumAttachmentService;
 import com.studywebsite.service.media.InvalidForumContributionException;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -17,6 +21,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -30,10 +35,12 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ForumReplyController {
 
+    private final ForumPostService forumPostService;
     private final ForumReplyService forumReplyService;
     private final ForumAttachmentService forumAttachmentService;
 
     @PreAuthorize("hasAnyRole('CONTRIBUTOR','ADMIN')")
+    @Transactional
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ForumReplyResponseDto> createReply(
             @PathVariable Long postId,
@@ -45,6 +52,7 @@ public class ForumReplyController {
     }
 
     @PreAuthorize("hasAnyRole('CONTRIBUTOR','ADMIN')")
+    @Transactional
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ForumReplyResponseDto> createReplyWithMedia(
             @PathVariable Long postId,
@@ -58,6 +66,7 @@ public class ForumReplyController {
 
     @GetMapping
     public ResponseEntity<List<ForumReplyResponseDto>> getRepliesByPost(@PathVariable Long postId) {
+        requirePublishedPost(postId);
         List<ForumReply> replies = forumReplyService.findByPostId(postId);
         List<ForumReplyResponseDto> dtos = replies.stream().map(this::toResponseDto).collect(Collectors.toList());
         return ResponseEntity.ok(dtos);
@@ -67,6 +76,7 @@ public class ForumReplyController {
     public ResponseEntity<ForumReplyResponseDto> getReplyById(
             @PathVariable Long postId,
             @PathVariable Long replyId) {
+        requirePublishedPost(postId);
         ForumReply reply = forumReplyService.getById(replyId);
         // Verify the reply belongs to the specified post
         if (!reply.getPost().getId().equals(postId)) {
@@ -83,6 +93,7 @@ public class ForumReplyController {
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
             @Valid @RequestBody ForumReplyUpdateDto dto) {
 
+        requirePublishedPost(postId);
         ForumReply existing = forumReplyService.getById(replyId);
         
         // Verify the reply belongs to the specified post
@@ -159,9 +170,7 @@ public class ForumReplyController {
         ForumReply toSave = new ForumReply();
         toSave.setContent(dto.getContent() == null ? "" : dto.getContent().strip());
 
-        com.studywebsite.model.ForumPost post = new com.studywebsite.model.ForumPost();
-        post.setId(postId);
-        toSave.setPost(post);
+        toSave.setPost(requirePublishedPost(postId));
         User author = new User();
         author.setId(userId);
         toSave.setAuthor(author);
@@ -170,6 +179,15 @@ public class ForumReplyController {
         saved.getAttachments().addAll(forumAttachmentService.attachToReply(saved, files));
         ForumReplyResponseDto response = toResponseDto(saved);
         return ResponseEntity.created(URI.create("/api/forum/posts/" + postId + "/replies/" + saved.getId())).body(response);
+    }
+
+    private ForumPost requirePublishedPost(Long postId) {
+        ForumPost post = forumPostService.getById(postId);
+        ModerationStatus status = post.getModerationStatus();
+        if (status != null && status != ModerationStatus.APPROVED) {
+            throw new EntityNotFoundException("Forum post not found");
+        }
+        return post;
     }
 
     private void requireTextOrFiles(String content, List<MultipartFile> files) {

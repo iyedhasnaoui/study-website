@@ -20,9 +20,9 @@ it.each([[0, '0 replies'], [1, '1 reply'], [2, '2 replies']] as const)('displays
   expect(screen.getByText(label, { exact: false })).toBeInTheDocument()
 })
 
-it.each(['anonymous', 'viewer', 'other contributor'])('hides edit/delete for %s', (kind) => {
-  if (kind !== 'anonymous') auth.session = { user: { id: kind === 'viewer' ? 1 : 2 } }
-  auth.role = kind === 'other contributor' ? 'CONTRIBUTOR' : kind === 'viewer' ? 'VIEWER' : null
+it.each(['anonymous', 'other viewer', 'other contributor'])('hides edit/delete for %s', (kind) => {
+  if (kind !== 'anonymous') auth.session = { user: { id: 2 } }
+  auth.role = kind === 'other contributor' ? 'CONTRIBUTOR' : kind === 'other viewer' ? 'VIEWER' : null
   render(<PostCard post={post} onDelete={onDelete} />)
   expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
@@ -45,11 +45,20 @@ it.each(['own contributor', 'other admin'])('allows edit/delete for %s', async (
   expect(onDelete).toHaveBeenCalledWith(7)
 })
 
+it('lets a viewer edit their own post while keeping Delete unavailable', () => {
+  auth.session = { user: { id: 1 } }
+  auth.role = 'VIEWER'
+  render(<PostCard post={post} onDelete={onDelete} />)
+  expect(screen.getByRole('button', { name: 'Edit' })).toBeEnabled()
+  expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
+})
+
 it('closes the editor when the session loses permission', async () => {
   auth.session = { user: { id: 1 } }; auth.role = 'CONTRIBUTOR'
   const view = render(<PostCard post={post} onDelete={onDelete} />)
   await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
-  auth.role = 'VIEWER'
+  auth.session = null
+  auth.role = null
   view.rerender(<PostCard post={post} onDelete={onDelete} />)
   expect(screen.queryByRole('textbox', { name: 'Content' })).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Save changes' })).not.toBeInTheDocument()
