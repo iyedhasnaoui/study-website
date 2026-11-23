@@ -5,6 +5,7 @@ import com.studywebsite.model.Roadmap;
 import com.studywebsite.model.User;
 import com.studywebsite.repository.RoadmapRepository;
 import com.studywebsite.repository.UserRepository;
+import com.studywebsite.repository.ZitounaTagRepository;
 import com.studywebsite.service.admin.KeycloakAdminClient;
 import com.studywebsite.support.TestAuth;
 import org.junit.jupiter.api.BeforeEach;
@@ -52,8 +53,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Transactional
 class RoleAccessControlTest {
 
-    private static final String ROADMAP_JSON = """
-            {"title":"A plan","description":"made in a test"}""";
+    @Autowired
+    private ZitounaTagRepository tags;
+
+    private String roadmapJson() {
+        long institution = tags.findByNormalizedNameAndParentIsNull("tum").orElseThrow().getId();
+        return """
+                {"title":"A plan","description":"made in a test","tagSelection":{"institutionIds":[%d]}}
+                """.formatted(institution);
+    }
 
     @Autowired
     private MockMvc mockMvc;
@@ -102,7 +110,7 @@ class RoleAccessControlTest {
         mockMvc.perform(post("/api/roadmaps")
                         .with(TestAuth.viewer(viewerId))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(ROADMAP_JSON))
+                        .content(roadmapJson()))
                 .andExpect(status().isForbidden());
     }
 
@@ -111,13 +119,13 @@ class RoleAccessControlTest {
         mockMvc.perform(post("/api/roadmaps")
                         .with(TestAuth.contributor(contributorId))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(ROADMAP_JSON))
+                        .content(roadmapJson()))
                 .andExpect(status().isCreated());
 
         mockMvc.perform(post("/api/roadmaps")
                         .with(TestAuth.admin(adminId))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(ROADMAP_JSON))
+                        .content(roadmapJson()))
                 .andExpect(status().isCreated());
     }
 
@@ -125,7 +133,7 @@ class RoleAccessControlTest {
     void anonymousVisitorsCannotCreateARoadmap() throws Exception {
         mockMvc.perform(post("/api/roadmaps")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(ROADMAP_JSON))
+                        .content(roadmapJson()))
                 .andExpect(status().isUnauthorized());
     }
 

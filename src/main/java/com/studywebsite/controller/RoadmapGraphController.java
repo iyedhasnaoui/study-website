@@ -6,7 +6,7 @@ import com.studywebsite.model.ModerationStatus;
 import com.studywebsite.model.Roadmap;
 import com.studywebsite.model.RoadmapEdge;
 import com.studywebsite.model.RoadmapNode;
-import com.studywebsite.model.User;
+import com.studywebsite.repository.UserRepository;
 import com.studywebsite.security.AuthenticatedUserPrincipal;
 import com.studywebsite.security.CurrentUser;
 import com.studywebsite.service.RoadmapService;
@@ -16,6 +16,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
@@ -27,6 +28,7 @@ import java.util.List;
 public class RoadmapGraphController {
 
     private final RoadmapService roadmapService;
+    private final UserRepository userRepository;
     private final RoadmapGraphService roadmapGraphService;
     private final RoadmapGraphValidator validator;
     private final RoadmapMapper mapper;
@@ -43,6 +45,7 @@ public class RoadmapGraphController {
     }
 
     @PreAuthorize("hasAnyRole('CONTRIBUTOR','ADMIN')")
+    @Transactional
     @PutMapping("/graph")
     public ResponseEntity<RoadmapGraphResponseDto> saveGraph(
             @PathVariable Long roadmapId,
@@ -57,6 +60,7 @@ public class RoadmapGraphController {
 
     /** Splits a step and the branch below it into a roadmap of its own. */
     @PreAuthorize("hasAnyRole('CONTRIBUTOR','ADMIN')")
+    @Transactional
     @PostMapping("/nodes/{nodeId}/extract")
     public ResponseEntity<RoadmapGraphResponseDto> extractNode(
             @PathVariable Long roadmapId,
@@ -66,10 +70,10 @@ public class RoadmapGraphController {
         Roadmap roadmap = roadmapService.getById(roadmapId);
         roadmapService.assertCanEdit(roadmap, principal);
 
-        User author = new User();
-        author.setId(principal.userId());
-
-        Roadmap extracted = roadmapGraphService.extractNode(roadmap, nodeId, author);
+        Roadmap extracted = roadmapGraphService.extractNode(
+                roadmap, nodeId, userRepository.getReferenceById(principal.userId()));
+        roadmap.setModerationStatus(ModerationStatus.PENDING);
+        roadmap.setModerationNote(null);
         return ResponseEntity.created(URI.create("/api/roadmaps/" + extracted.getId() + "/graph"))
                 .body(readGraph(roadmapService.getByIdWithTags(extracted.getId())));
     }

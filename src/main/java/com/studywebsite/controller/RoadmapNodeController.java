@@ -3,6 +3,7 @@ package com.studywebsite.controller;
 import com.studywebsite.dto.RoadmapNodeCreateDto;
 import com.studywebsite.dto.RoadmapNodeResponseDto;
 import com.studywebsite.dto.RoadmapNodeUpdateDto;
+import com.studywebsite.model.ModerationStatus;
 import com.studywebsite.model.Roadmap;
 import com.studywebsite.model.RoadmapNode;
 import com.studywebsite.model.RoadmapNodeType;
@@ -10,10 +11,12 @@ import com.studywebsite.security.AuthenticatedUserPrincipal;
 import com.studywebsite.security.CurrentUser;
 import com.studywebsite.service.RoadmapService;
 import com.studywebsite.service.roadmap.RoadmapGraphService;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
@@ -30,7 +33,7 @@ public class RoadmapNodeController {
 
     @GetMapping
     public ResponseEntity<List<RoadmapNodeResponseDto>> getAll(@PathVariable Long roadmapId) {
-        roadmapService.getById(roadmapId);
+        requireVisibleRoadmap(roadmapId);
         return ResponseEntity.ok(
                 roadmapGraphService.findNodes(roadmapId).stream().map(mapper::toNodeDto).toList());
     }
@@ -40,10 +43,12 @@ public class RoadmapNodeController {
             @PathVariable Long roadmapId,
             @PathVariable Long nodeId) {
 
+        requireVisibleRoadmap(roadmapId);
         return ResponseEntity.ok(mapper.toNodeDto(roadmapGraphService.getNode(roadmapId, nodeId)));
     }
 
     @PreAuthorize("hasAnyRole('CONTRIBUTOR','ADMIN')")
+    @Transactional
     @PostMapping
     public ResponseEntity<RoadmapNodeResponseDto> create(
             @PathVariable Long roadmapId,
@@ -66,6 +71,7 @@ public class RoadmapNodeController {
     }
 
     @PreAuthorize("hasAnyRole('CONTRIBUTOR','ADMIN')")
+    @Transactional
     @PutMapping("/{nodeId}")
     public ResponseEntity<RoadmapNodeResponseDto> update(
             @PathVariable Long roadmapId,
@@ -101,6 +107,7 @@ public class RoadmapNodeController {
     }
 
     @PreAuthorize("hasAnyRole('CONTRIBUTOR','ADMIN')")
+    @Transactional
     @DeleteMapping("/{nodeId}")
     public ResponseEntity<Void> delete(
             @PathVariable Long roadmapId,
@@ -111,10 +118,19 @@ public class RoadmapNodeController {
         return ResponseEntity.noContent().build();
     }
 
+    private void requireVisibleRoadmap(Long roadmapId) {
+        Roadmap roadmap = roadmapService.getById(roadmapId);
+        if (!RoadmapController.isVisibleTo(roadmap, CurrentUser.find().orElse(null))) {
+            throw new EntityNotFoundException("Roadmap entity not found");
+        }
+    }
+
     private Roadmap requireEditableRoadmap(Long roadmapId) {
         AuthenticatedUserPrincipal principal = CurrentUser.require();
         Roadmap roadmap = roadmapService.getById(roadmapId);
         roadmapService.assertCanEdit(roadmap, principal);
+        roadmap.setModerationStatus(ModerationStatus.PENDING);
+        roadmap.setModerationNote(null);
         return roadmap;
     }
 }

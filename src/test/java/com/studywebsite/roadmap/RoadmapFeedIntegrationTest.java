@@ -26,6 +26,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -98,7 +99,7 @@ class RoadmapFeedIntegrationTest {
         assertThat(ids(read(get("/api/roadmaps").param("q", "tagged reads")
                 .param("tagIds", tum + "," + singapore)))).containsExactly(id);
         assertThat(ids(read(get("/api/roadmaps").param("q", "tagged reads")
-                .param("tagIds", "999999," + singapore)))).containsExactly(id);
+                .param("tagIds", "999999," + singapore)))).isEmpty();
         assertThat(ids(read(get("/api/roadmaps").param("q", "tagged reads").param("tag", "missing"))))
                 .isEmpty();
         assertThat(ids(read(get("/api/roadmaps").param("q", "tagged reads").param("tagIds", "999999"))))
@@ -111,6 +112,9 @@ class RoadmapFeedIntegrationTest {
         JsonNode created = createTaggedRoadmap(owner, "tagged edit", tagId("tum"), tagId("university of singapore"));
         long id = created.get("id").asLong();
         long rootId = created.get("nodes").get(0).get("id").asLong();
+        Roadmap published = roadmaps.findByIdWithTags(id).orElseThrow();
+        published.setModerationStatus(ModerationStatus.APPROVED);
+        roadmaps.saveAndFlush(published);
 
         JsonNode savedGraph = read(put("/api/roadmaps/{id}/graph", id).with(owner)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -125,6 +129,8 @@ class RoadmapFeedIntegrationTest {
                                   {"sourceRef":"b","targetRef":"c"},{"sourceRef":"c","targetRef":"d"}]}
                         """.formatted(rootId)));
         assertTags(savedGraph);
+        assertThat(roadmaps.findById(id).orElseThrow().getModerationStatus()).isEqualTo(ModerationStatus.PENDING);
+        mockMvc.perform(get("/api/roadmaps/{id}/graph", id)).andExpect(status().isNotFound());
         JsonNode updated = read(put("/api/roadmaps/{id}", id).with(owner)
                 .contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"edited roadmap\"}"));
         assertTags(updated);
@@ -142,6 +148,79 @@ class RoadmapFeedIntegrationTest {
         assertThat(extracted.get("authorUsername").asText()).isEqualTo("tags.editor");
         assertThat(extracted.get("tags")).isEmpty();
         assertTags(read(get("/api/roadmaps/{id}/graph", id).with(owner)));
+    }
+
+    @Test
+    void directNodeEditRequiresReapprovalAndUnpublishedNodesArePrivate() throws Exception {
+        User author = user("node.author");
+        RequestPostProcessor owner = TestAuth.contributor(author.getId());
+        JsonNode created = createTaggedRoadmap(owner, "node moderation", tagId("tum"), tagId("university of singapore"));
+        long id = created.get("id").asLong();
+        long rootId = created.get("nodes").get(0).get("id").asLong();
+
+        mockMvc.perform(get("/api/roadmaps/{id}/nodes", id)).andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/roadmaps/{id}/nodes/{nodeId}", id, rootId))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/roadmaps/{id}/nodes/{nodeId}", id, rootId).with(owner))
+                .andExpect(status().isOk());
+
+        Roadmap published = roadmaps.findByIdWithTags(id).orElseThrow();
+        published.setModerationStatus(ModerationStatus.APPROVED);
+        roadmaps.saveAndFlush(published);
+        mockMvc.perform(get("/api/roadmaps/{id}/nodes", id)).andExpect(status().isOk());
+        read(put("/api/roadmaps/{id}/nodes/{nodeId}", id, rootId).with(owner)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"Changed node\"}"));
+        assertThat(roadmaps.findById(id).orElseThrow().getModerationStatus()).isEqualTo(ModerationStatus.PENDING);
+        mockMvc.perform(get("/api/roadmaps/{id}/nodes/{nodeId}", id, rootId))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void directNodeCreationAndDeletionInvalidateApproval() throws Exception {
+        User author = user("node.mutations.author");
+        RequestPostProcessor owner = TestAuth.contributor(author.getId());
+        long id = createTaggedRoadmap(owner, "node mutation moderation", tagId("tum"),
+                tagId("university of singapore")).get("id").asLong();
+        Roadmap roadmap = roadmaps.findByIdWithTags(id).orElseThrow();
+        roadmap.setModerationStatus(ModerationStatus.APPROVED);
+        roadmaps.saveAndFlush(roadmap);
+
+        String response = mockMvc.perform(post("/api/roadmaps/{id}/nodes", id).with(owner)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"New step\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        long nodeId = objectMapper.readTree(response).get("id").asLong();
+        assertThat(roadmaps.findById(id).orElseThrow().getModerationStatus()).isEqualTo(ModerationStatus.PENDING);
+
+        roadmap = roadmaps.findByIdWithTags(id).orElseThrow();
+        roadmap.setModerationStatus(ModerationStatus.APPROVED);
+        roadmaps.saveAndFlush(roadmap);
+        mockMvc.perform(delete("/api/roadmaps/{id}/nodes/{nodeId}", id, nodeId).with(owner))
+                .andExpect(status().isNoContent());
+        assertThat(roadmaps.findById(id).orElseThrow().getModerationStatus()).isEqualTo(ModerationStatus.PENDING);
+        mockMvc.perform(get("/api/roadmaps/{id}/nodes", id)).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void invalidGraphEditPreservesApprovedContentAndStatus() throws Exception {
+        RequestPostProcessor owner = TestAuth.contributor(user("invalid.graph.author").getId());
+        JsonNode created = createTaggedRoadmap(owner, "Published roadmap", tagId("tum"), tagId("university of singapore"));
+        long id = created.get("id").asLong();
+        long rootId = created.get("nodes").get(0).get("id").asLong();
+        Roadmap roadmap = roadmaps.findByIdWithTags(id).orElseThrow();
+        roadmap.setModerationStatus(ModerationStatus.APPROVED);
+        roadmaps.saveAndFlush(roadmap);
+        String invalid = """
+                {"nodes":[{"id":%d,"ref":"root","title":"Unapproved root","nodeType":"ROOT","positionX":0,"positionY":0},
+                          {"ref":"isolated","title":"Unreachable step","nodeType":"PRIMARY","positionX":0,"positionY":100}],
+                 "edges":[]}
+                """.formatted(rootId);
+
+        mockMvc.perform(put("/api/roadmaps/{id}/graph", id).with(owner)
+                .contentType(MediaType.APPLICATION_JSON).content(invalid)).andExpect(status().isBadRequest());
+        assertThat(roadmaps.findById(id).orElseThrow().getModerationStatus()).isEqualTo(ModerationStatus.APPROVED);
+        JsonNode published = read(get("/api/roadmaps/{id}/graph", id));
+        assertThat(published.get("nodes")).hasSize(1);
+        assertThat(published.get("nodes").get(0).get("title").asText()).isEqualTo("Published roadmap");
     }
 
     private void assertVisibility(RequestPostProcessor viewer, List<Long> visible, List<Long> hidden) throws Exception {
