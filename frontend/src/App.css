@@ -763,6 +763,7 @@
 }
 
 .feature-card {
+  text-decoration: none;
   min-height: 460px;
   padding: 30px;
   display: flex;
@@ -776,6 +777,11 @@
 .feature-card:hover {
   transform: translateY(-8px);
   box-shadow: 0 30px 70px rgba(6, 25, 54, 0.12);
+}
+
+.feature-card:focus-visible {
+  outline: 3px solid var(--gold-600);
+  outline-offset: 4px;
 }
 
 .feature-card--2 {
@@ -853,7 +859,7 @@
   color: #b9c6d8;
 }
 
-.feature-card button {
+.feature-card__action {
   align-self: flex-start;
   margin-top: 25px;
   padding: 0 0 5px;
@@ -865,7 +871,7 @@
   font-weight: 800;
 }
 
-.feature-card--2 button {
+.feature-card--2 .feature-card__action {
   color: var(--gold-400);
 }
 
@@ -1252,7 +1258,7 @@
 .dark .section-heading h2,
 .dark .closing-cta h2,
 .dark .feature-card h3,
-.dark .feature-card button,
+.dark .feature-card__action,
 .dark .auth-card h2,
 .dark .auth-form label {
   color: #f7f1e2;

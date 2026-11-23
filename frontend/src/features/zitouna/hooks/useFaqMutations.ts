@@ -24,14 +24,14 @@ export const useFaqMutations = () => {
 
 
     const updateMutation = useMutation({
-        // Changed id type from string to number
-        mutationFn: ({ id, data }: { id: number; data: Partial<FaqEntry> }) => updateFaq(id, data),
+        mutationFn: ({ id, data }: { id: number; data: Parameters<typeof updateFaq>[1] }) => updateFaq(id, data),
         onMutate: async ({ id, data }) => {
             await queryClient.cancelQueries({ queryKey: ['faqs'] });
             const previousFaqs = queryClient.getQueryData<FaqEntry[]>(['faqs']);
 
+            // Request tags are selections, not response tags; retain the array until refetch.
             queryClient.setQueryData<FaqEntry[]>(['faqs'], (old) =>
-                old?.map(faq => (faq.id === id ? { ...faq, ...data } : faq))
+                old?.map(faq => (faq.id === id ? { ...faq, ...data, tags: faq.tags } : faq))
             );
             return { previousFaqs };
         },

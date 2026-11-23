@@ -20,6 +20,7 @@ const features = [
     copy: 'Search forum posts, roadmaps, learning materials, and FAQs through one shared system of tags.',
     action: 'Explore Zitouna',
     kind: 'zitouna',
+    href: '#zitouna',
   },
   {
     icon: '◎',
@@ -28,6 +29,7 @@ const features = [
     copy: 'Meet the mission, principles, and community values that guide Ifriqiya Academic Circle.',
     action: 'Discover our mission',
     kind: 'about',
+    href: '#about',
   },
   {
     icon: '✦',
@@ -36,6 +38,7 @@ const features = [
     copy: 'Sign in to contribute, follow your submissions, and build a useful record of shared experience.',
     action: 'Open your profile',
     kind: 'profile',
+    href: '#zitouna',
   },
 ]
 
@@ -159,7 +162,17 @@ export function HomePage({ onOpenZitouna, onOpenAbout, onOpenProfile }: HomePage
 
           <div className="feature-grid">
             {features.map((feature, index) => (
-              <article className={`feature-card feature-card--${index + 1}`} key={feature.title}>
+              <a
+                className={`feature-card feature-card--${index + 1}`}
+                key={feature.title}
+                href={feature.href}
+                aria-labelledby={`feature-action-${feature.kind}`}
+                onClick={(event) => {
+                  if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+                  event.preventDefault()
+                  runFeatureAction(feature.kind)
+                }}
+              >
                 <div className="feature-card__top">
                   <span className="feature-card__icon">{feature.icon}</span>
                   <span className="feature-card__index">0{index + 1}</span>
@@ -167,10 +180,10 @@ export function HomePage({ onOpenZitouna, onOpenAbout, onOpenProfile }: HomePage
                 <p className="feature-card__label">{feature.label}</p>
                 <h3>{feature.title}</h3>
                 <p>{feature.copy}</p>
-                <button type="button" onClick={() => runFeatureAction(feature.kind)}>
+                <span className="feature-card__action" id={`feature-action-${feature.kind}`}>
                   {feature.action} <span aria-hidden="true">→</span>
-                </button>
-              </article>
+                </span>
+              </a>
             ))}
           </div>
         </div>
