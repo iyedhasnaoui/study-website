@@ -1,0 +1,193 @@
+/* Shared by Keycloak's native login, registration, reset and required-action forms.
+   Form templates and scripts stay inherited; template.ftl adds presentation text only. */
+:root {
+  --iac-navy: #082651;
+  --iac-ink: #0a244f;
+  --iac-gold: #a97920;
+  --iac-cream: #f7f4ec;
+  --iac-paper: #fffdf8;
+  --iac-muted: #667085;
+  --iac-line: #d2dae5;
+}
+html.login-pf { min-height: 100%; background: var(--iac-cream); }
+.login-pf body {
+  min-height: 100vh;
+  margin: 0;
+  color: var(--iac-ink);
+  background: radial-gradient(circle at 6% 8%, #c395381c, transparent 24rem),
+    linear-gradient(180deg, #faf8f2, var(--iac-cream));
+  font: 400 16px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.login-pf-page { width: 100%; padding: 48px 24px; }
+#kc-header { margin: 0 auto 24px; padding: 0; max-width: 480px; color: var(--iac-gold); }
+#kc-header-wrapper {
+  padding: 0;
+  font-size: 14px;
+  font-weight: 750;
+  letter-spacing: .16em;
+  line-height: 1.6;
+  text-transform: uppercase;
+  white-space: normal;
+}
+#kc-header-wrapper::before {
+  content: "";
+  display: block;
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 24px;
+  border: 1px solid #c3953852;
+  border-radius: 22px;
+  background: white url("../img/iac-logo.jpeg") center / contain no-repeat;
+}
+.login-pf-page .card-pf {
+  width: 100%;
+  max-width: 552px;
+  margin: 0 auto;
+  padding: 36px;
+  border: 1px solid #c395382e;
+  border-radius: 24px;
+  background: var(--iac-paper);
+  box-shadow: 0 16px 48px #08265108;
+}
+.login-pf-page .login-pf-header { margin-bottom: 28px; }
+#kc-page-title {
+  margin: 0;
+  color: var(--iac-navy);
+  font: 400 clamp(2rem, 5vw, 2.9rem)/1.15 Georgia, "Times New Roman", serif;
+  letter-spacing: -.035em;
+  text-align: left;
+}
+#kc-content, #kc-content-wrapper { margin: 0; }
+.login-pf-page .form-group { margin-bottom: 22px; }
+.login-pf-page label, .login-pf-page .control-label {
+  margin-bottom: 8px;
+  color: var(--iac-navy);
+  font-size: 14px;
+  font-weight: 650;
+}
+.login-pf-page :is(.form-control, .pf-c-form-control) {
+  width: 100%;
+  min-height: 56px;
+  height: auto;
+  padding: 14px 18px;
+  border: 1px solid var(--iac-line);
+  border-radius: 17px;
+  background: #fff;
+  color: var(--iac-ink);
+  box-shadow: none;
+  font: inherit;
+}
+.login-pf-page :is(.form-control, .pf-c-form-control):focus {
+  border-color: var(--iac-gold);
+  outline: 3px solid #c395382b;
+  outline-offset: 2px;
+  box-shadow: none;
+}
+.login-pf-page :is(.input-group, .pf-c-input-group) { display: flex; width: 100%; }
+.login-pf-page :is(.input-group, .pf-c-input-group) :is(.form-control, .pf-c-form-control) { flex: 1; min-width: 0; border-radius: 17px 0 0 17px; }
+.login-pf-page :is(.input-group, .pf-c-input-group) :is(.btn, .pf-c-button.pf-m-control) {
+  flex: 0 0 56px;
+  border: 1px solid var(--iac-line);
+  border-left: 0;
+  border-radius: 0 17px 17px 0;
+  color: var(--iac-gold);
+  background: #fff;
+  box-shadow: none;
+}
+.login-pf-page a { color: var(--iac-navy); text-decoration: underline; text-underline-offset: 4px; }
+.login-pf-page a:hover { color: #805b17; }
+.login-pf-page a:focus-visible, .login-pf-page button:focus-visible,
+.login-pf-page input[type="submit"]:focus-visible, .login-pf-page input[type="checkbox"]:focus-visible {
+  outline: 3px solid var(--iac-gold);
+  outline-offset: 4px;
+}
+.login-pf-page :is(.btn-primary, .pf-c-button.pf-m-primary) {
+  min-height: 54px;
+  padding: 13px 22px;
+  border: 1px solid var(--iac-navy);
+  border-radius: 17px;
+  background: var(--iac-navy);
+  color: white;
+  box-shadow: none;
+  font-size: 16px;
+  font-weight: 650;
+  text-shadow: none;
+}
+.login-pf-page :is(.btn-primary, .pf-c-button.pf-m-primary):hover, .login-pf-page :is(.btn-primary, .pf-c-button.pf-m-primary):focus { background: #174a86; border-color: #174a86; }
+.login-pf-page :is(.btn-primary, .pf-c-button.pf-m-primary):disabled { opacity: .65; }
+#kc-form-buttons { margin-top: 28px; }
+#kc-form-options .checkbox { margin-top: 0; }
+.login-pf-page input[type="checkbox"], .login-pf-page input[type="radio"] { accent-color: var(--iac-navy); }
+#kc-info { margin: 28px 0 0; }
+#kc-info-wrapper { padding: 20px; border-radius: 17px; background: #08265106; font-size: 14px; }
+#kc-registration span { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.login-pf-page .alert { padding: 16px; border-radius: 14px; font-size: 14px; overflow-wrap: anywhere; }
+.login-pf-page .kc-feedback-text { color: var(--iac-ink); }
+.login-pf-page :is(.form-control, .pf-c-form-control)[aria-invalid="true"] { border-color: #a62929; }
+.login-pf-page .pf-c-form__helper-text.pf-m-error,
+.login-pf-page .error { color: #a62929; font-size: 14px; }
+#kc-form-wrapper .col-md-10, #kc-register-form .col-md-10,
+#kc-register-form .col-md-2 { width: 100%; padding: 0; text-align: left; }
+#kc-register-form .form-group { margin-left: 0; margin-right: 0; }
+#kc-register-form #kc-form-options { margin-bottom: 18px; }
+.login-pf-page .subtitle, .login-pf-page .instruction { color: var(--iac-muted); font-size: 14px; }
+#kc-locale { position: relative; top: auto; right: auto; margin-bottom: 16px; }
+#kc-locale ul { border-radius: 12px; }
+@media (max-width: 600px) {
+  .login-pf-page { padding: 28px 20px; }
+  #kc-header { margin-bottom: 24px; text-align: left; }
+  #kc-header-wrapper { text-align: left; }
+  #kc-header-wrapper::before { margin-left: 0; }
+  .login-pf-page .card-pf { padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+  .login-pf-page .login-pf-header { margin-bottom: 28px; }
+  #kc-form-options, #kc-form-buttons { float: none; width: 100%; }
+  #kc-info-wrapper { padding: 18px; }
+}
+/* PatternFly draws an additional square control border through this pseudo-element. */
+.login-pf-page .pf-c-button.pf-m-control::after { border: 0; }
+#kc-register-form .form-group > [class*="col-"] { width: 100%; padding: 0; text-align: left; }
+#kc-register-form .form-group::after { clear: both; }
+#kc-header-wrapper { color: var(--iac-gold); }
+.login-pf-page .login-pf-header [class*="col-"] { width: 100%; padding: 0; }
+.login-pf-page .login-pf-header .subtitle { margin-top: 0; margin-bottom: 12px; }
+.login-pf-page .pf-c-input-group { border-radius: 17px; background: transparent; }
+.login-pf-page .pf-c-input-group .pf-c-button.pf-m-control { border-radius: 0 17px 17px 0; }
+
+/* Page introductions remain real text for assistive technology and localization. */
+.login-pf-page .iac-page-subtitle {
+  clear: both;
+  margin: 14px 0 0;
+  color: var(--iac-muted);
+  font-size: 16px;
+  line-height: 1.6;
+  text-align: left;
+}
+.login-pf-page .login-pf-header::after { content: ""; display: table; clear: both; }
+#kc-registration a { font-weight: 650; }
+#kc-form-options a { display: inline-block; padding-block: 4px; }
+.login-pf-page :is(a, .pf-c-button, input[type="submit"], .pf-c-form-control) {
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+.login-pf-page .pf-c-input-group .pf-c-button.pf-m-control:hover { background: #c3953812; color: #805b17; }
+.login-pf-page .pf-c-form-control:hover:not(:focus):not([aria-invalid="true"]) { border-color: #aab7c9; }
+.login-pf-page :is(.alert, .pf-c-alert) {
+  margin-bottom: 22px;
+  padding: 16px;
+  gap: 10px;
+  border: 1px solid var(--iac-line);
+  border-inline-start-width: 4px;
+  border-radius: 14px;
+  box-shadow: none;
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.login-pf-page :is(.alert-error, .pf-c-alert.pf-m-danger) { border-color: #a62929; background: #fff5f3; }
+.login-pf-page :is(.alert-success, .pf-c-alert.pf-m-success) { border-color: #32734c; background: #f1f8f2; }
+.login-pf-page :is(.alert-warning, .pf-c-alert.pf-m-warning) { border-color: var(--iac-gold); background: #fff9eb; }
+.login-pf-page :is(.alert-info, .pf-c-alert.pf-m-info) { border-color: #174a86; background: #f2f6fc; }
+.login-pf-page .pf-c-alert__title { color: var(--iac-ink); font-size: 14px; font-weight: 500; }
+.login-pf-page .pf-c-form__helper-text.pf-m-error { display: block; margin-top: 8px; line-height: 1.5; }
+@media (prefers-reduced-motion: reduce) {
+  .login-pf-page :is(a, .pf-c-button, input[type="submit"], .pf-c-form-control) { transition: none; }
+}
