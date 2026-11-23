@@ -1,5 +1,6 @@
 package com.studywebsite.service;
 
+import com.studywebsite.security.AuthorVisibility;
 import com.studywebsite.dto.ForumPostCreateDto;
 import com.studywebsite.dto.RoadmapCreateDto;
 import com.studywebsite.dto.zitouna.ZitounaDtos;
@@ -37,6 +38,7 @@ public class ZitounaService {
         Set<Long> requestedTags = tagIds == null ? Set.of() : tagIds;
 
         Stream<ZitounaDtos.FeedItemResponse> forum = forumPostRepository.findAll().stream()
+                .filter(post -> AuthorVisibility.isVisible(post.getAuthor()))
                 .filter(post -> isPublished(post.getModerationStatus()))
                 .filter(post -> matchesTags(post.getTags(), requestedTags))
                 .map(post -> new ZitounaDtos.FeedItemResponse(
@@ -45,6 +47,7 @@ public class ZitounaService {
                         effectiveStatus(post.getModerationStatus()), tags(post.getTags()), null));
 
         Stream<ZitounaDtos.FeedItemResponse> roadmaps = roadmapRepository.findAll().stream()
+                .filter(roadmap -> AuthorVisibility.isVisible(roadmap.getAuthor()))
                 .filter(roadmap -> isPublished(roadmap.getModerationStatus()))
                 .filter(roadmap -> matchesTags(roadmap.getTags(), requestedTags))
                 .map(roadmap -> new ZitounaDtos.FeedItemResponse(
@@ -53,6 +56,7 @@ public class ZitounaService {
                         effectiveStatus(roadmap.getModerationStatus()), tags(roadmap.getTags()), null));
 
         Stream<ZitounaDtos.FeedItemResponse> materials = resourceRepository.findAll().stream()
+                .filter(resource -> AuthorVisibility.isVisible(resource.getAuthor()))
                 .filter(resource -> isPublished(resource.getModerationStatus()))
                 .filter(resource -> matchesTags(resource.getTags(), requestedTags))
                 .map(resource -> new ZitounaDtos.FeedItemResponse(
@@ -123,6 +127,7 @@ public class ZitounaService {
         Set<Long> requestedTags = tagIds == null ? Set.of() : tagIds;
 
         return resourceRepository.findAll().stream()
+                .filter(material -> AuthorVisibility.isVisible(material.getAuthor()))
                 .filter(material -> isPublished(material.getModerationStatus())
                         || (includePending && material.getAuthor() != null && Objects.equals(material.getAuthor().getId(), userId)))
                 .filter(material -> cleanQuery.isBlank() || contains(material.getTitle(), cleanQuery) || contains(material.getDescription(), cleanQuery))
@@ -147,7 +152,8 @@ public class ZitounaService {
     public Resource requireMaterial(Long id) {
         Resource material = resourceRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Learning material not found"));
-        if (!isPublished(material.getModerationStatus())) {
+        if (!AuthorVisibility.isVisible(material.getAuthor())
+                || !isPublished(material.getModerationStatus())) {
             throw new EntityNotFoundException("Learning material not found");
         }
         return material;

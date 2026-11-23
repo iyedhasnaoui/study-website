@@ -109,6 +109,7 @@ class ForumReplyControllerTest {
 
         ForumPost post = new ForumPost();
         post.setId(1L);
+        post.setAuthor(author);
 
         ForumReply reply = ForumReply.builder()
                 .id(7L)

@@ -1,5 +1,6 @@
 package com.studywebsite.controller;
 
+import com.studywebsite.security.AuthorVisibility;
 import com.studywebsite.dto.RoadmapCreateDto;
 import com.studywebsite.dto.RoadmapResponseDto;
 import com.studywebsite.dto.RoadmapUpdateDto;
@@ -179,6 +180,7 @@ public class RoadmapController {
      * roadmaps awaiting moderation or rejected by a moderator.
      */
     static boolean isVisibleTo(Roadmap roadmap, AuthenticatedUserPrincipal principal) {
+        if (!AuthorVisibility.isVisible(roadmap.getAuthor(), principal)) return false;
         if ((principal != null && principal.isAdmin())
                 || roadmap.getModerationStatus() == null
                 || roadmap.getModerationStatus() == ModerationStatus.APPROVED) {

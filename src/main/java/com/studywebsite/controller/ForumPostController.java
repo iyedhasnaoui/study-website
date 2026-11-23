@@ -1,5 +1,6 @@
 package com.studywebsite.controller;
 
+import com.studywebsite.security.AuthorVisibility;
 import com.studywebsite.dto.ForumPostCreateDto;
 import com.studywebsite.dto.ForumAttachmentResponseDto;
 import com.studywebsite.dto.ForumPostResponseDto;
@@ -72,9 +73,8 @@ public class ForumPostController {
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size
     ) {
-        Long viewerId = principal != null ? principal.userId() : null;
         List<ForumPost> posts = forumPostService.getAll().stream()
-                .filter(post -> isVisibleTo(post, viewerId))
+                .filter(post -> isVisibleTo(post, principal))
                 .toList();
 
         if (q != null && !q.isBlank()) {
@@ -113,15 +113,19 @@ public class ForumPostController {
             @PathVariable Long id
     ) {
         ForumPost post = forumPostService.getById(id);
-        Long viewerId = principal != null ? principal.userId() : null;
-        if (!isVisibleTo(post, viewerId)) {
+        if (!isVisibleTo(post, principal)) {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok(toResponseDto(post));
     }
 
-    /** Returns true when the post is published, or when the viewer is the author. */
-    private boolean isVisibleTo(ForumPost post, Long viewerId) {
+    /** Author eligibility is checked before the existing publication/ownership rules. */
+    private boolean isVisibleTo(ForumPost post, AuthenticatedUserPrincipal principal) {
+        if (!AuthorVisibility.isVisible(post.getAuthor(), principal)) return false;
+        // Moderators can inspect content hidden by the author gate in any moderation state.
+        if (principal != null && principal.isAdmin()
+                && (post.getAuthor() == null || Boolean.TRUE.equals(post.getAuthor().getBanned()))) return true;
+        Long viewerId = principal == null ? null : principal.userId();
         if (post.getModerationStatus() == null
                 || post.getModerationStatus() == com.studywebsite.model.ModerationStatus.APPROVED) {
             return true;
@@ -219,7 +223,9 @@ public class ForumPostController {
                         .toList())
                 .createdAt(p.getCreatedAt())
                 .updatedAt(p.getUpdatedAt())
-                .replyCount(p.getReplies() != null ? p.getReplies().size() : 0)
+                .replyCount(p.getReplies() == null ? 0 : (int) p.getReplies().stream()
+                        .filter(reply -> AuthorVisibility.isVisible(reply.getAuthor()))
+                        .count())
                 .build();
     }
 

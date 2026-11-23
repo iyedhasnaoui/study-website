@@ -1,5 +1,6 @@
 package com.studywebsite.service;
 
+import com.studywebsite.security.AuthorVisibility;
 import com.studywebsite.model.ModerationStatus;
 import com.studywebsite.model.Roadmap;
 import com.studywebsite.repository.RoadmapRepository;
@@ -44,12 +45,16 @@ public class RoadmapService {
 
     @Transactional(readOnly = true)
     public List<Roadmap> getVisibleRoadmaps(Long viewerId, boolean isAdmin) {
-        return roadmapRepository.findVisibleRoadmaps(viewerId, isAdmin);
+        return roadmapRepository.findVisibleRoadmaps(viewerId, isAdmin).stream()
+                .filter(roadmap -> isAdmin || AuthorVisibility.isVisible(roadmap.getAuthor(), null))
+                .toList();
     }
 
     @Transactional(readOnly = true)
     public List<Roadmap> getApprovedRoadmaps() {
-        return roadmapRepository.findByModerationStatusOrderByTitleAsc(com.studywebsite.model.ModerationStatus.APPROVED);
+        return roadmapRepository.findByModerationStatusOrderByTitleAsc(com.studywebsite.model.ModerationStatus.APPROVED).stream()
+                .filter(roadmap -> AuthorVisibility.isVisible(roadmap.getAuthor()))
+                .toList();
     }
 
     public List<Roadmap> getAll() {

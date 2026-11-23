@@ -1,5 +1,6 @@
 package com.studywebsite.controller;
 
+import com.studywebsite.security.AuthorVisibility;
 import com.studywebsite.dto.RoadmapNodeCreateDto;
 import com.studywebsite.dto.RoadmapNodeResponseDto;
 import com.studywebsite.dto.RoadmapNodeUpdateDto;
@@ -30,7 +31,7 @@ public class RoadmapNodeController {
 
     @GetMapping
     public ResponseEntity<List<RoadmapNodeResponseDto>> getAll(@PathVariable Long roadmapId) {
-        roadmapService.getById(roadmapId);
+        requireVisibleAuthor(roadmapId);
         return ResponseEntity.ok(
                 roadmapGraphService.findNodes(roadmapId).stream().map(mapper::toNodeDto).toList());
     }
@@ -40,6 +41,7 @@ public class RoadmapNodeController {
             @PathVariable Long roadmapId,
             @PathVariable Long nodeId) {
 
+        requireVisibleAuthor(roadmapId);
         return ResponseEntity.ok(mapper.toNodeDto(roadmapGraphService.getNode(roadmapId, nodeId)));
     }
 
@@ -109,6 +111,13 @@ public class RoadmapNodeController {
         requireEditableRoadmap(roadmapId);
         roadmapGraphService.deleteNode(roadmapId, nodeId);
         return ResponseEntity.noContent().build();
+    }
+
+    private void requireVisibleAuthor(Long roadmapId) {
+        Roadmap roadmap = roadmapService.getById(roadmapId);
+        if (!AuthorVisibility.isVisible(roadmap.getAuthor())) {
+            throw new jakarta.persistence.EntityNotFoundException("Roadmap not found");
+        }
     }
 
     private Roadmap requireEditableRoadmap(Long roadmapId) {
