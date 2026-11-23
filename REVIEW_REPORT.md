@@ -1,5 +1,34 @@
 # IAC Website — release testing review
 
+## 23 November 2026 — selective integration of November fixes
+
+Compared `b31ffda`, `fb10254` and `19ec306` on `test/team-sync-2026-11-11` against team commit `670160a` on `feat/roadmap-graph-enhance`. Changes were integrated selectively on `codex/team-sync-2026-11-23`. Existing worktrees and local changes were preserved.
+
+| November change | Current team state | Integration and regression coverage |
+| --- | --- | --- |
+| Forum published-versus-pending response | Still exposed revision title, content, status and note to public readers | Restored reader-aware projection. Owners retain draft access. Tests cover public and other-user list/detail reads, approval, rejection and stale versions. |
+| Replies on unpublished posts | Direct API reads and writes still lacked parent visibility checks | Enforced publication for list/detail, JSON/multipart creation and editing. Tests cover pending/rejected/needs-fixing posts, retained replies, admin cleanup and legacy published posts. |
+| Forum detail page | Still showed reply controls on rejected content and stale content after failed navigation | Integrated the two focused component fixes and behavioral tests. |
+| Viewer Delete control | Still offered Delete although the server refuses it | Kept the team's owner-viewer editing behavior and removed the unavailable Delete action. Tests cover ownership, session loss and rejected post controls. |
+| Roadmap node reads | Still bypassed graph visibility checks | Applied the graph visibility policy to direct node reads. Tests cover anonymous and owner access. |
+| Roadmap edit reapproval | Graph saves could retain approval with Open Session in View disabled. Direct node changes and extraction also needed reapproval | Added transaction boundaries and persisted source moderation state. Tests cover graph save, node create/update/delete, extraction, author metadata and rollback of an invalid graph edit. |
+| Old test assumptions | Required tags, strict all-of filters, viewer-owner editing and rejection policy had outgrown fixtures/assertions | Updated fixture tags and assertions for the team's rules while retaining ownership and publication checks. |
+| Historical review commit | Its dated results and TODO list cannot describe the current code | Preserved history below and added this comparison. The full November report was not replayed. |
+
+The six production files targeted by the November fixes were unchanged since the November 11 team baseline, so no equivalent fixes were present there. Teammates have added FAQ filtering, admin FAQ loading, pending-submission editing, tag merging and environment configuration since then. Those newer implementations were retained. In particular, the old report's FAQ filtering/admin TODOs are superseded by `f2c8624` and `745dbf8`.
+
+### Executed validation
+
+- Current-team baseline had 106 backend tests with 20 failures, and 58 frontend tests with two failures.
+- Before production edits, the adapted regression tests reproduced public forum draft exposure, rejected-post reply access, unpublished roadmap node access, lost graph approval state, the viewer Delete button and stale forum detail rendering.
+- Final full backend suite passed **114 tests**, with zero failures or skipped tests, under JDK 17 and the isolated H2 test configuration.
+- Final frontend suite passed **61 tests**. `npm ci`, production build and lint completed. Lint reports **24 warnings and zero errors**. The existing large bundle warning remains.
+- Commands were `./gradlew test --max-workers=1`, `npm ci --no-audit --no-fund`, `npm test`, `npm run build`, `npm run lint` and `git diff --check`.
+- The invalid-edit rollback regression runs outside a test-owned transaction with Open Session in View disabled so it checks committed database state. An initial version inside a test transaction observed pending managed state before transaction rollback and was moved to the correct isolation context.
+- Current validation used local automated tests. Browser behavior, PostgreSQL rollout, banned/deleted-author visibility and scroll restoration require their own follow-up. No schema or dependency declarations were changed for these fixes.
+
+## Historical review — October 2026
+
 Updated 28 October 2026. This report separates the focused proposed contribution from the larger, preserved dirty worktree. **Nothing is staged, committed or pushed. Explicit staging/commit/push approval is pending.**
 
 ## Repository and scope
