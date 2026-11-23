@@ -1,5 +1,6 @@
 package com.studywebsite.service.media;
 
+import com.studywebsite.security.AuthorVisibility;
 import com.studywebsite.model.ForumAttachment;
 import com.studywebsite.model.ForumPost;
 import com.studywebsite.model.ForumReply;
@@ -89,7 +90,11 @@ public class ForumAttachmentService {
                 .orElseThrow(() -> new EntityNotFoundException("Forum attachment not found"));
         ForumPost post = attachment.getPost() != null ? attachment.getPost()
                 : attachment.getReply() == null ? null : attachment.getReply().getPost();
-        if (post == null || (post.getModerationStatus() != null
+        if (!AuthorVisibility.isVisible(attachment.getAuthor())
+                || (attachment.getReply() != null
+                    && !AuthorVisibility.isVisible(attachment.getReply().getAuthor()))
+                || post == null || !AuthorVisibility.isVisible(post.getAuthor())
+                || (post.getModerationStatus() != null
                 && post.getModerationStatus() != com.studywebsite.model.ModerationStatus.APPROVED)) {
             throw new EntityNotFoundException("Forum attachment not found");
         }

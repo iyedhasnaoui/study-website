@@ -1,5 +1,6 @@
 package com.studywebsite.controller;
 
+import com.studywebsite.security.AuthorVisibility;
 import com.studywebsite.dto.ForumPostCreateDto;
 import com.studywebsite.dto.ForumAttachmentResponseDto;
 import com.studywebsite.dto.ForumPostResponseDto;
@@ -72,9 +73,8 @@ public class ForumPostController {
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size
     ) {
-        Long viewerId = principal != null ? principal.userId() : null;
         List<ForumPost> posts = forumPostService.getAll().stream()
-                .filter(post -> isVisibleTo(post, viewerId))
+                .filter(post -> isVisibleTo(post, principal))
                 .toList();
 
         if (q != null && !q.isBlank()) {
@@ -100,7 +100,7 @@ public class ForumPostController {
                     .collect(Collectors.toList());
         }
 
-        List<ForumPostResponseDto> dtos = posts.stream().map(post -> toResponseDto(post, isAuthor(post, viewerId))).collect(Collectors.toList());
+        List<ForumPostResponseDto> dtos = posts.stream().map(post -> toResponseDto(post, isAuthor(post, principal))).collect(Collectors.toList());
         if (page != null && size != null) {
             return ResponseEntity.ok(paginate(dtos, page, size));
         }
@@ -113,24 +113,27 @@ public class ForumPostController {
             @PathVariable Long id
     ) {
         ForumPost post = forumPostService.getById(id);
-        Long viewerId = principal != null ? principal.userId() : null;
-        if (!isVisibleTo(post, viewerId)) {
+        if (!isVisibleTo(post, principal)) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(toResponseDto(post, isAuthor(post, viewerId)));
+        return ResponseEntity.ok(toResponseDto(post, isAuthor(post, principal)));
     }
 
-    /** Returns true when the post is published, or when the viewer is the author. */
-    private boolean isVisibleTo(ForumPost post, Long viewerId) {
+    /** Author eligibility is checked before the existing publication/ownership rules. */
+    private boolean isVisibleTo(ForumPost post, AuthenticatedUserPrincipal principal) {
+        if (!AuthorVisibility.isVisible(post.getAuthor(), principal)) return false;
+        // Moderators can inspect content hidden by the author gate in any moderation state.
+        if (principal != null && principal.isAdmin()
+                && (post.getAuthor() == null || Boolean.TRUE.equals(post.getAuthor().getBanned()))) return true;
         if (post.getModerationStatus() == null
                 || post.getModerationStatus() == com.studywebsite.model.ModerationStatus.APPROVED) {
             return true;
         }
-        return isAuthor(post, viewerId);
+        return isAuthor(post, principal);
     }
 
-    private boolean isAuthor(ForumPost post, Long viewerId) {
-        return viewerId != null && post.getAuthor() != null && viewerId.equals(post.getAuthor().getId());
+    private boolean isAuthor(ForumPost post, AuthenticatedUserPrincipal principal) {
+        return principal != null && post.getAuthor() != null && principal.userId().equals(post.getAuthor().getId());
     }
 
     @PreAuthorize("hasAnyRole('VIEWER','CONTRIBUTOR','ADMIN')")
@@ -219,7 +222,9 @@ public class ForumPostController {
                         .toList())
                 .createdAt(p.getCreatedAt())
                 .updatedAt(p.getUpdatedAt())
-                .replyCount(p.getReplies() != null ? p.getReplies().size() : 0)
+                .replyCount(p.getReplies() == null ? 0 : (int) p.getReplies().stream()
+                        .filter(reply -> AuthorVisibility.isVisible(reply.getAuthor()))
+                        .count())
                 .build();
     }
 

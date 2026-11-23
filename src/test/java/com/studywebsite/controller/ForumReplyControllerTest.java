@@ -117,6 +117,7 @@ class ForumReplyControllerTest {
         post.setId(1L);
         post.setModerationStatus(com.studywebsite.model.ModerationStatus.APPROVED);
         when(forumPostService.getById(1L)).thenReturn(post);
+        post.setAuthor(author);
 
         ForumReply reply = ForumReply.builder()
                 .id(7L)

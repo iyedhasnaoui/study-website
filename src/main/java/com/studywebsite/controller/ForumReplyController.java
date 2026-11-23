@@ -1,5 +1,6 @@
 package com.studywebsite.controller;
 
+import com.studywebsite.security.AuthorVisibility;
 import com.studywebsite.dto.ForumReplyCreateDto;
 import com.studywebsite.dto.ForumAttachmentResponseDto;
 import com.studywebsite.dto.ForumReplyResponseDto;
@@ -68,7 +69,8 @@ public class ForumReplyController {
     public ResponseEntity<List<ForumReplyResponseDto>> getRepliesByPost(@PathVariable Long postId) {
         requirePublishedPost(postId);
         List<ForumReply> replies = forumReplyService.findByPostId(postId);
-        List<ForumReplyResponseDto> dtos = replies.stream().map(this::toResponseDto).collect(Collectors.toList());
+        List<ForumReplyResponseDto> dtos = replies.stream()
+                .filter(this::hasVisibleAuthors).map(this::toResponseDto).collect(Collectors.toList());
         return ResponseEntity.ok(dtos);
     }
 
@@ -79,7 +81,7 @@ public class ForumReplyController {
         requirePublishedPost(postId);
         ForumReply reply = forumReplyService.getById(replyId);
         // Verify the reply belongs to the specified post
-        if (!reply.getPost().getId().equals(postId)) {
+        if (!reply.getPost().getId().equals(postId) || !hasVisibleAuthors(reply)) {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok(toResponseDto(reply));
@@ -132,6 +134,12 @@ public class ForumReplyController {
         forumAttachmentService.deleteForReply(replyId);
         forumReplyService.delete(replyId);
         return ResponseEntity.noContent().build();
+    }
+
+    private boolean hasVisibleAuthors(ForumReply reply) {
+        return AuthorVisibility.isVisible(reply.getAuthor())
+                && reply.getPost() != null
+                && AuthorVisibility.isVisible(reply.getPost().getAuthor());
     }
 
     private ForumReplyResponseDto toResponseDto(ForumReply r) {

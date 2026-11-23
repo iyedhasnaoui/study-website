@@ -119,7 +119,7 @@ public class RoadmapNodeController {
     }
 
     private void requireVisibleRoadmap(Long roadmapId) {
-        Roadmap roadmap = roadmapService.getById(roadmapId);
+        Roadmap roadmap = roadmapService.getByIdWithTags(roadmapId);
         if (!RoadmapController.isVisibleTo(roadmap, CurrentUser.find().orElse(null))) {
             throw new EntityNotFoundException("Roadmap entity not found");
         }

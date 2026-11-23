@@ -29,7 +29,8 @@ class ForumAttachmentServiceTest {
         verifyNoInteractions(storage);
     }
     @Test void approvedPostMediaCanBeDownloaded() {
-        ForumAttachment attachment = ForumAttachment.builder().post(ForumPost.builder()
+        User author = User.builder().id(1L).banned(false).build();
+        ForumAttachment attachment = ForumAttachment.builder().author(author).post(ForumPost.builder().author(author)
                 .moderationStatus(ModerationStatus.APPROVED).build()).storedFilename("local.pdf").build();
         when(repository.findById(1L)).thenReturn(Optional.of(attachment));
         assertThat(service.loadForDownload(1L).metadata()).isSameAs(attachment);
