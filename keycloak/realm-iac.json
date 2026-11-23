@@ -2,6 +2,7 @@
   "realm": "iac",
   "enabled": true,
   "displayName": "Ifriqiya Academic Circle",
+  "loginTheme": "iac",
   "registrationAllowed": true,
   "registrationEmailAsUsername": false,
   "loginWithEmailAllowed": true,
