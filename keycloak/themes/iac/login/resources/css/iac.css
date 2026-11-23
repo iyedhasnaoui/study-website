@@ -1,5 +1,5 @@
 /* Shared by Keycloak's native login, registration, reset and required-action forms.
-   Keep templates and scripts inherited so server validation and accessibility survive upgrades. */
+   Form templates and scripts stay inherited; template.ftl adds presentation text only. */
 :root {
   --iac-navy: #082651;
   --iac-ink: #0a244f;
@@ -152,3 +152,42 @@ html.login-pf { min-height: 100%; background: var(--iac-cream); }
 .login-pf-page .login-pf-header .subtitle { margin-top: 0; margin-bottom: 12px; }
 .login-pf-page .pf-c-input-group { border-radius: 17px; background: transparent; }
 .login-pf-page .pf-c-input-group .pf-c-button.pf-m-control { border-radius: 0 17px 17px 0; }
+
+/* Page introductions remain real text for assistive technology and localization. */
+.login-pf-page .iac-page-subtitle {
+  clear: both;
+  margin: 14px 0 0;
+  color: var(--iac-muted);
+  font-size: 16px;
+  line-height: 1.6;
+  text-align: left;
+}
+.login-pf-page .login-pf-header::after { content: ""; display: table; clear: both; }
+#kc-registration a { font-weight: 650; }
+#kc-form-options a { display: inline-block; padding-block: 4px; }
+.login-pf-page :is(a, .pf-c-button, input[type="submit"], .pf-c-form-control) {
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+.login-pf-page .pf-c-input-group .pf-c-button.pf-m-control:hover { background: #c3953812; color: #805b17; }
+.login-pf-page .pf-c-form-control:hover:not(:focus):not([aria-invalid="true"]) { border-color: #aab7c9; }
+.login-pf-page :is(.alert, .pf-c-alert) {
+  margin-bottom: 22px;
+  padding: 16px;
+  gap: 10px;
+  border: 1px solid var(--iac-line);
+  border-inline-start-width: 4px;
+  border-radius: 14px;
+  box-shadow: none;
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.login-pf-page :is(.alert-error, .pf-c-alert.pf-m-danger) { border-color: #a62929; background: #fff5f3; }
+.login-pf-page :is(.alert-success, .pf-c-alert.pf-m-success) { border-color: #32734c; background: #f1f8f2; }
+.login-pf-page :is(.alert-warning, .pf-c-alert.pf-m-warning) { border-color: var(--iac-gold); background: #fff9eb; }
+.login-pf-page :is(.alert-info, .pf-c-alert.pf-m-info) { border-color: #174a86; background: #f2f6fc; }
+.login-pf-page .pf-c-alert__title { color: var(--iac-ink); font-size: 14px; font-weight: 500; }
+.login-pf-page .pf-c-form__helper-text.pf-m-error { display: block; margin-top: 8px; line-height: 1.5; }
+@media (prefers-reduced-motion: reduce) {
+  .login-pf-page :is(a, .pf-c-button, input[type="submit"], .pf-c-form-control) { transition: none; }
+}

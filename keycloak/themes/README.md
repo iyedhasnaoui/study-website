@@ -3,9 +3,13 @@
 `iac/login` extends the bundled Keycloak 26.0 `keycloak` login theme. It uses
 shared cream, navy and gold tokens from `frontend/src/index.css`, Georgia heading
 typography and an unchanged copy of `frontend/public/assets/iac-logo.jpeg`.
-No FreeMarker templates or JavaScript are overridden: form actions, user-profile
-fields, password toggles, ARIA attributes, translations and validation remain native.
-The English registration heading is the only message override.
+Form templates and JavaScript stay inherited: form actions, user-profile fields,
+password toggles, ARIA attributes and validation remain native. `template.ftl` is
+copied verbatim from Keycloak 26.0.0's `theme/base/login/template.ftl`, with one
+presentation-only block before `</header>` for the three localized subtitles.
+Headings, introductions and navigation labels are in `messages_en.properties`.
+On Keycloak upgrades, compare this shared shell against the new bundled template
+and reapply only the subtitle block; do not carry an old shell forward blindly.
 
 The Compose bind mount makes the theme available; `realm-iac.json` selects it on
 first import. Existing realms are not updated by `--import-realm`. To inspect an
@@ -83,3 +87,26 @@ distribution; do not point these instructions at an existing server installation
 
 Screenshots are local review artifacts under `/private/tmp/iac-auth-theme-screenshots`;
 they are not runtime assets. The preview process was stopped after verification.
+
+## UI refinements verification (2026-11-23)
+
+- Verified exact headings/subtitles on sign-in, registration and reset pages in
+  real Keycloak 26.0.0, including MessageFormat apostrophe escaping in “we'll”.
+- Desktop (1280/1440px) and mobile (390/320px) presentation checked. All three
+  pages, including long registration errors, had no horizontal overflow at 320px.
+- Followed Register, Back to sign in and Forgot Password links; original Keycloak
+  destinations and form actions remain inherited.
+- Rechecked empty registration, password mismatch, invalid sign-in, empty reset,
+  and password visibility. Keyboard Tab moved focus from username to password
+  with a visible outline. All six registration fields remain required.
+- Submitting a nonexistent local username to reset rendered Keycloak's native
+  generic success banner. This verifies success presentation, not email delivery;
+  no password was changed and no account was created.
+- Compared `template.ftl` to the bundled 26.0.0 shell: only the eight-line subtitle
+  block is added. No realm, Compose, security or application files changed in
+  this refinement commit. `git diff --check` and Compose configuration validation
+  passed. No dependencies were added.
+- Screenshots: `/private/tmp/iac-auth-theme-refinements` (desktop/mobile forms,
+  errors and reset success). Preview instructions above remain valid; the owned
+  preview was stopped. Successful callbacks, email delivery/reset completion,
+  screen-reader operation and other browsers remain unverified.
