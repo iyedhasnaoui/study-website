@@ -39,7 +39,10 @@ const formatDateTime = (value: string | null): string => {
 
 export function PostCard({ post, onDelete, onUpdated, onOpenPost, deleting = false }: PostCardProps) {
   const { session, role } = useAuth()
-  const canManage = role === 'ADMIN' || (role === 'CONTRIBUTOR' || role === 'VIEWER') && session?.user.id === post.authorId
+  const isAuthor = session?.user.id === post.authorId
+  const canDelete = role === 'ADMIN' || (role === 'CONTRIBUTOR' && isAuthor)
+  const canEdit = post.moderationStatus !== 'REJECTED'
+    && (canDelete || (role === 'VIEWER' && isAuthor))
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isRepliesOpen, setIsRepliesOpen] = useState(false)
@@ -60,7 +63,7 @@ export function PostCard({ post, onDelete, onUpdated, onOpenPost, deleting = fal
     setIsEditing(false)
     setSubmitted(false)
     setError(null)
-  }, [post.content, post.id, post.title, canManage, session?.user.id])
+  }, [post.content, post.id, post.title, canEdit, session?.user.id])
 
   const authorLabel = useMemo(() => {
     if (post.authorUsername) {
@@ -89,7 +92,7 @@ export function PostCard({ post, onDelete, onUpdated, onOpenPost, deleting = fal
   }
 
   const handleSave = async () => {
-    if (!canManage) return
+    if (!canEdit) return
     const nextTitle = draft.title?.trim() ?? ''
     const nextContent = draft.content?.trim() ?? ''
 
@@ -220,7 +223,7 @@ export function PostCard({ post, onDelete, onUpdated, onOpenPost, deleting = fal
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          {!isEditing && canManage && post.moderationStatus !== 'REJECTED' ? (
+          {!isEditing && canEdit ? (
             <button
               type="button"
               onClick={handleStartEditing}
@@ -230,7 +233,7 @@ export function PostCard({ post, onDelete, onUpdated, onOpenPost, deleting = fal
             </button>
           ) : null}
 
-          {onDelete && canManage ? (
+          {onDelete && canDelete ? (
             <button
               type="button"
               className="rounded-full border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-900/70 dark:text-rose-300 dark:hover:bg-rose-950/40"

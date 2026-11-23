@@ -4,6 +4,7 @@ import com.studywebsite.dto.ForumReplyCreateDto;
 import com.studywebsite.model.ForumPost;
 import com.studywebsite.model.ForumReply;
 import com.studywebsite.model.User;
+import com.studywebsite.service.ForumPostService;
 import com.studywebsite.service.ForumReplyService;
 import com.studywebsite.service.media.ForumAttachmentService;
 import org.junit.jupiter.api.Test;
@@ -39,6 +40,9 @@ class ForumReplyControllerTest {
     private ObjectMapper objectMapper;
 
     @MockitoBean
+    private ForumPostService forumPostService;
+
+    @MockitoBean
     private ForumReplyService forumReplyService;
 
     @MockitoBean
@@ -64,6 +68,8 @@ class ForumReplyControllerTest {
 
         ForumPost post = new ForumPost();
         post.setId(1L);
+        post.setModerationStatus(com.studywebsite.model.ModerationStatus.APPROVED);
+        when(forumPostService.getById(1L)).thenReturn(post);
 
         ForumReply saved = ForumReply.builder()
                 .id(10L)
@@ -109,6 +115,8 @@ class ForumReplyControllerTest {
 
         ForumPost post = new ForumPost();
         post.setId(1L);
+        post.setModerationStatus(com.studywebsite.model.ModerationStatus.APPROVED);
+        when(forumPostService.getById(1L)).thenReturn(post);
 
         ForumReply reply = ForumReply.builder()
                 .id(7L)

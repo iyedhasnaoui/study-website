@@ -75,7 +75,7 @@ export function ForumPostPage({ postId, onBack }: ForumPostPageProps) {
             </div>
           ) : null}
 
-          {post ? (
+          {!isLoading && !error && post ? (
             <article className="rounded-2xl border border-gray-200 bg-white/95 p-6 shadow-sm transition hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950/80">
               <div className="flex gap-6">
                 {/* Left column — Author info */}
@@ -123,10 +123,11 @@ export function ForumPostPage({ postId, onBack }: ForumPostPageProps) {
                 </div>
               </div>
 
-              {/* Replies section */}
-              <div className="mt-6 border-t border-gray-200 pt-4 dark:border-zinc-800">
-                <ReplyList postId={post.id} />
-              </div>
+              {post.moderationStatus === 'APPROVED' && (
+                <div className="mt-6 border-t border-gray-200 pt-4 dark:border-zinc-800">
+                  <ReplyList postId={post.id} />
+                </div>
+              )}
             </article>
           ) : null}
         </div>
