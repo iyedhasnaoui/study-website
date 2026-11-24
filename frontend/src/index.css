@@ -91,3 +91,10 @@ a {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Cross-fade both theme snapshots so gradients change smoothly as well as colors. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 420ms;
+  animation-timing-function: ease-in-out;
+}

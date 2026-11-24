@@ -109,11 +109,15 @@ export function HomePage({ onOpenZitouna, onOpenAbout, onOpenProfile }: HomePage
       </section>
 
       <section className="signal-strip" aria-label="Community highlights">
-        <div className="section-shell signal-strip__inner">
-          <p>One circle</p><span />
-          <p>Many disciplines</p><span />
-          <p>Knowledge that travels</p><span />
-          <p>Progress that stays</p>
+        <div className="signal-strip__inner">
+          {[0, 1].map((copy) => (
+            <div className="signal-strip__group" key={copy} aria-hidden={copy === 1 ? true : undefined}>
+              <p>One circle</p><span />
+              <p>Many disciplines</p><span />
+              <p>Knowledge that travels</p><span />
+              <p>Progress that stays</p><span />
+            </div>
+          ))}
         </div>
       </section>
 

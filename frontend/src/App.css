@@ -190,10 +190,13 @@
 }
 
 .profile-menu {
+  min-width: 0;
   position: relative;
 }
 
 .profile-trigger {
+  min-width: 0;
+  max-width: 100%;
   display: flex;
   align-items: center;
   gap: 9px;
@@ -215,7 +218,17 @@
   font-weight: 800;
 }
 
+/* Keep the existing badge styling, but let its text determine its width. */
+.profile-trigger > span { flex-shrink: 0; }
+.profile-trigger > span:not(:first-child) {
+  width: max-content;
+  padding-inline: 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
 .profile-trigger div {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -228,7 +241,8 @@
 }
 
 .profile-trigger strong {
-  max-width: 115px;
+  max-width: min(115px, 100%);
+  white-space: nowrap;
   overflow: hidden;
   font-size: 0.76rem;
   text-overflow: ellipsis;
@@ -584,11 +598,33 @@
 }
 
 .signal-strip__inner {
+  display: flex;
+  width: max-content;
+  animation: signal-drift 48s linear infinite;
+}
+
+.signal-strip__group {
+  min-width: 100vw;
   min-height: 72px;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: space-around;
   gap: 24px;
+  padding-inline: 24px;
+}
+
+@keyframes signal-drift {
+  from { transform: translateX(-50%); }
+  to { transform: translateX(0); }
+}
+
+.signal-strip:hover .signal-strip__inner { animation-play-state: paused; }
+
+@media (prefers-reduced-motion: reduce) {
+  .signal-strip__inner { width: 100%; animation: none; transform: none; }
+  .signal-strip__group { min-width: 0; width: 100%; flex-wrap: wrap; justify-content: center; padding-block: 20px; }
+  .signal-strip__group[aria-hidden="true"] { display: none; }
 }
 
 .signal-strip p {
@@ -1291,12 +1327,23 @@
   background: rgba(3,15,34,.48);
 }
 
+/* Reuse the page's gold radial illumination, with a different balance per card. */
+.dark .feature-card--1 {
+  background:
+    radial-gradient(circle at 90% 5%, rgba(195, 149, 56, .12), transparent 22rem),
+    rgba(8, 25, 52, .94);
+}
+
 .dark .feature-card--2 {
-  background: #020f24;
+  background:
+    radial-gradient(circle at 15% 100%, rgba(195, 149, 56, .09), transparent 20rem),
+    #020f24;
 }
 
 .dark .feature-card--3 {
-  background: #8c6928;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(221, 181, 91, .16), transparent 18rem),
+    #8c6928;
 }
 
 .dark .focus-stage__steps button.is-active {
@@ -1378,7 +1425,8 @@
   }
 }
 
-@media (max-width: 800px) {
+/* Collapse before the signed-in desktop navigation runs out of room. */
+@media (max-width: 1100px) {
   .nav-wrap {
     padding: 10px 12px 0;
   }
@@ -1459,19 +1507,13 @@
     left: 0;
   }
 
+}
+
+@media (max-width: 800px) {
   .focus-stage {
     grid-template-columns: 1fr;
   }
 
-  .signal-strip__inner {
-    justify-content: flex-start;
-    overflow-x: hidden;
-  }
-
-  .signal-strip p:nth-of-type(4),
-  .signal-strip p:nth-of-type(4) + span {
-    display: none;
-  }
 }
 
 @media (max-width: 640px) {
@@ -1524,17 +1566,8 @@
     justify-content: center;
   }
 
-  .signal-strip__inner {
-    gap: 13px;
-  }
-
   .signal-strip p {
     font-size: .78rem;
-  }
-
-  .signal-strip p:nth-of-type(3),
-  .signal-strip p:nth-of-type(3) + span {
-    display: none;
   }
 
   .story-section,
@@ -1901,4 +1934,23 @@
   font-size: 0.72rem;
   line-height: 1.35;
   opacity: 0.75;
+}
+
+@media (max-width: 1100px) {
+  .theme-toggle, .nav-toggle { flex-shrink: 0; }
+  .profile-trigger { width: 100%; }
+  .dark .nav-panel {
+    background: rgba(8, 25, 52, .98);
+    border-color: rgba(221,181,91,.2);
+  }
+  .dark .nav-panel .nav-links button { color: #aebbd0; }
+  .dark .nav-panel .nav-links button:hover,
+  .dark .nav-panel .nav-links button.is-active {
+    color: #f7f1e2;
+    background: rgba(221,181,91,.1);
+  }
+  .dark .nav-actions, .dark .nav-toggle, .dark .theme-toggle {
+    border-color: rgba(221,181,91,.2);
+  }
+  .dark .nav-toggle span { background: #f7f1e2; }
 }

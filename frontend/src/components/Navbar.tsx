@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { flushSync } from 'react-dom'
 
 import { ROLE_DESCRIPTIONS, type AuthUser } from '../auth/types'
 import { RoleBadge } from './RoleBadge'
@@ -41,6 +42,15 @@ export function Navbar({
     window.localStorage.setItem('iac.theme', isDark ? 'dark' : 'light')
   }, [isDark])
 
+  const toggleTheme = () => {
+    const update = () => flushSync(() => setIsDark((current) => !current))
+    if (document.startViewTransition && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      document.startViewTransition(update)
+    } else {
+      update()
+    }
+  }
+
   const navigate = (action: () => void) => {
     action()
     setIsMenuOpen(false)
@@ -76,7 +86,7 @@ export function Navbar({
           </div>
 
           <div className="nav-actions">
-            <button className="theme-toggle" type="button" onClick={() => setIsDark((current) => !current)} aria-label={`Use ${isDark ? 'light' : 'dark'} theme`}>
+            <button className="theme-toggle" type="button" onClick={toggleTheme} aria-label={`Use ${isDark ? 'light' : 'dark'} theme`}>
               <span>{isDark ? '☀' : '☾'}</span>
             </button>
 

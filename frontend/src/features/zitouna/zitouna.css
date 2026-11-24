@@ -122,7 +122,12 @@
 .dark .pagination-btn.is-active { background: var(--gold-500); color: var(--navy-950); }
 
 /* Additional dark mode coverage for Zitouna elements */
-.dark .zitouna-hero { background: var(--navy-950); }
+.dark .zitouna-hero {
+  background:
+    radial-gradient(circle at 85% 3%, rgba(195, 149, 56, .14), transparent 28rem),
+    var(--navy-950);
+  box-shadow: inset 0 0 0 1px rgba(221,181,91,.12), 0 30px 80px rgba(6,25,54,.18);
+}
 .dark .zitouna-hero p:not(.eyebrow) { color: #aebbd0; }
 .dark .zitouna-hero__mark { background: rgba(8,25,52,.9); border-color: rgba(221,181,91,.25); }
 .dark .zitouna-tabs button { color: #aebbd0; }
