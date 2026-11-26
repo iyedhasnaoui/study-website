@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 
 import { ROLE_DESCRIPTIONS, type AuthUser } from '../auth/types'
@@ -35,12 +35,42 @@ export function Navbar({
 }: NavbarProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isProfileOpen, setIsProfileOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const menuToggleRef = useRef<HTMLButtonElement>(null)
+  const profileRef = useRef<HTMLDivElement>(null)
+  const profileToggleRef = useRef<HTMLButtonElement>(null)
   const [isDark, setIsDark] = useState(() => window.localStorage.getItem('iac.theme') === 'dark')
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDark)
     window.localStorage.setItem('iac.theme', isDark ? 'dark' : 'light')
   }, [isDark])
+
+  useEffect(() => {
+    if (!isMenuOpen && !isProfileOpen) return
+
+    const dismissOutside = (event: PointerEvent) => {
+      const target = event.target
+      if (!(target instanceof Node)) return
+      if (!menuRef.current?.contains(target) && !menuToggleRef.current?.contains(target)) {
+        setIsMenuOpen(false)
+      }
+      if (!profileRef.current?.contains(target)) setIsProfileOpen(false)
+    }
+    const dismissOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      setIsMenuOpen(false)
+      setIsProfileOpen(false)
+      if (isMenuOpen) menuToggleRef.current?.focus()
+      else profileToggleRef.current?.focus()
+    }
+    document.addEventListener('pointerdown', dismissOutside, true)
+    document.addEventListener('keydown', dismissOnEscape)
+    return () => {
+      document.removeEventListener('pointerdown', dismissOutside, true)
+      document.removeEventListener('keydown', dismissOnEscape)
+    }
+  }, [isMenuOpen, isProfileOpen])
 
   const toggleTheme = () => {
     const update = () => flushSync(() => setIsDark((current) => !current))
@@ -52,8 +82,9 @@ export function Navbar({
   }
 
   const navigate = (action: () => void) => {
-    action()
     setIsMenuOpen(false)
+    setIsProfileOpen(false)
+    action()
   }
 
   return (
@@ -66,6 +97,7 @@ export function Navbar({
 
         <button
           type="button"
+          ref={menuToggleRef}
           className="nav-toggle"
           aria-label="Toggle navigation menu"
           aria-expanded={isMenuOpen}
@@ -74,7 +106,7 @@ export function Navbar({
           <span /><span />
         </button>
 
-        <div className={`nav-panel ${isMenuOpen ? 'is-open' : ''}`}>
+        <div ref={menuRef} className={`nav-panel ${isMenuOpen ? 'is-open' : ''}`}>
           <div className="nav-links">
             <button className={activeSection === 'home' ? 'is-active' : ''} type="button" onClick={() => navigate(onNavigateHome)}>Home</button>
             <button className={activeSection === 'zitouna' ? 'is-active' : ''} type="button" onClick={() => navigate(onNavigateZitouna)}>Zitouna</button>
@@ -91,8 +123,8 @@ export function Navbar({
             </button>
 
             {user ? (
-              <div className="profile-menu">
-                <button className="profile-trigger" type="button" onClick={() => setIsProfileOpen((current) => !current)} aria-expanded={isProfileOpen}>
+              <div ref={profileRef} className="profile-menu">
+                <button ref={profileToggleRef} className="profile-trigger" type="button" onClick={() => setIsProfileOpen((current) => !current)} aria-expanded={isProfileOpen}>
                   <span>{user.username.slice(0, 1).toUpperCase()}</span>
                   <div><small>Signed in as</small><strong>{user.username}</strong></div>
                   <RoleBadge role={user.role} title={ROLE_DESCRIPTIONS[user.role]} />
@@ -105,14 +137,14 @@ export function Navbar({
                     {isAdmin ? (
                       <button type="button" onClick={() => { setIsProfileOpen(false); navigate(onNavigateAdmin) }}>Manage members</button>
                     ) : null}
-                    <button type="button" onClick={() => { setIsProfileOpen(false); void onLogout() }}>Sign out</button>
+                    <button type="button" onClick={() => navigate(() => { void onLogout() })}>Sign out</button>
                   </div>
                 ) : null}
               </div>
             ) : (
               <>
-                <button className="nav-login" type="button" onClick={onOpenLogin}>Sign in</button>
-                <button className="nav-join" type="button" onClick={onOpenRegister}>Join us <span>↗</span></button>
+                <button className="nav-login" type="button" onClick={() => navigate(onOpenLogin)}>Sign in</button>
+                <button className="nav-join" type="button" onClick={() => navigate(onOpenRegister)}>Join us <span>↗</span></button>
               </>
             )}
           </div>
